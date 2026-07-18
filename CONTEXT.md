@@ -61,12 +61,17 @@ churn:
 - **Lexical over Tiptap** — full control over the editor and its data model,
   no external framework lock-in. Content is persisted as Lexical's own JSON
   document model rather than HTML.
-- **shadcn/ui over a packaged component library** — components are
-  copy-in-repo, so they're owned code that can be edited freely rather than a
-  dependency to work around.
+- **Radix UI (unstyled primitives) + CSS Modules over Tailwind/shadcn** —
+  Radix supplies accessible, unstyled behavior (Slot, and future primitives
+  like Dialog/Dropdown as they're needed); styling is plain, scoped CSS per
+  component rather than a utility-class framework. No build-time CSS
+  framework to configure or fight.
 - **Vite + React** — fast local dev, minimal build config overhead.
 - **React Compiler** — auto-memoization so the app can stay simple (no manual
   `useMemo`/`useCallback` sprinkling) while still being fast.
+- **No commit hooks / formatter enforcement** — this is a solo project, so
+  linting runs via `npm run lint` and formatting is handled by the editor
+  (Prettier extension), not enforced by tooling. See CODING_STANDARDS.md.
 
 Priorities throughout: minimal dependencies, low/no ongoing cost, full
 control over the frontend.

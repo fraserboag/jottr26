@@ -1,7 +1,9 @@
+import styles from './Home.module.css'
+
 function Home() {
   return (
-    <main className="flex min-h-svh items-center justify-center">
-      <h1 className="text-2xl font-semibold">Jottr</h1>
+    <main className={styles.main}>
+      <h1 className={styles.title}>Jottr</h1>
     </main>
   )
 }

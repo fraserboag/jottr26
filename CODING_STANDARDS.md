@@ -26,17 +26,26 @@ reasoning behind these rules.
   sanitization concerns and round-trips cleanly through Lexical's own
   (de)serialization.
 
-## Components
+## Components & styling
 
-- shadcn components under `src/components/ui` are owned code, not a locked
-  dependency. Edit them directly when a feature needs it — don't treat them
-  as immutable vendor code.
+- No Tailwind, no component library. Components are styled with colocated
+  CSS Modules (`Component.tsx` + `Component.module.css`), imported as
+  `styles` and applied via `styles.foo`.
+- Shared CSS custom properties (colors, radius, font) live in `src/index.css`
+  under `:root` — reference them from module CSS with `var(--color-foo)`
+  rather than hardcoding values, so light/dark and theme changes stay
+  centralized.
+- Use Radix UI primitives (the `radix-ui` package) directly for accessible,
+  unstyled behavior (e.g. `Slot`, and future primitives like Dialog or
+  Dropdown) — style them yourself with CSS Modules rather than pulling in a
+  pre-styled wrapper library.
 
 ## Formatting & linting
 
-- Prettier + ESLint + husky/lint-staged run automatically on commit. Don't
-  hand-format against the configured rules — if the formatting looks wrong,
-  fix the config, don't fight it manually.
+- ESLint runs via `npm run lint` — fix reported issues before committing.
+- No Prettier dependency, no pre-commit hooks (solo project, editor's
+  Prettier extension handles formatting). Don't reintroduce husky/lint-staged
+  without raising it first.
 
 ## React
 
