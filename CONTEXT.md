@@ -5,21 +5,16 @@
 Jottr is a small notes app: create, edit, and organize short text notes with
 basic rich text formatting (bold, italic, headings, bullet lists).
 
-Initially for personal use, but the architecture should not assume a single
-user forever — a friend should eventually be able to sign in with their own
-Google account and get their own private space, with no structural rework
-required to get there.
-
 ## How it's meant to run
 
-- Primary surfaces are iPhone and macOS, both as installed PWAs (Safari's
-  "Add to Home Screen" on iOS, "Add to Dock" on macOS) — not native apps, no
-  App Store distribution. The web interface (any browser, not installed) is
-  valuable but secondary.
+- Primary surfaces are iPhone and macOS, both as installed PWAs (Safari's "Add
+  to Home Screen" on iOS, "Add to Dock" on macOS) — not native apps, no App
+  Store distribution. The web interface (any browser, not installed) is valuable
+  but secondary.
 - Works offline: notes are stored locally (IndexedDB via Firestore's built-in
   offline persistence) so the app opens and functions with no connection.
-- Syncs across multiple devices (phone, laptop, etc.) in real time via
-  Firestore once connectivity returns.
+- Syncs across multiple devices (phone, laptop, etc.) in real time via Firestore
+  once connectivity returns.
 - Deploy target: Vercel.
 
 ## Auth & data model
@@ -27,8 +22,8 @@ required to get there.
 - Auth is Google sign-in only, via Firebase Auth. No other providers, no
   email/password, no sign-up flow beyond "sign in with Google."
 - Each signed-in user gets their own private notes, scoped by their Firebase
-  `uid`. Sharing/collaboration between users isn't a planned feature right
-  now, but the data model must not assume there will only ever be one user.
+  `uid`. Sharing/collaboration between users isn't a planned feature right now,
+  but the data model must not assume there will only ever be one user.
 - Firestore data lives under `/users/{uid}/...` — see CODING_STANDARDS.md.
 
 ### Anticipated note document shape
@@ -38,12 +33,12 @@ churn:
 
 ```ts
 {
-  id: string
-  ownerId: string // Firebase uid
-  title: string
-  content: SerializedEditorState // Lexical's JSON document model, not HTML
-  createdAt: Timestamp
-  updatedAt: Timestamp
+  id: string;
+  ownerId: string; // Firebase uid
+  title: string;
+  content: SerializedEditorState; // Lexical's JSON document model, not HTML
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 ```
 
@@ -57,31 +52,26 @@ churn:
 
 ## Stack decisions & reasoning
 
-- **Firestore over Convex** — Firestore has built-in offline persistence
-  (IndexedDB-backed) that's a natural fit for the offline-first PWA
-  requirement, plus real-time sync, at low/no cost for this scale.
-- **Lexical over Tiptap** — full control over the editor and its data model,
-  no external framework lock-in. Content is persisted as Lexical's own JSON
-  document model rather than HTML.
+- **Firestore** — Firestore has built-in offline persistence (IndexedDB-backed)
+  that's a natural fit for the offline-first PWA requirement, plus real-time
+  sync, at low/no cost for this scale.
+- **Lexical** — full control over the editor and its data model, no external
+  framework lock-in. Content is persisted as Lexical's own JSON document model
+  rather than HTML.
 - **Vanilla React + CSS Modules (no component library)** — interactive
   components are built by hand with plain React and styled with scoped CSS per
   component, rather than pulling in a primitives or utility-class framework.
-  Accessibility is handled directly. Keeps dependencies minimal and gives full
-  control over behavior and styling; no build-time CSS framework to configure
-  or fight.
+  Keeps dependencies minimal and gives full control over behavior and styling;
+  no build-time CSS framework to configure or fight.
 - **Vite + React** — fast local dev, minimal build config overhead.
 - **React Compiler** — auto-memoization so the app can stay simple (no manual
   `useMemo`/`useCallback` sprinkling) while still being fast.
-- **No commit hooks / formatter enforcement** — this is a solo project, so
-  linting runs via `npm run lint` and formatting is handled by the editor
-  (Prettier extension), not enforced by tooling. See CODING_STANDARDS.md.
 
-Priorities throughout: minimal dependencies, low/no ongoing cost, full
+Priorities throughout: UI speed, minimal dependencies, low/no ongoing cost, full
 control over the frontend.
 
 ## Status
 
-This is scaffolding-stage: the project skeleton, tooling, and integrations
-are wired up, but no app features (notes UI, auth flows, editor toolbar) are
-built yet. See CODING_STANDARDS.md for the conventions feature work should
-follow.
+This is scaffolding-stage: the project skeleton, tooling, and integrations are
+wired up, but no app features (notes UI, auth flows, editor toolbar) are built
+yet. See CODING_STANDARDS.md for the conventions feature work should follow.

@@ -26,9 +26,10 @@ working on this repo.
 ```bash
 npm install
 npm run dev      # start dev server
-npm run lint     # lint
 npm run build    # typecheck + production build
 npm run preview  # preview a production build locally
+npm run lint     # Rules of React / React Compiler checks
+npm run check    # typecheck + lint (run before committing)
 ```
 
 ## Status
