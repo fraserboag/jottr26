@@ -69,9 +69,15 @@ reasoning behind these rules.
 
 ## Auth
 
-- Use `signInWithRedirect`, not `signInWithPopup`. Safari's installed PWA
-  standalone mode handles popups unreliably — redirect is the only method that
-  works consistently there.
+- Use `signInWithRedirect`, not `signInWithPopup`, in anything that ships.
+  Safari's installed PWA standalone mode handles popups unreliably — redirect
+  is the only method that works consistently there.
+- Local dev is the one exception, branched on `import.meta.env.DEV` in
+  `src/lib/auth.tsx`. Redirect cannot work on localhost (see below), and popup
+  can, because it returns its result via `postMessage` rather than a
+  cross-site cookie. **This means dev does not exercise the redirect path**, so
+  redirect regressions are invisible locally and only show up on a deployed
+  build — check sign-in on `jottr26.vercel.app` after touching auth.
 - On deployed builds `VITE_FIREBASE_AUTH_DOMAIN` is **not** the value from the
   Firebase console — it must be the domain the app is served from, with
   `vercel.json` proxying `/__/auth/*` to `jottr26.firebaseapp.com`. Pointing it
@@ -86,10 +92,21 @@ reasoning behind these rules.
   may fail in desktop Safari while working in Chrome. This is not worth
   chasing — the Safari case that matters is the installed PWA, which can only
   be tested against a deployed build anyway.
-- Every domain the app is served from must be listed under Auth > Settings >
-  Authorized domains in the Firebase console. Vercel preview deploys get
-  generated per-deploy domains that will never be listed, so redirect sign-in
-  cannot be verified on a preview — test it against the production deployment.
+- Changing the served domain means updating **three** separate places. Missing
+  any one breaks sign-in, each with a different symptom:
+  1. `VITE_FIREBASE_AUTH_DOMAIN` in Vercel's env vars — then redeploy, since
+     Vite bakes the value in at build time and an env var change alone does
+     nothing to the running deployment.
+  2. Firebase console > Auth > Settings > Authorized domains.
+  3. Google Cloud console > APIs & Services > Credentials > the auto-created
+     Web client > Authorized redirect URIs (`https://DOMAIN/__/auth/handler`)
+     and Authorized JavaScript origins (`https://DOMAIN`). This one is easy to
+     miss because it lives outside the Firebase console entirely; skipping it
+     gives Google's `Error 400: redirect_uri_mismatch` after the consent
+     screen. Google's changes take a few minutes to propagate.
+- Vercel preview deploys get generated per-deploy domains that will never be in
+  any of those lists, so redirect sign-in cannot be verified on a preview —
+  test it against the production deployment.
 - `getRedirectResult` is called only to surface sign-in errors. Session state
   comes from `onAuthStateChanged`; nothing should block rendering on the
   redirect result resolving.

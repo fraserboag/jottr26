@@ -3,6 +3,7 @@ import {
   GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
@@ -54,7 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn: async () => {
       setSignInError(null);
       try {
-        await signInWithRedirect(auth, googleProvider);
+        // Redirect can't work on localhost — see CODING_STANDARDS.md.
+        await (import.meta.env.DEV
+          ? signInWithPopup(auth, googleProvider)
+          : signInWithRedirect(auth, googleProvider));
       } catch (error: unknown) {
         setSignInError(toError(error));
       }
