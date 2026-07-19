@@ -18,6 +18,20 @@ reasoning behind these rules.
   rule denies. **Adding a subcollection means adding rules for it** — until
   then it is denied.
 
+## Deploys
+
+- Rules deploys are separate from app deploys. Pushing to git builds and ships
+  the app via Vercel, but nothing in that pipeline touches Firestore. After
+  editing `firestore.rules` (or `firestore.indexes.json`) you must deploy it
+  yourself:
+
+  ```
+  npx -y firebase-tools@latest deploy --only firestore:rules
+  ```
+
+  Skip this and the deployed app runs against the old rules — which shows up as
+  permission-denied errors against rules that look correct in the repo.
+
 ## Deletes
 
 - Never call `deleteDoc` on a note. Delete by setting `deletedAt`; read live
