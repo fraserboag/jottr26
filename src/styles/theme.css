@@ -1,0 +1,127 @@
+/*
+ * Semantic tokens only — name what a value is for, not what it looks like.
+ * Component CSS should never reach past these to a raw colour or px value.
+ */
+
+:root {
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  --layer-dropdown: 10;
+  --layer-overlay: 20;
+  --layer-toast: 30;
+
+  --content-width: 44rem;
+
+  /* Safe-area insets: iOS standalone PWA draws under the notch and home bar. */
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
+  --inset-left: env(safe-area-inset-left, 0px);
+  --inset-right: env(safe-area-inset-right, 0px);
+}
+
+/*
+ * The system preference is the only input — there is deliberately no in-app
+ * theme switch, so no JS, no persisted choice, and no flash of the wrong theme.
+ * `color-scheme` is what makes native controls, scrollbars and form widgets
+ * follow along; the custom properties only cover what we draw ourselves.
+ */
+
+:root {
+  color-scheme: light;
+
+  --color-bg: #fdfdfd;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f2f2f4;
+  --color-surface-hover: #ebebef;
+
+  --color-text: #17171a;
+  --color-text-muted: #5f5f6b;
+  --color-text-faint: #8b8b98;
+  --color-text-on-accent: #ffffff;
+
+  --color-border: #e2e2e8;
+  --color-border-strong: #c7c7d1;
+
+  --color-accent: #aa3bff;
+  --color-accent-hover: #9526e8;
+  --color-accent-text: #8115d1;
+  --color-accent-subtle: #f5ebff;
+
+  --color-danger: #c62828;
+  --color-danger-text: #b0201f;
+  --color-danger-subtle: #fdecec;
+
+  --color-focus: #aa3bff;
+  --color-overlay: rgb(20 20 26 / 0.4);
+
+  --shadow-sm: 0 1px 2px rgb(20 20 26 / 0.08);
+  --shadow-md: 0 4px 12px rgb(20 20 26 / 0.1);
+  --shadow-lg: 0 12px 32px rgb(20 20 26 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-bg: #131316;
+    --color-surface: #1b1b1f;
+    --color-surface-sunken: #0e0e11;
+    --color-surface-hover: #26262c;
+
+    --color-text: #f2f2f5;
+    --color-text-muted: #a5a5b2;
+    --color-text-faint: #74747f;
+    --color-text-on-accent: #1a0428;
+
+    --color-border: #2e2e36;
+    --color-border-strong: #43434e;
+
+    --color-accent: #c07aff;
+    --color-accent-hover: #cf94ff;
+    --color-accent-text: #c895ff;
+    --color-accent-subtle: #2a1640;
+
+    --color-danger: #f0736f;
+    --color-danger-text: #f4908c;
+    --color-danger-subtle: #38191a;
+
+    --color-focus: #c07aff;
+    --color-overlay: rgb(0 0 0 / 0.6);
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  }
+}
+

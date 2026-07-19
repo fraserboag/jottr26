@@ -22,8 +22,11 @@ export default defineConfig({
         name: 'Jottr',
         short_name: 'Jottr',
         description: 'A simple notes app with offline support and sync.',
-        theme_color: '#aa3bff',
-        background_color: '#ffffff',
+        // Manifest colours cannot vary by scheme, so both track the light
+        // --color-bg; index.html's paired meta tags handle dark where the
+        // platform honours them. See CODING_STANDARDS.md.
+        theme_color: '#fdfdfd',
+        background_color: '#fdfdfd',
         display: 'standalone',
         start_url: '/',
         icons: [
