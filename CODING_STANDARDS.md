@@ -12,6 +12,29 @@ reasoning behind these rules.
   level: a user may only read/write documents under their own `/users/{uid}`
   subtree. Everything else is denied by default. Treat the rules file as the
   source of truth, not client-side checks.
+- Rules are written per collection, not as one broad
+  `/users/{uid}/{document=**}` grant. Firestore ORs all matching rules
+  together, so a broad write grant would silently re-permit what a narrower
+  rule denies. **Adding a subcollection means adding rules for it** — until
+  then it is denied.
+
+## Deletes
+
+- Never call `deleteDoc` on a note. Delete by setting `deletedAt`; read live
+  notes with `where('deletedAt', '==', null)`. `firestore.rules` rejects hard
+  deletes except for tombstones past their 30-day undo window, so a stray
+  `deleteDoc` fails loudly rather than silently reintroducing the
+  resurrect-on-sync bug. See CONTEXT.md for why.
+- Always write `deletedAt: null` when creating a note — never omit the field.
+  `where('deletedAt', '==', null)` does **not** match documents missing the
+  field, so an absent value makes a note permanently invisible. The rules
+  enforce this on create.
+- A delete must write only `deletedAt`, and an autosave must not write
+  `deletedAt`. The conflict resolution depends on the two touching disjoint
+  fields so Firestore merges them instead of one clobbering the other.
+- Queries combining the `deletedAt` filter with an `updatedAt` sort need the
+  composite index in `firestore.indexes.json`. Missing indexes fail at
+  runtime, not at build time.
 
 ## Auth
 

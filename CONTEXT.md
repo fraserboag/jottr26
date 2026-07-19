@@ -39,8 +39,44 @@ churn:
   content: SerializedEditorState; // Lexical's JSON document model, not HTML
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  deletedAt: Timestamp | null; // null = live; see "Deletes" below
 }
 ```
+
+`createdAt` / `updatedAt` use client-side `Timestamp.now()`, not
+`serverTimestamp()`. A server timestamp resolves to a local estimate while
+offline and is rewritten when it lands, which visibly reshuffles a list sorted
+by `updatedAt` after each sync. Clock skew between one person's own devices is
+the cheaper problem to have.
+
+### Deletes are tombstones, not document deletes
+
+Notes are soft-deleted by setting `deletedAt`; the notes list queries
+`where('deletedAt', '==', null)`. Hard `deleteDoc` is reserved for reaping
+expired tombstones, and `firestore.rules` rejects it otherwise.
+
+This exists because of a specific offline failure. Device B goes offline with a
+note open, device A deletes that note, B edits it offline and later reconnects.
+Firestore resolves the resulting conflict by **arrival order at the server, not
+by when the user acted** — so B's 10:00 edit, flushed at 14:00, beats A's 12:00
+delete. With a hard delete the outcome depends on the write op: `setDoc`
+resurrects the deleted note, while `updateDoc` fails `not-found` and silently
+discards the user's edits after having shown the note as present the whole time.
+
+Making the delete a field write puts it in the same last-write-wins arena as
+the edit. The two writes touch different fields, so they merge rather than
+race: the surviving document carries both the tombstone and B's edited content,
+and the resolution rule becomes ours to choose instead of the network's.
+
+The rule: **delete wins.** A note is visible iff `deletedAt == null`. Deleting
+is a deliberate act; an autosave is a side effect of a cursor sitting in a
+text box. If a concurrent edit could undelete, closing a laptop lid would
+become a way to resurrect notes. Because the edited content survives on the
+document, explicit undelete stays possible — it just never happens implicitly.
+
+Tombstones keep their content for a 30-day undo window (which is most of a
+trash feature for free), after which a client-side pass on app start hard-
+deletes the expired ones. No Cloud Function, no scheduled job, no cost.
 
 ## Core features (intended, not yet built)
 
