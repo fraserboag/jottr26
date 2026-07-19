@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/router.tsx","./src/components/errorboundary.tsx","./src/components/errorfallback.tsx","./src/components/routeerror.tsx","./src/lib/firebase.ts","./src/pages/home.tsx","./vite.config.ts"],"version":"6.0.3"}

@@ -72,6 +72,27 @@ reasoning behind these rules.
 - Use `signInWithRedirect`, not `signInWithPopup`. Safari's installed PWA
   standalone mode handles popups unreliably — redirect is the only method that
   works consistently there.
+- On deployed builds `VITE_FIREBASE_AUTH_DOMAIN` is **not** the value from the
+  Firebase console — it must be the domain the app is served from, with
+  `vercel.json` proxying `/__/auth/*` to `jottr26.firebaseapp.com`. Pointing it
+  straight at `firebaseapp.com` makes the redirect round-trip cross-site, which
+  Safari's ITP blocks — so sign-in silently fails on the installed iPhone PWA
+  while still working in desktop browsers. The value lives in Vercel's env
+  vars, not in git, and must be updated when the production domain changes.
+- Local dev is the exception: it uses `jottr26.firebaseapp.com`, because the
+  SDK builds the handler URL as `https://${authDomain}/__/auth/handler` with
+  the scheme hardcoded and no port, so it can never point at a
+  `http://localhost:5173` dev server. Local sign-in is therefore cross-site and
+  may fail in desktop Safari while working in Chrome. This is not worth
+  chasing — the Safari case that matters is the installed PWA, which can only
+  be tested against a deployed build anyway.
+- Every domain the app is served from must be listed under Auth > Settings >
+  Authorized domains in the Firebase console. Vercel preview deploys get
+  generated per-deploy domains that will never be listed, so redirect sign-in
+  cannot be verified on a preview — test it against the production deployment.
+- `getRedirectResult` is called only to surface sign-in errors. Session state
+  comes from `onAuthStateChanged`; nothing should block rendering on the
+  redirect result resolving.
 
 ## Editor content
 
