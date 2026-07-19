@@ -1,16 +1,34 @@
+import { isRouteErrorResponse } from 'react-router-dom';
+
 type Props = {
   error: unknown;
   componentStack?: string | null;
 };
 
-function ErrorFallback({ error, componentStack }: Props) {
-  const summary =
-    error instanceof Error
-      ? `${error.name}: ${error.message}`
-      : `Unknown error: ${String(error)}`;
+function stringify(value: unknown) {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
 
+function describe(error: unknown) {
+  if (isRouteErrorResponse(error)) {
+    const detail = error.data ? `: ${stringify(error.data)}` : '';
+    return `${error.status} ${error.statusText}${detail}`;
+  }
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  return `Unknown error: ${stringify(error)}`;
+}
+
+function ErrorFallback({ error, componentStack }: Props) {
   const details = [
-    summary,
+    describe(error),
+    window.location.href,
     error instanceof Error ? (error.stack ?? '') : '',
     componentStack ?? '',
   ]

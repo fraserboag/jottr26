@@ -13,6 +13,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       devOptions: { enabled: true },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      // Without this the navigation fallback serves the app shell for the
+      // auth handler, so the vercel.json proxy is never reached.
+      workbox: {
+        navigateFallbackDenylist: [/^\/__\/auth\//],
+      },
       manifest: {
         name: 'Jottr',
         short_name: 'Jottr',
