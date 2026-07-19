@@ -12,8 +12,10 @@ required to get there.
 
 ## How it's meant to run
 
-- Installed on iPhone as a PWA via Safari's "Add to Home Screen" — not a
-  native app, no App Store distribution.
+- Primary surfaces are iPhone and macOS, both as installed PWAs (Safari's
+  "Add to Home Screen" on iOS, "Add to Dock" on macOS) — not native apps, no
+  App Store distribution. The web interface (any browser, not installed) is
+  valuable but secondary.
 - Works offline: notes are stored locally (IndexedDB via Firestore's built-in
   offline persistence) so the app opens and functions with no connection.
 - Syncs across multiple devices (phone, laptop, etc.) in real time via
@@ -61,11 +63,12 @@ churn:
 - **Lexical over Tiptap** — full control over the editor and its data model,
   no external framework lock-in. Content is persisted as Lexical's own JSON
   document model rather than HTML.
-- **Radix UI (unstyled primitives) + CSS Modules over Tailwind/shadcn** —
-  Radix supplies accessible, unstyled behavior (Slot, and future primitives
-  like Dialog/Dropdown as they're needed); styling is plain, scoped CSS per
-  component rather than a utility-class framework. No build-time CSS
-  framework to configure or fight.
+- **Vanilla React + CSS Modules (no component library)** — interactive
+  components are built by hand with plain React and styled with scoped CSS per
+  component, rather than pulling in a primitives or utility-class framework.
+  Accessibility is handled directly. Keeps dependencies minimal and gives full
+  control over behavior and styling; no build-time CSS framework to configure
+  or fight.
 - **Vite + React** — fast local dev, minimal build config overhead.
 - **React Compiler** — auto-memoization so the app can stay simple (no manual
   `useMemo`/`useCallback` sprinkling) while still being fast.

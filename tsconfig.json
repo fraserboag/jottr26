@@ -1,12 +1,24 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ],
   "compilerOptions": {
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
+    /* Type checking only — Vite does the actual compiling. */
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    /* Browser + Node (vite.config.ts) in one project. */
+    "lib": ["ES2023", "DOM"],
+    "types": ["vite/client", "node"],
+    "jsx": "react-jsx",
+
+    /* Bundler mode: Vite resolves imports, so TS must match its rules. */
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "paths": { "@/*": ["./src/*"] },
+
+    /* node_modules ships broken .d.ts files; don't check them. */
+    "skipLibCheck": true
+  },
+  "include": ["src", "vite.config.ts"]
 }

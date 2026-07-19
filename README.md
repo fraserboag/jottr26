@@ -1,73 +1,37 @@
-# React + TypeScript + Vite
+# Jottr
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A small notes app: create, edit, and organize short text notes with basic
+rich text formatting (bold, italic, headings, bullet lists).
 
-Currently, two official plugins are available:
+Primary surfaces are iPhone and macOS as installed PWAs (Safari's "Add to
+Home Screen" / "Add to Dock"); the web interface is valuable but secondary.
+Works offline (notes stored locally via Firestore's offline persistence) and
+syncs across devices in real time once connectivity returns.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+See [CONTEXT.md](./CONTEXT.md) for the full product/stack reasoning and
+[CODING_STANDARDS.md](./CODING_STANDARDS.md) for conventions to follow when
+working on this repo.
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Vite + React + TypeScript, React Compiler
+- Firebase (Auth: Google sign-in only; Firestore for data + offline
+  persistence)
+- Lexical for rich text editing
+- Vanilla React + CSS Modules (no component library)
+- Deployed on Vercel
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # start dev server
+npm run lint     # lint
+npm run build    # typecheck + production build
+npm run preview  # preview a production build locally
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Status
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Scaffolding stage: project skeleton, tooling, and integrations are wired up,
+but no app features (notes UI, auth flows, editor toolbar) are built yet.

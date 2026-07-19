@@ -28,21 +28,23 @@ reasoning behind these rules.
 
 ## Components & styling
 
-- No Tailwind, no component library. Components are styled with colocated
-  CSS Modules (`Component.tsx` + `Component.module.css`), imported as
-  `styles` and applied via `styles.foo`.
+- Components are styled with colocated CSS Modules (`Component.tsx` +
+  `Component.module.css`), imported as `styles` and applied via
+  `styles.foo`.
 - Shared CSS custom properties (colors, radius, font) live in `src/index.css`
   under `:root` — reference them from module CSS with `var(--color-foo)`
   rather than hardcoding values, so light/dark and theme changes stay
   centralized.
-- Use Radix UI primitives (the `radix-ui` package) directly for accessible,
-  unstyled behavior (e.g. `Slot`, and future primitives like Dialog or
-  Dropdown) — style them yourself with CSS Modules rather than pulling in a
-  pre-styled wrapper library.
+- No component/UI library — build interactive components (dialogs, dropdowns,
+  etc.) yourself with plain React and CSS Modules. Handle accessibility (ARIA
+  roles, keyboard interaction, focus management) directly rather than pulling
+  in a primitives or wrapper library.
 
 ## Formatting & linting
 
-- ESLint runs via `npm run lint` — fix reported issues before committing.
+- No ESLint. TypeScript's `strict` mode plus `noUnusedLocals` /
+  `noUnusedParameters` (run via `npm run build`) are the only static analysis.
+  Don't reintroduce ESLint without raising it first.
 - No Prettier dependency, no pre-commit hooks (solo project, editor's
   Prettier extension handles formatting). Don't reintroduce husky/lint-staged
   without raising it first.
