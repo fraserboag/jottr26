@@ -36,6 +36,23 @@ reasoning behind these rules.
   composite index in `firestore.indexes.json`. Missing indexes fail at
   runtime, not at build time.
 
+## Errors
+
+- React Router catches errors thrown by route components itself, so a boundary
+  above `RouterProvider` never sees them. Both are wired: `RouteError` as the
+  root route's `errorElement` (the one that fires in practice) and
+  `ErrorBoundary` around `RouterProvider` for providers above the routes.
+  Removing either leaves a real gap.
+- The fallback prints the error and offers to copy it. An installed PWA on a
+  phone has no console, so an error the UI doesn't surface is unobservable.
+- Boundaries catch render errors only — not event handlers, async code, or
+  promise rejections (i.e. most Firestore write failures).
+
+## Comments
+
+- Comment sparingly. If code needs explaining, prefer making it clearer. Put
+  rationale in CONTEXT.md or here, not in doc blocks in every file.
+
 ## Auth
 
 - Use `signInWithRedirect`, not `signInWithPopup`. Safari's installed PWA

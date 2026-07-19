@@ -7,31 +7,25 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // The user's own top-level document (profile/settings). This match covers
-    // that document only — subcollections need rules of their own, because a
-    // broad `/users/{uid}/{document=**}` write grant would OR with the notes
-    // rules below and re-permit the hard deletes they exist to prevent.
+    // This document only. Subcollections need their own rules — a broad
+    // `{document=**}` grant would OR with the notes rules and re-permit the
+    // hard deletes they exist to prevent.
     match /users/{uid} {
       allow read, write: if isOwner(uid);
     }
 
     match /users/{uid}/notes/{noteId} {
 
-      // Every note must be created live — deletedAt present and null, never
-      // absent. Firestore's `where('deletedAt', '==', null)` does not match
-      // documents missing the field, so an absent value would make the note
-      // permanently invisible to the notes list.
+      // deletedAt must be present and null, never absent: `== null` does not
+      // match documents missing the field.
       function isLiveOnCreate() {
         return 'deletedAt' in request.resource.data
             && request.resource.data.deletedAt == null
             && request.resource.data.ownerId == uid;
       }
 
-      // Deleting a note is a field write (deletedAt), not a document delete.
-      // A delete and a concurrent offline edit then merge at field level and
-      // are resolved by our own rule, rather than by whichever write happens
-      // to reach the server first. Hard delete is reserved for reaping
-      // tombstones whose undo window has expired.
+      // Notes are soft-deleted via deletedAt (see CONTEXT.md). Hard delete is
+      // only for reaping tombstones past their undo window.
       function isExpiredTombstone() {
         return resource.data.deletedAt != null
             && request.time > resource.data.deletedAt + duration.value(30, 'd');
