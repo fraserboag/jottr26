@@ -52,6 +52,14 @@ offline and is rewritten when it lands, which visibly reshuffles a list sorted
 by `updatedAt` after each sync. Clock skew between one person's own devices is
 the cheaper problem to have.
 
+`deletedAt` is the exception and **must** use `serverTimestamp()` — the rules
+require `deletedAt == request.time` on write. The 30-day reap window is measured
+from this field, so a client-chosen value could be backdated to make a note
+immediately hard-deletable, defeating the undo window. The reshuffling argument
+above does not apply: `deletedAt` is not a sort key, and a note leaves the live
+list on `deletedAt != null` whatever the value is. Offline deletes are
+unaffected, since `serverTimestamp()` resolves when the write lands.
+
 ### Deletes are tombstones, not document deletes
 
 Notes are soft-deleted by setting `deletedAt`; the notes list queries
