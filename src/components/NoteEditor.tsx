@@ -16,7 +16,7 @@ import {
   FORMAT_TEXT_COMMAND,
   type SerializedEditorState,
 } from 'lexical';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { updateNote, type Note } from '@/lib/notes';
 import { useAutosave } from '@/lib/useAutosave';
 
@@ -67,21 +67,60 @@ function Toolbar() {
 
 type Draft = { title: string; content: SerializedEditorState };
 
+function draftsEqual(a: Draft, b: Draft): boolean {
+  return a.title === b.title && JSON.stringify(a.content) === JSON.stringify(b.content);
+}
+
+// Applies a remotely-synced content update to the live editor. Lexical only
+// reads `initialConfig.editorState` once on mount, so pushing a resynced
+// value into `draft` alone wouldn't be reflected here without this. Only
+// renders (and only fires) when a resync actually happens — see `content`
+// below — not on every keystroke, since OnChangePlugin already keeps the
+// editor's own edits flowing the other way, into `draft`.
+function RemoteContentSync({ content }: { content: SerializedEditorState }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    editor.setEditorState(editor.parseEditorState(JSON.stringify(content)));
+  }, [editor, content]);
+  return null;
+}
+
 type NoteEditorProps = { uid: string; note: Note };
 
-// Keyed on note.id by the caller, so each note gets a fresh instance: local
-// draft state and the LexicalComposer both initialize once from `note` and
-// are never resynced from it afterwards — see CODING_STANDARDS.md on same-
-// field conflicts for why an update arriving from elsewhere while this note
-// is open doesn't get reflected here.
+// Keyed on note.id by the caller, so each note gets a fresh instance. Draft
+// resyncs from `note` whenever there are no unsaved local edits, so an
+// update arriving from elsewhere (another tab/device) while this note is
+// open is picked up automatically. If there ARE unsaved local edits, the
+// remote value is left alone until this instance's own autosave lands —
+// Firestore's normal last-write-wins-by-arrival rule then decides the
+// outcome, same as any other same-field conflict (see CONTEXT.md).
 //
 // Unstyled: reset.css strips heading font-size/weight and list markers down
 // to nothing, so as-is, clicking H1/H2/List produces no visible change —
 // needs styling before this is usable.
 function NoteEditor({ uid, note }: NoteEditorProps) {
   const [draft, setDraft] = useState<Draft>({ title: note.title, content: note.content });
+  const baselineRef = useRef(draft);
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  const [editorSyncContent, setEditorSyncContent] = useState<SerializedEditorState | null>(null);
 
-  const { flush } = useAutosave(draft, (value) => updateNote(uid, note.id, value));
+  useEffect(() => {
+    const incoming: Draft = { title: note.title, content: note.content };
+    if (draftsEqual(incoming, baselineRef.current) || !draftsEqual(draftRef.current, baselineRef.current)) {
+      return;
+    }
+    baselineRef.current = incoming;
+    setDraft(incoming);
+    setEditorSyncContent(incoming.content);
+  }, [note]);
+
+  const { flush } = useAutosave(draft, (value) => {
+    baselineRef.current = value;
+    return updateNote(uid, note.id, value);
+  });
 
   return (
     <div>
@@ -105,6 +144,7 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         }}
       >
         <Toolbar />
+        {editorSyncContent && <RemoteContentSync content={editorSyncContent} />}
         <RichTextPlugin
           contentEditable={
             <ContentEditable

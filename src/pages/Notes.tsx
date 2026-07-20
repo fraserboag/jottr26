@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import {
   createNote,
@@ -12,16 +12,43 @@ import {
 import { useAutosave } from '@/lib/useAutosave';
 import styles from './Notes.module.css';
 
+type Draft = { title: string; text: string };
+
+function draftsEqual(a: Draft, b: Draft): boolean {
+  return a.title === b.title && a.text === b.text;
+}
+
 // Textarea in place of the rich text editor — see NoteEditor.tsx, not wired
 // up here for now. noteContentFromText/noteTextFromContent round-trip
 // through Note.content's real (Lexical) shape so this stays compatible with
 // whatever the editor last saved, lossily: formatting doesn't survive.
 function NotePane({ uid, note }: { uid: string; note: Note }) {
-  const [draft, setDraft] = useState({ title: note.title, text: noteTextFromContent(note.content) });
+  const [draft, setDraft] = useState<Draft>({ title: note.title, text: noteTextFromContent(note.content) });
+  const baselineRef = useRef(draft);
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
-  const { flush } = useAutosave(draft, (value) =>
-    updateNote(uid, note.id, { title: value.title, content: noteContentFromText(value.text) }),
-  );
+  // Resyncs from the live note whenever there are no unsaved local edits, so
+  // a change from another tab/device is picked up here the same way it
+  // already is in the sidebar list. If there ARE unsaved local edits, the
+  // remote value is left alone until this instance's own autosave lands —
+  // Firestore's normal last-write-wins-by-arrival rule then decides the
+  // outcome, same as any other same-field conflict (see CONTEXT.md).
+  useEffect(() => {
+    const incoming: Draft = { title: note.title, text: noteTextFromContent(note.content) };
+    if (draftsEqual(incoming, baselineRef.current) || !draftsEqual(draftRef.current, baselineRef.current)) {
+      return;
+    }
+    baselineRef.current = incoming;
+    setDraft(incoming);
+  }, [note]);
+
+  const { flush } = useAutosave(draft, (value) => {
+    baselineRef.current = value;
+    return updateNote(uid, note.id, { title: value.title, content: noteContentFromText(value.text) });
+  });
 
   return (
     <div className={styles.pane}>
