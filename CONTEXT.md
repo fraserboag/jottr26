@@ -29,22 +29,56 @@ with basic rich text formatting (bold, italic, headings, bullet lists).
   model must not assume there will only ever be one user.
 - Firestore data lives under `/users/{uid}/...` — see CODING_STANDARDS.md.
 
-### Anticipated note document shape
-
-Not yet implemented, but future work should converge on this shape to avoid
-churn:
+### Note and folder document shape
 
 ```ts
+// /users/{uid}/notes/{noteId}
 {
   id: string;
   ownerId: string; // Firebase uid
+  folderId: string | null; // null = unfiled; id of a /users/{uid}/folders doc
   title: string;
   content: SerializedEditorState; // Lexical's JSON document model, not HTML
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deletedAt: Timestamp | null; // null = live; see "Deletes" below
 }
+
+// /users/{uid}/folders/{folderId}
+{
+  id: string;
+  ownerId: string;
+  parentId: string | null; // null = root-level; id of a parent folder doc
+  name: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deletedAt: Timestamp | null;
+}
 ```
+
+Folders nest via `parentId`, forming a tree. There's no materialized path or
+ancestor array — `useFolders(uid)` already streams the whole live folder set
+into memory in one listener (folder counts here are small, dozens not
+thousands), so a breadcrumb for any folder is just walking the `parentId`
+chain through that in-memory list client-side (`getFolderPath` in
+`src/lib/folders.ts`). No extra reads, no per-depth index.
+
+Moving a folder (changing its `parentId`) must not create a cycle. Firestore
+rules reject the direct case — setting a folder as its own parent — but can't
+walk an arbitrary-depth ancestor chain to catch an indirect one (moving a
+folder under its own descendant), so that check is client-side
+(`wouldCreateCycle`) and must run before every move. This is safe for a
+single-user, non-adversarial app: the worst a bypassed check does is corrupt
+that user's own folder tree, not another user's data.
+
+Folder deletion is a tombstone too (see below) and does **not** cascade: a
+deleted folder's child folders keep their `parentId`, and a deleted folder's
+notes keep their `folderId`. The UI should treat a `parentId` or `folderId`
+that doesn't resolve to a live folder (deleted, reaped past its undo window,
+or never existed) as root-level / unfiled — this keeps note and folder writes
+from needing to know about each other's tombstone state, and it means
+restoring a folder within its 30-day window also restores its place in the
+tree and its notes' place in it, for free.
 
 `createdAt` / `updatedAt` use client-side `Timestamp.now()`, not
 `serverTimestamp()`. A server timestamp resolves to a local estimate while

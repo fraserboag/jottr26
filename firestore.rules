@@ -7,6 +7,43 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // Shared by every tombstoned collection (notes, folders) — see CONTEXT.md.
+
+    // deletedAt must be present and null, never absent: `== null` does not
+    // match documents missing the field, so an absent value would make the
+    // document permanently invisible to a `deletedAt == null` list query.
+    function isLiveOnCreate() {
+      return request.resource.data.deletedAt == null;
+    }
+
+    // The reap window below trusts deletedAt, so the client must not get to
+    // choose it — a backdated value would make a document immediately
+    // reapable. `== request.time` requires serverTimestamp() for this field
+    // (and only this field; see CONTEXT.md). Carrying the existing value
+    // forward is safe by induction: it was request.time when written.
+    function isDeletedAtTrusted() {
+      let next = request.resource.data.deletedAt;
+      return next == null
+          || next == request.time
+          || next == resource.data.deletedAt;
+    }
+
+    // createdAt is set once. ownerId and id are denormalized copies of the
+    // path, and anything reading them off the document should be able to
+    // trust them.
+    function isImmutablePreserved() {
+      return request.resource.data.id == resource.data.id
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Soft-deleted via deletedAt (see CONTEXT.md). Hard delete is only for
+    // reaping tombstones past their undo window.
+    function isExpiredTombstone() {
+      return resource.data.deletedAt != null
+          && request.time > resource.data.deletedAt + duration.value(30, 'd');
+    }
+
     // This document only. Subcollections need their own rules — a broad
     // `{document=**}` grant would OR with the notes rules and re-permit the
     // hard deletes they exist to prevent.
@@ -18,12 +55,13 @@ service cloud.firestore {
 
       function hasNoteShape() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['id', 'ownerId', 'title', 'content',
-                                 'createdAt', 'updatedAt', 'deletedAt'])
-            && d.keys().hasAll(['id', 'ownerId', 'title', 'content',
-                                'createdAt', 'updatedAt', 'deletedAt'])
+        return d.keys().hasOnly(['id', 'ownerId', 'folderId', 'title',
+                                 'content', 'createdAt', 'updatedAt', 'deletedAt'])
+            && d.keys().hasAll(['id', 'ownerId', 'folderId', 'title',
+                                'content', 'createdAt', 'updatedAt', 'deletedAt'])
             && d.id == noteId
             && d.ownerId == uid
+            && (d.folderId == null || d.folderId is string)
             && d.title is string
             && d.title.size() <= 500
             && d.content is map
@@ -32,44 +70,41 @@ service cloud.firestore {
             && (d.deletedAt == null || d.deletedAt is timestamp);
       }
 
-      // deletedAt must be present and null, never absent: `== null` does not
-      // match documents missing the field, so an absent value would make the
-      // note permanently invisible to the `deletedAt == null` list query.
-      function isLiveOnCreate() {
-        return request.resource.data.deletedAt == null;
-      }
-
-      // The reap window below trusts deletedAt, so the client must not get to
-      // choose it — a backdated value would make a note immediately reapable.
-      // `== request.time` requires serverTimestamp() for this field (and only
-      // this field; see CONTEXT.md). Carrying the existing value forward is
-      // safe by induction: it was request.time when written.
-      function isDeletedAtTrusted() {
-        let next = request.resource.data.deletedAt;
-        return next == null
-            || next == request.time
-            || next == resource.data.deletedAt;
-      }
-
-      // createdAt is set once. ownerId and id are denormalized copies of the
-      // path, and anything reading them off the document should be able to
-      // trust them.
-      function isImmutablePreserved() {
-        return request.resource.data.id == resource.data.id
-            && request.resource.data.ownerId == resource.data.ownerId
-            && request.resource.data.createdAt == resource.data.createdAt;
-      }
-
-      // Notes are soft-deleted via deletedAt (see CONTEXT.md). Hard delete is
-      // only for reaping tombstones past their undo window.
-      function isExpiredTombstone() {
-        return resource.data.deletedAt != null
-            && request.time > resource.data.deletedAt + duration.value(30, 'd');
-      }
-
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && hasNoteShape() && isLiveOnCreate();
       allow update: if isOwner(uid) && hasNoteShape()
+                    && isImmutablePreserved() && isDeletedAtTrusted();
+      allow delete: if isOwner(uid) && isExpiredTombstone();
+    }
+
+    // Folders form a tree via parentId (null = root-level) — see CONTEXT.md.
+    // Rules can only reject the direct self-parent cycle below; a multi-level
+    // cycle (moving a folder under its own descendant) needs an ancestor walk
+    // rules can't do, so that's the client's job — see wouldCreateCycle in
+    // src/lib/folders.ts.
+    match /users/{uid}/folders/{folderId} {
+
+      function hasFolderShape() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['id', 'ownerId', 'parentId', 'name',
+                                 'createdAt', 'updatedAt', 'deletedAt'])
+            && d.keys().hasAll(['id', 'ownerId', 'parentId', 'name',
+                                'createdAt', 'updatedAt', 'deletedAt'])
+            && d.id == folderId
+            && d.ownerId == uid
+            && (d.parentId == null
+                || (d.parentId is string && d.parentId != folderId))
+            && d.name is string
+            && d.name.size() > 0
+            && d.name.size() <= 200
+            && d.createdAt is timestamp
+            && d.updatedAt is timestamp
+            && (d.deletedAt == null || d.deletedAt is timestamp);
+      }
+
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && hasFolderShape() && isLiveOnCreate();
+      allow update: if isOwner(uid) && hasFolderShape()
                     && isImmutablePreserved() && isDeletedAtTrusted();
       allow delete: if isOwner(uid) && isExpiredTombstone();
     }

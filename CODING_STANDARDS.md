@@ -31,21 +31,28 @@ permission-denied errors against rules that look correct in the repo.
 
 ## Deletes
 
-- Never call `deleteDoc` on a note. Delete by setting `deletedAt`; read live
-  notes with `where('deletedAt', '==', null)`. `firestore.rules` rejects hard
-  deletes except for tombstones past their 30-day undo window, so a stray
-  `deleteDoc` fails loudly rather than silently reintroducing the
-  resurrect-on-sync bug. See CONTEXT.md for why.
-- Always write `deletedAt: null` when creating a note — never omit the field.
-  `where('deletedAt', '==', null)` does **not** match documents missing the
-  field, so an absent value makes a note permanently invisible. The rules
-  enforce this on create.
+- Never call `deleteDoc` on a note or folder. Delete by setting `deletedAt`;
+  read live documents with `where('deletedAt', '==', null)`. `firestore.rules`
+  rejects hard deletes except for tombstones past their 30-day undo window, so
+  a stray `deleteDoc` fails loudly rather than silently reintroducing the
+  resurrect-on-sync bug. See CONTEXT.md for why. This applies to folders too —
+  a deleted folder is a tombstone, not a removed document, and it does not
+  touch its notes' `folderId` or its child folders' `parentId` (see
+  CONTEXT.md).
+- Moving a folder (changing `parentId`) must go through `wouldCreateCycle` in
+  `src/lib/folders.ts` first. Rules reject a folder becoming its own parent
+  but can't detect a move under one's own descendant — that check only exists
+  client-side. See CONTEXT.md.
+- Always write `deletedAt: null` when creating a note or folder — never omit
+  the field. `where('deletedAt', '==', null)` does **not** match documents
+  missing the field, so an absent value makes a document permanently
+  invisible. The rules enforce this on create.
 - A delete must write only `deletedAt`, and an autosave must not write
   `deletedAt`. Conflict resolution depends on the two touching disjoint fields
   so Firestore merges them instead of one clobbering the other.
-- Queries combining the `deletedAt` filter with an `updatedAt` sort need the
-  composite index in `firestore.indexes.json`. Missing indexes fail at runtime,
-  not at build time.
+- Queries combining the `deletedAt` filter with an `updatedAt`/`name` sort need
+  the composite index in `firestore.indexes.json`. Missing indexes fail at
+  runtime, not at build time.
 
 ## Auth
 
