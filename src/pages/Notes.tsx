@@ -52,7 +52,7 @@ function NotePane({
   // already is in the sidebar list. If there ARE unsaved local edits, the
   // remote value is left alone until this instance's own autosave lands —
   // Firestore's normal last-write-wins-by-arrival rule then decides the
-  // outcome, same as any other same-field conflict (see CONTEXT.md).
+  // outcome, same as any other same-field conflict.
   useEffect(() => {
     const incoming: Draft = {
       title: note.title,
@@ -172,7 +172,7 @@ function Notes() {
 
   const folderIds = new Set(folders.map((folder) => folder.id));
   // A folderId/parentId pointing at a folder that's been deleted (tombstoned,
-  // so no longer in `folders`) is treated as top-level — see CONTEXT.md.
+  // so no longer in `folders`) is treated as top-level.
   // Without this, a deleted folder's notes and subfolders would still exist
   // in Firestore but never render anywhere in the tree.
   const effectiveParentId = (id: string | null) =>

@@ -6,8 +6,16 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import { INSERT_UNORDERED_LIST_COMMAND, ListItemNode, ListNode } from '@lexical/list';
-import { $createHeadingNode, HeadingNode, type HeadingTagType } from '@lexical/rich-text';
+import {
+  INSERT_UNORDERED_LIST_COMMAND,
+  ListItemNode,
+  ListNode,
+} from '@lexical/list';
+import {
+  $createHeadingNode,
+  HeadingNode,
+  type HeadingTagType,
+} from '@lexical/rich-text';
 import { $setBlocksType } from '@lexical/selection';
 import {
   $createParagraphNode,
@@ -43,10 +51,18 @@ function Toolbar() {
 
   return (
     <div>
-      <button type='button' aria-label='Bold' onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}>
+      <button
+        type='button'
+        aria-label='Bold'
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+      >
         B
       </button>
-      <button type='button' aria-label='Italic' onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}>
+      <button
+        type='button'
+        aria-label='Italic'
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+      >
         I
       </button>
       <button type='button' onClick={() => setHeading('h1')}>
@@ -58,7 +74,12 @@ function Toolbar() {
       <button type='button' onClick={setParagraph}>
         Normal
       </button>
-      <button type='button' onClick={() => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)}>
+      <button
+        type='button'
+        onClick={() =>
+          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
+        }
+      >
         List
       </button>
     </div>
@@ -68,7 +89,10 @@ function Toolbar() {
 type Draft = { title: string; content: SerializedEditorState };
 
 function draftsEqual(a: Draft, b: Draft): boolean {
-  return a.title === b.title && JSON.stringify(a.content) === JSON.stringify(b.content);
+  return (
+    a.title === b.title &&
+    JSON.stringify(a.content) === JSON.stringify(b.content)
+  );
 }
 
 // Applies a remotely-synced content update to the live editor. Lexical only
@@ -93,23 +117,30 @@ type NoteEditorProps = { uid: string; note: Note };
 // open is picked up automatically. If there ARE unsaved local edits, the
 // remote value is left alone until this instance's own autosave lands —
 // Firestore's normal last-write-wins-by-arrival rule then decides the
-// outcome, same as any other same-field conflict (see CONTEXT.md).
+// outcome, same as any other same-field conflict.
 //
 // Unstyled: reset.css strips heading font-size/weight and list markers down
 // to nothing, so as-is, clicking H1/H2/List produces no visible change —
 // needs styling before this is usable.
 function NoteEditor({ uid, note }: NoteEditorProps) {
-  const [draft, setDraft] = useState<Draft>({ title: note.title, content: note.content });
+  const [draft, setDraft] = useState<Draft>({
+    title: note.title,
+    content: note.content,
+  });
   const baselineRef = useRef(draft);
   const draftRef = useRef(draft);
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
-  const [editorSyncContent, setEditorSyncContent] = useState<SerializedEditorState | null>(null);
+  const [editorSyncContent, setEditorSyncContent] =
+    useState<SerializedEditorState | null>(null);
 
   useEffect(() => {
     const incoming: Draft = { title: note.title, content: note.content };
-    if (draftsEqual(incoming, baselineRef.current) || !draftsEqual(draftRef.current, baselineRef.current)) {
+    if (
+      draftsEqual(incoming, baselineRef.current) ||
+      !draftsEqual(draftRef.current, baselineRef.current)
+    ) {
       return;
     }
     baselineRef.current = incoming;
@@ -157,7 +188,11 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         />
         <HistoryPlugin />
         <ListPlugin />
-        <OnChangePlugin onChange={(editorState) => setDraft((d) => ({ ...d, content: editorState.toJSON() }))} />
+        <OnChangePlugin
+          onChange={(editorState) =>
+            setDraft((d) => ({ ...d, content: editorState.toJSON() }))
+          }
+        />
       </LexicalComposer>
     </div>
   );

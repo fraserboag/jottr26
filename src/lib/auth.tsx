@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn: async () => {
       setSignInError(null);
       try {
-        // Redirect can't work on localhost — see CODING_STANDARDS.md.
+        // Redirect can't work on localhost
         await (import.meta.env.DEV
           ? signInWithPopup(auth, googleProvider)
           : signInWithRedirect(auth, googleProvider));

@@ -7,7 +7,7 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // Shared by every tombstoned collection (notes, folders) — see CONTEXT.md.
+    // Shared by every tombstoned collection (notes, folders)
 
     // deletedAt must be present and null, never absent: `== null` does not
     // match documents missing the field, so an absent value would make the
@@ -18,9 +18,9 @@ service cloud.firestore {
 
     // The reap window below trusts deletedAt, so the client must not get to
     // choose it — a backdated value would make a document immediately
-    // reapable. `== request.time` requires serverTimestamp() for this field
-    // (and only this field; see CONTEXT.md). Carrying the existing value
-    // forward is safe by induction: it was request.time when written.
+    // reapable. `== request.time` requires serverTimestamp() for this field.
+    // Carrying the existing value forward is safe by induction: it was
+    // request.time when written.
     function isDeletedAtTrusted() {
       let next = request.resource.data.deletedAt;
       return next == null
@@ -37,8 +37,8 @@ service cloud.firestore {
           && request.resource.data.createdAt == resource.data.createdAt;
     }
 
-    // Soft-deleted via deletedAt (see CONTEXT.md). Hard delete is only for
-    // reaping tombstones past their undo window.
+    // Soft-deleted via deletedAt. Hard delete is only for reaping tombstones
+    // past their undo window.
     function isExpiredTombstone() {
       return resource.data.deletedAt != null
           && request.time > resource.data.deletedAt + duration.value(30, 'd');
@@ -77,7 +77,7 @@ service cloud.firestore {
       allow delete: if isOwner(uid) && isExpiredTombstone();
     }
 
-    // Folders form a tree via parentId (null = root-level) — see CONTEXT.md.
+    // Folders form a tree via parentId (null = root-level).
     // Rules can only reject the direct self-parent cycle below; a multi-level
     // cycle (moving a folder under its own descendant) needs an ancestor walk
     // rules can't do, so that's the client's job — see wouldCreateCycle in

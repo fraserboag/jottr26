@@ -14,7 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 
-// Folders nest via parentId (null = root-level) — see CONTEXT.md. Deleting a
+// Folders nest via parentId (null = root-level). Deleting a
 // folder tombstones it and does not cascade to its children or its notes.
 export type Folder = {
   id: string;
@@ -30,7 +30,11 @@ export function foldersRef(uid: string) {
   return collection(db, 'users', uid, 'folders') as CollectionReference<Folder>;
 }
 
-export async function createFolder(uid: string, name: string, parentId: string | null = null): Promise<Folder> {
+export async function createFolder(
+  uid: string,
+  name: string,
+  parentId: string | null = null,
+): Promise<Folder> {
   const ref = doc(foldersRef(uid));
   const now = Timestamp.now();
   const folder: Folder = {
@@ -53,14 +57,21 @@ export function updateFolder(
   folderId: string,
   patch: Partial<Pick<Folder, 'name' | 'parentId'>>,
 ): Promise<void> {
-  return updateDoc(doc(foldersRef(uid), folderId), { ...patch, updatedAt: Timestamp.now() });
+  return updateDoc(doc(foldersRef(uid), folderId), {
+    ...patch,
+    updatedAt: Timestamp.now(),
+  });
 }
 
 // True if setting folderId's parent to newParentId would create a cycle —
 // either newParentId is folderId itself, or folderId is already an ancestor
 // of newParentId. Operates on an already-loaded folder list (e.g. from
 // useFolders), so it costs no extra reads.
-export function wouldCreateCycle(folders: Folder[], folderId: string, newParentId: string | null): boolean {
+export function wouldCreateCycle(
+  folders: Folder[],
+  folderId: string,
+  newParentId: string | null,
+): boolean {
   const byId = new Map(folders.map((f) => [f.id, f]));
   const visited = new Set<string>();
   let current = newParentId;
@@ -76,8 +87,11 @@ export function wouldCreateCycle(folders: Folder[], folderId: string, newParentI
 
 // Root -> folder, for breadcrumbs. A parentId that doesn't resolve to a live
 // folder (deleted, reaped, or corrupt) stops the walk there rather than
-// throwing — see CONTEXT.md on treating a dangling parentId as root-level.
-export function getFolderPath(folders: Folder[], folderId: string | null): Folder[] {
+// throwing.
+export function getFolderPath(
+  folders: Folder[],
+  folderId: string | null,
+): Folder[] {
   const byId = new Map(folders.map((f) => [f.id, f]));
   const visited = new Set<string>();
   const path: Folder[] = [];
@@ -94,18 +108,34 @@ export function getFolderPath(folders: Folder[], folderId: string | null): Folde
   return path;
 }
 
-// Tombstone, never deleteDoc — see CONTEXT.md. Writes only deletedAt so it
+// Tombstone, never deleteDoc. Writes only deletedAt so it
 // merges with a concurrent, unrelated rename instead of racing it.
 export function deleteFolder(uid: string, folderId: string): Promise<void> {
-  return updateDoc(doc(foldersRef(uid), folderId), { deletedAt: serverTimestamp() });
+  return updateDoc(doc(foldersRef(uid), folderId), {
+    deletedAt: serverTimestamp(),
+  });
 }
 
-type FoldersState = { folders: Folder[]; loading: boolean; error: Error | null };
+type FoldersState = {
+  folders: Folder[];
+  loading: boolean;
+  error: Error | null;
+};
 
 export function useFolders(uid: string | null): FoldersState {
-  const q = uid ? query(foldersRef(uid), where('deletedAt', '==', null), orderBy('name', 'asc')) : null;
+  const q = uid
+    ? query(
+        foldersRef(uid),
+        where('deletedAt', '==', null),
+        orderBy('name', 'asc'),
+      )
+    : null;
 
-  const [state, setState] = useState<FoldersState>({ folders: [], loading: q != null, error: null });
+  const [state, setState] = useState<FoldersState>({
+    folders: [],
+    loading: q != null,
+    error: null,
+  });
 
   useEffect(() => {
     if (!q) {
@@ -113,7 +143,12 @@ export function useFolders(uid: string | null): FoldersState {
     }
     return onSnapshot(
       q,
-      (snapshot) => setState({ folders: snapshot.docs.map((d) => d.data()), loading: false, error: null }),
+      (snapshot) =>
+        setState({
+          folders: snapshot.docs.map((d) => d.data()),
+          loading: false,
+          error: null,
+        }),
       (error) => setState({ folders: [], loading: false, error }),
     );
   }, [q]);

@@ -1,8 +1,8 @@
-import path from 'node:path'
-import { defineConfig } from 'vite'
-import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import babel from '@rolldown/plugin-babel'
-import { VitePWA } from 'vite-plugin-pwa'
+import path from 'node:path';
+import { defineConfig } from 'vite';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -24,7 +24,7 @@ export default defineConfig({
         description: 'A simple notes app with offline support and sync.',
         // Manifest colours cannot vary by scheme, so both track the light
         // --color-bg; index.html's paired meta tags handle dark where the
-        // platform honours them. See CODING_STANDARDS.md.
+        // platform honours them.
         theme_color: '#fdfdfd',
         background_color: '#fdfdfd',
         display: 'standalone',
@@ -55,4 +55,4 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-})
+});

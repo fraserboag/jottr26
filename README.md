@@ -8,10 +8,6 @@ Screen" / "Add to Dock"); the web interface is valuable but secondary. Works
 offline (notes stored locally via Firestore's offline persistence) and syncs
 across devices in real time once connectivity returns.
 
-See [CONTEXT.md](./CONTEXT.md) for the full product/stack reasoning and
-[CODING_STANDARDS.md](./CODING_STANDARDS.md) for conventions to follow when
-working on this repo.
-
 ## Stack
 
 - Vite + React + TypeScript, React Compiler
@@ -32,8 +28,8 @@ npm run lint     # Rules of React / React Compiler checks
 npm run check    # typecheck + lint (run before committing)
 ```
 
-Firestore rules are **not** deployed by the app pipeline — see
-[CODING_STANDARDS.md](./CODING_STANDARDS.md#deploys).
+Firestore rules are **not** deployed by the app pipeline. They are deployed
+using `firebase deploy`
 
 ## Status
 
