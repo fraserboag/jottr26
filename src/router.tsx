@@ -14,7 +14,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Home /> },
       {
         element: <RequireAuth />,
-        children: [{ path: 'notes', element: <Notes /> }],
+        children: [
+          { path: 'notes', element: <Notes /> },
+          { path: 'notes/:noteId', element: <Notes /> },
+        ],
       },
     ],
   },

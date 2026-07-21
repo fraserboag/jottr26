@@ -4,8 +4,10 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 import {
   INSERT_UNORDERED_LIST_COMMAND,
   ListItemNode,
@@ -14,8 +16,15 @@ import {
 import {
   $createHeadingNode,
   HeadingNode,
+  QuoteNode,
   type HeadingTagType,
 } from '@lexical/rich-text';
+// CodeNode/LinkNode imported from the exact packages @lexical/markdown's
+// transformers use, so their class-identity checks ($isCodeNode, the LINK
+// transformer's dependencies) match the nodes registered below.
+import { CodeNode } from '@lexical/code-core';
+import { LinkNode } from '@lexical/link';
+import { TRANSFORMERS } from '@lexical/markdown';
 import { $setBlocksType } from '@lexical/selection';
 import {
   $createParagraphNode,
@@ -25,8 +34,40 @@ import {
   type SerializedEditorState,
 } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import {
+  Bold,
+  Heading1,
+  Heading2,
+  Italic,
+  List,
+  Pilcrow,
+} from 'lucide-react';
 import { updateNote, type Note } from '@/lib/notes';
 import { useAutosave } from '@/lib/useAutosave';
+import { useSyncStatus } from '@/lib/syncStatus';
+import styles from './NoteEditor.module.css';
+
+const editorTheme = {
+  heading: { h1: styles.h1, h2: styles.h2 },
+  list: {
+    ul: styles.ul,
+    ol: styles.ol,
+    listitem: styles.listItem,
+    // Strips the marker from a list item that only wraps a nested list, so
+    // Tab-nesting doesn't show a stray bullet on the parent line.
+    nested: { listitem: styles.nestedListItem },
+  },
+  quote: styles.quote,
+  code: styles.code,
+  link: styles.link,
+  text: {
+    bold: styles.bold,
+    italic: styles.italic,
+    strikethrough: styles.strikethrough,
+    code: styles.inlineCode,
+  },
+};
 
 function Toolbar() {
   const [editor] = useLexicalComposerContext();
@@ -50,37 +91,38 @@ function Toolbar() {
   };
 
   return (
-    <div>
+    <div className={styles.toolbar}>
       <button
         type='button'
         aria-label='Bold'
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
       >
-        B
+        <Bold size={16} />
       </button>
       <button
         type='button'
         aria-label='Italic'
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
       >
-        I
+        <Italic size={16} />
       </button>
-      <button type='button' onClick={() => setHeading('h1')}>
-        H1
+      <button type='button' aria-label='Heading 1' onClick={() => setHeading('h1')}>
+        <Heading1 size={16} />
       </button>
-      <button type='button' onClick={() => setHeading('h2')}>
-        H2
+      <button type='button' aria-label='Heading 2' onClick={() => setHeading('h2')}>
+        <Heading2 size={16} />
       </button>
-      <button type='button' onClick={setParagraph}>
-        Normal
+      <button type='button' aria-label='Normal text' onClick={setParagraph}>
+        <Pilcrow size={16} />
       </button>
       <button
         type='button'
+        aria-label='Bulleted list'
         onClick={() =>
           editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
         }
       >
-        List
+        <List size={16} />
       </button>
     </div>
   );
@@ -118,11 +160,10 @@ type NoteEditorProps = { uid: string; note: Note };
 // remote value is left alone until this instance's own autosave lands —
 // Firestore's normal last-write-wins-by-arrival rule then decides the
 // outcome, same as any other same-field conflict.
-//
-// Unstyled: reset.css strips heading font-size/weight and list markers down
-// to nothing, so as-is, clicking H1/H2/List produces no visible change —
-// needs styling before this is usable.
 function NoteEditor({ uid, note }: NoteEditorProps) {
+  const location = useLocation();
+  const focusTitle = (location.state as { focusTitle?: boolean } | null)
+    ?.focusTitle;
   const [draft, setDraft] = useState<Draft>({
     title: note.title,
     content: note.content,
@@ -148,26 +189,40 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
     setEditorSyncContent(incoming.content);
   }, [note]);
 
-  const { flush } = useAutosave(draft, (value) => {
+  const { flush, status } = useAutosave(draft, (value) => {
     baselineRef.current = value;
     return updateNote(uid, note.id, value);
   });
 
+  const { setStatus } = useSyncStatus();
+  useEffect(() => {
+    setStatus(status);
+  }, [status, setStatus]);
+  useEffect(() => () => setStatus('synced'), [setStatus]);
+
   return (
-    <div>
+    <div className={styles.pane}>
       <input
+        className={styles.title}
         value={draft.title}
         onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
         onBlur={flush}
         placeholder='Title'
         aria-label='Note title'
+        autoFocus={focusTitle}
       />
-
       <LexicalComposer
         initialConfig={{
           namespace: 'jottr-note',
-          nodes: [HeadingNode, ListNode, ListItemNode],
-          theme: {},
+          nodes: [
+            HeadingNode,
+            QuoteNode,
+            ListNode,
+            ListItemNode,
+            CodeNode,
+            LinkNode,
+          ],
+          theme: editorTheme,
           editorState: JSON.stringify(note.content),
           onError(error) {
             throw error;
@@ -178,17 +233,25 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         {editorSyncContent && <RemoteContentSync content={editorSyncContent} />}
         <RichTextPlugin
           contentEditable={
-            <ContentEditable
-              aria-placeholder='Start writing…'
-              placeholder={<div>Start writing…</div>}
-              onBlur={flush}
-            />
+            <div className={styles.editorShell}>
+              <ContentEditable
+                className={styles.contentEditable}
+                aria-placeholder='Start writing…'
+                placeholder={
+                  <div className={styles.placeholder}>Start writing…</div>
+                }
+                onBlur={flush}
+              />
+            </div>
           }
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
         <ListPlugin />
+        <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+        <TabIndentationPlugin />
         <OnChangePlugin
+          ignoreSelectionChange
           onChange={(editorState) =>
             setDraft((d) => ({ ...d, content: editorState.toJSON() }))
           }

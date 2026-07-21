@@ -1,0 +1,55 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.sync svg {
+  color: var(--color-text-faint);
+}
+
+.sync[data-status='synced'] svg,
+.sync[data-status='saving'] svg {
+  color: var(--color-accent);
+}
+
+.sync[data-status='saving'] svg {
+  animation: spin 1s linear infinite;
+}
+
+.sync[data-status='error'] {
+  color: var(--color-danger-text);
+}
+
+.sync[data-status='error'] svg {
+  color: var(--color-danger);
+}
+
+.signOut {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

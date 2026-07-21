@@ -20,7 +20,12 @@ export const auth = getAuth(app)
 
 // Persistent (IndexedDB-backed) local cache so notes are available offline
 // and the app opens with no connection, per the PWA offline-first requirement.
+// ignoreUndefinedProperties: Lexical's list items serialize `checked:
+// undefined` for non-checklists, and Firestore rejects undefined outright.
+// Dropping such fields is safe here — Lexical treats a missing `checked` the
+// same as undefined when it re-imports the content.
 export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
   }),

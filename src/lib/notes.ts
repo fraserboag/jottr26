@@ -59,64 +59,6 @@ export const EMPTY_NOTE_CONTENT = {
   },
 } as unknown as SerializedEditorState;
 
-type LooseNode = { text?: string; children?: LooseNode[] };
-
-function collectText(node: LooseNode): string {
-  if (typeof node.text === 'string') {
-    return node.text;
-  }
-  return (node.children ?? []).map(collectText).join('');
-}
-
-// One line of plain text per top-level block (paragraph, heading, list item,
-// ...), joined with newlines. Lossy on purpose: bold/italic/block-type marks
-// aren't representable as plain text, so round-tripping through a plain
-// <textarea> discards them. Fine for a placeholder editor; not fine once the
-// rich text editor is back — that must read/write `content` directly instead.
-export function noteTextFromContent(content: SerializedEditorState): string {
-  const root = content.root as unknown as LooseNode;
-  return (root.children ?? []).map(collectText).join('\n');
-}
-
-// Inverse of noteTextFromContent: one paragraph per line, each holding a
-// single unformatted text run. See EMPTY_NOTE_CONTENT for why the cast.
-export function noteContentFromText(text: string): SerializedEditorState {
-  if (text === '') {
-    return EMPTY_NOTE_CONTENT;
-  }
-  return {
-    root: {
-      children: text.split('\n').map((line) => ({
-        children: line
-          ? [
-              {
-                detail: 0,
-                format: 0,
-                mode: 'normal',
-                style: '',
-                text: line,
-                type: 'text',
-                version: 1,
-              },
-            ]
-          : [],
-        direction: null,
-        format: '',
-        indent: 0,
-        type: 'paragraph',
-        version: 1,
-        textFormat: 0,
-        textStyle: '',
-      })),
-      direction: null,
-      format: '',
-      indent: 0,
-      type: 'root',
-      version: 1,
-    },
-  } as unknown as SerializedEditorState;
-}
-
 // Synchronous, not async: id and content are already known client-side, and
 // setDoc's promise doesn't resolve until the backend round-trips — awaiting
 // it here would make "create a note" hang until connectivity returns while
