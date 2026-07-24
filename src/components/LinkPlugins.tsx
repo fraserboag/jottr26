@@ -1,12 +1,21 @@
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { $isLinkNode, TOGGLE_LINK_COMMAND, type LinkNode } from '@lexical/link';
+import { createLinkMatcherWithRegExp } from '@lexical/react/LexicalAutoLinkPlugin';
+import {
+  $createLinkNode,
+  $isAutoLinkNode,
+  $isLinkNode,
+  TOGGLE_LINK_COMMAND,
+  type LinkNode,
+} from '@lexical/link';
 import { $findMatchingParent, mergeRegister } from '@lexical/utils';
 import {
   $getNodeByKey,
   $getSelection,
   $isRangeSelection,
   FORMAT_TEXT_COMMAND,
+  PASTE_COMMAND,
   SELECTION_CHANGE_COMMAND,
+  COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
   type TextFormatType,
 } from 'lexical';
@@ -15,18 +24,70 @@ import { createPortal } from 'react-dom';
 import { Bold, Italic, Link, Pencil, Strikethrough, Unlink } from 'lucide-react';
 import styles from './LinkPlugins.module.css';
 
-// Only reports a link when its text is actually selected — a collapsed cursor
-// resting inside a link doesn't count, so the editor popover stays hidden
-// until the user selects the link text.
-function $getLinkInSelection(): LinkNode | null {
+// Every link the selection touches, even partially — unlinking acts on whole
+// links, so selecting one character of a link is enough to act on all of it. A
+// collapsed cursor resting in a link doesn't count, so the toolbar's link
+// controls stay hidden until the user selects some text.
+function $getLinksInSelection(): LinkNode[] {
   const selection = $getSelection();
-  if (!$isRangeSelection(selection) || selection.isCollapsed()) return null;
-  const anchorLink = $findMatchingParent(
-    selection.anchor.getNode(),
-    $isLinkNode,
+  if (!$isRangeSelection(selection) || selection.isCollapsed()) return [];
+  const links = new Map<string, LinkNode>();
+  for (const node of selection.getNodes()) {
+    const link = $isLinkNode(node)
+      ? node
+      : $findMatchingParent(node, $isLinkNode);
+    // An unlinked auto-link is plain text as far as the user is concerned.
+    if (!$isLinkNode(link) || ($isAutoLinkNode(link) && link.getIsUnlinked())) {
+      continue;
+    }
+    links.set(link.getKey(), link);
+  }
+  return [...links.values()];
+}
+
+// Matches a URL anywhere in a run of text, but only with a protocol or a www.
+// prefix — matching bare hosts too would linkify prose like "node.js".
+const URL_REGEX =
+  /((https?:\/\/(www\.)?)|(www\.))[-\w@:%.+~#=]{1,256}\.[a-z]{2,}\b[-\w()@:%+.~#?&/=]*/i;
+
+const BARE_URL_REGEX = new RegExp(`^${URL_REGEX.source}$`, 'i');
+
+const withProtocol = (text: string) =>
+  text.startsWith('http') ? text : `https://${text}`;
+
+export const URL_MATCHERS = [
+  createLinkMatcherWithRegExp(URL_REGEX, withProtocol),
+];
+
+// Pasting a URL onto selected text links that text rather than replacing it.
+// A paste at a plain cursor falls through to the default handling, where
+// AutoLinkPlugin turns the inserted URL into a link of its own.
+export function PasteLinkPlugin(): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(
+    () =>
+      editor.registerCommand(
+        PASTE_COMMAND,
+        (event) => {
+          if (!(event instanceof ClipboardEvent)) return false;
+          const text = event.clipboardData?.getData('text/plain').trim();
+          if (!text || !BARE_URL_REGEX.test(text)) return false;
+          const selection = $getSelection();
+          if (
+            !$isRangeSelection(selection) ||
+            selection.isCollapsed() ||
+            selection.getTextContent().length === 0
+          ) {
+            return false;
+          }
+          event.preventDefault();
+          editor.dispatchCommand(TOGGLE_LINK_COMMAND, withProtocol(text));
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+    [editor],
   );
-  const focusLink = $findMatchingParent(selection.focus.getNode(), $isLinkNode);
-  if ($isLinkNode(anchorLink) && anchorLink.is(focusLink)) return anchorLink;
   return null;
 }
 
@@ -73,77 +134,135 @@ export function CmdClickLinkPlugin(): null {
   return null;
 }
 
-type ActiveLink = { key: string; url: string; top: number; left: number };
+const TEXT_FORMATS: {
+  format: TextFormatType;
+  label: string;
+  Icon: typeof Bold;
+}[] = [
+  { format: 'bold', label: 'Bold', Icon: Bold },
+  { format: 'italic', label: 'Italic', Icon: Italic },
+  { format: 'strikethrough', label: 'Strikethrough', Icon: Strikethrough },
+];
 
-// Popover that appears when a link's text is selected, showing its URL with
-// controls to edit the URL or remove the link.
-export function FloatingLinkEditorPlugin(): React.ReactNode {
+// Anchor rect is in shell coordinates; the bar's own position derives from it.
+type ActiveSelection = {
+  anchorTop: number;
+  anchorBottom: number;
+  anchorLeft: number;
+  anchorWidth: number;
+  formats: Set<TextFormatType>;
+  links: { key: string; url: string }[];
+};
+
+const TOOLBAR_GAP = 8;
+const SHELL_EDGE = 4;
+
+// An auto-linked URL re-derives its href from its own text, so a URL set by
+// hand has to leave the auto-link behind or AutoLinkPlugin would revert it.
+function $setLinkUrl(node: LinkNode, url: string): void {
+  if (!$isAutoLinkNode(node)) {
+    node.setURL(url);
+    return;
+  }
+  const link = $createLinkNode(url);
+  for (const child of node.getChildren()) link.append(child);
+  node.replace(link);
+}
+
+// Toolbar that floats above a non-empty text selection, toggling inline
+// formats on it and editing any link it sits in — the URL input swaps into the
+// same bar. Positioned off the native selection rect since a selection can span
+// multiple nodes; buttons preventDefault on mousedown so clicking one doesn't
+// collapse the selection being formatted. It only appears once the pointer is
+// released, so it doesn't jump around during a drag-select.
+export function FloatingToolbarPlugin(): React.ReactNode {
   const [editor] = useLexicalComposerContext();
-  const [active, setActive] = useState<ActiveLink | null>(null);
+  const [active, setActive] = useState<ActiveSelection | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftUrl, setDraftUrl] = useState('');
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const inputRef = useRef<HTMLInputElement | null>(null);
-  // Tracks the link we've already auto-opened for editing, so a link created
-  // empty (e.g. from the format toolbar) opens its input exactly once.
-  const autoEditKeyRef = useRef<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
-  // Mirrors draftUrl so the update() closure (deps: [editor]) can read the
-  // latest typed value when committing on pointer-release.
+  // Key of the link whose URL is being edited, readable from the update()
+  // closure (deps: [editor]) so it can hold the bar still and commit later.
+  const editingKeyRef = useRef<string | null>(null);
+  // Mirrors draftUrl so that same closure can read the latest typed value.
   const draftRef = useRef(draftUrl);
   useEffect(() => {
     draftRef.current = draftUrl;
   }, [draftUrl]);
 
   useEffect(() => {
+    // Applies the typed URL to the link left behind, dropping the link when the
+    // field was left empty. Blur can't be relied on here since the bar may
+    // unmount (via pointerdown) before the input's blur reaches React.
+    const resolveEdit = (key: string) => {
+      editingKeyRef.current = null;
+      const draft = draftRef.current.trim();
+      editor.update(() => {
+        const node = $getNodeByKey(key);
+        if (!$isLinkNode(node)) return;
+        if (draft) {
+          $setLinkUrl(node, draft);
+        } else {
+          for (const child of node.getChildren()) node.insertBefore(child);
+          node.remove();
+        }
+      });
+    };
     const update = () => {
       if (draggingRef.current) return;
       const shell = editor.getRootElement()?.parentElement;
       const info = editor.getEditorState().read(() => {
-        const link = $getLinkInSelection();
-        return link ? { key: link.getKey(), url: link.getURL() } : null;
+        const selection = $getSelection();
+        if (
+          !$isRangeSelection(selection) ||
+          selection.isCollapsed() ||
+          selection.getTextContent().length === 0
+        ) {
+          return null;
+        }
+        return {
+          formats: new Set(
+            TEXT_FORMATS.map((f) => f.format).filter((f) =>
+              selection.hasFormat(f),
+            ),
+          ),
+          links: $getLinksInSelection().map((link) => ({
+            key: link.getKey(),
+            url: link.getURL(),
+          })),
+        };
       });
-      // Resolve an auto-created link the user moved away from: save the typed
-      // URL, or drop the link if the field was left empty. Blur can't be
-      // relied on here since the popover may unmount (via pointerdown) before
-      // the input's blur reaches React.
-      const pendingKey = autoEditKeyRef.current;
-      if (pendingKey && pendingKey !== info?.key) {
-        autoEditKeyRef.current = null;
-        const draft = draftRef.current.trim();
-        editor.update(() => {
-          const node = $getNodeByKey(pendingKey);
-          if (!$isLinkNode(node)) return;
-          if (draft) {
-            node.setURL(draft);
-          } else if (node.getURL() === '') {
-            for (const child of node.getChildren()) node.insertBefore(child);
-            node.remove();
-          }
-        });
-      }
-      if (!info || !shell) {
-        setActive(null);
+      const editingKey = editingKeyRef.current;
+      if (editingKey) {
+        // Hold the bar where it is while the input has focus — the DOM
+        // selection lives inside the input, so there's no rect to track.
+        if (info?.links.some((link) => link.key === editingKey)) return;
+        resolveEdit(editingKey);
         setEditing(false);
+      }
+      const domSelection = window.getSelection();
+      if (!info || !shell || !domSelection || domSelection.rangeCount === 0) {
+        setActive(null);
         return;
       }
-      if (info.url === '' && autoEditKeyRef.current !== info.key) {
-        autoEditKeyRef.current = info.key;
+      const rect = domSelection.getRangeAt(0).getBoundingClientRect();
+      const shellRect = shell.getBoundingClientRect();
+      setActive({
+        ...info,
+        anchorTop: rect.top - shellRect.top + shell.scrollTop,
+        anchorBottom: rect.bottom - shellRect.top + shell.scrollTop,
+        anchorLeft: rect.left - shellRect.left + shell.scrollLeft,
+        anchorWidth: rect.width,
+      });
+      // A link created empty (by the link button) opens its input straight away.
+      if (info.links.length === 1 && info.links[0].url === '') {
+        editingKeyRef.current = info.links[0].key;
         setDraftUrl('');
         setEditing(true);
       }
-      const linkEl = editor.getElementByKey(info.key);
-      if (!linkEl) {
-        setActive(null);
-        return;
-      }
-      const rect = linkEl.getBoundingClientRect();
-      const shellRect = shell.getBoundingClientRect();
-      setActive({
-        key: info.key,
-        url: info.url,
-        top: rect.bottom - shellRect.top + shell.scrollTop + 4,
-        left: rect.left - shellRect.left + shell.scrollLeft,
-      });
     };
     const onPointerDown = () => {
       draggingRef.current = true;
@@ -181,33 +300,69 @@ export function FloatingLinkEditorPlugin(): React.ReactNode {
     inputRef.current?.select();
   }, [editing]);
 
+  // Centres the bar above the selection, clamped inside the shell (which clips
+  // it — overflow-y: auto scrolls both axes) and flipped below when the
+  // selection is too near the top. Re-runs on content changes since the bar's
+  // measured width drives the clamp.
+  useLayoutEffect(() => {
+    const el = popoverRef.current;
+    const shell = editor.getRootElement()?.parentElement;
+    if (!el || !shell || !active) return;
+    const { width, height } = el.getBoundingClientRect();
+    const centred = active.anchorLeft + active.anchorWidth / 2 - width / 2;
+    const minLeft = shell.scrollLeft + SHELL_EDGE;
+    const maxLeft = minLeft + shell.clientWidth - width - SHELL_EDGE * 2;
+    const above = active.anchorTop - height - TOOLBAR_GAP;
+    setPosition({
+      left: Math.max(minLeft, Math.min(centred, maxLeft)),
+      top:
+        above >= shell.scrollTop + SHELL_EDGE
+          ? above
+          : active.anchorBottom + TOOLBAR_GAP,
+    });
+  }, [active, editing, draftUrl, editor]);
+
   if (!active) return null;
   const shell = editor.getRootElement()?.parentElement;
   if (!shell) return null;
+  // The URL is only shown (and editable) when the selection is about a single
+  // link; touching several is still enough to unlink them all.
+  const link = active.links.length === 1 ? active.links[0] : null;
+  const hasLinks = active.links.length > 0;
 
-  const removeLink = () => {
-    autoEditKeyRef.current = null;
+  const removeLinks = (keys: string[]) => {
+    editingKeyRef.current = null;
     editor.update(() => {
-      const node = $getNodeByKey(active.key);
-      if ($isLinkNode(node)) {
+      for (const key of keys) {
+        const node = $getNodeByKey(key);
+        if (!$isLinkNode(node)) continue;
+        // Unwrapping an auto-link would only leave URL text for AutoLinkPlugin
+        // to re-link, so flag it as unlinked instead — its own way of saying
+        // that.
+        if ($isAutoLinkNode(node)) {
+          node.setIsUnlinked(true);
+          node.markDirty();
+          continue;
+        }
         for (const child of node.getChildren()) node.insertBefore(child);
         node.remove();
       }
     });
-    setActive(null);
     setEditing(false);
   };
 
   const commitUrl = () => {
+    const key = editingKeyRef.current;
+    if (!key) return;
     const url = draftUrl.trim();
     if (!url) {
-      removeLink();
+      removeLinks([key]);
       return;
     }
-    autoEditKeyRef.current = null;
+    editingKeyRef.current = null;
     editor.update(() => {
-      const node = $getNodeByKey(active.key);
-      if ($isLinkNode(node)) node.setURL(url);
+      const node = $getNodeByKey(key);
+      if ($isLinkNode(node)) $setLinkUrl(node, url);
     });
     setEditing(false);
   };
@@ -215,14 +370,48 @@ export function FloatingLinkEditorPlugin(): React.ReactNode {
   // Cancelling a never-committed (empty) link drops it entirely, rather than
   // leaving an empty-href link in the document.
   const cancelEdit = () => {
-    if (active.url) setEditing(false);
-    else removeLink();
+    const key = editingKeyRef.current;
+    if (!key) return;
+    if (link?.url) {
+      editingKeyRef.current = null;
+      setEditing(false);
+    } else {
+      removeLinks([key]);
+    }
+  };
+
+  const startEdit = (key: string, url: string) => {
+    editingKeyRef.current = key;
+    setDraftUrl(url);
+    setEditing(true);
+  };
+
+  const toggleLink = () => {
+    if (hasLinks) {
+      removeLinks(active.links.map((l) => l.key));
+      return;
+    }
+    editor.update(() => {
+      const selection = $getSelection();
+      const autoLink = $isRangeSelection(selection)
+        ? $findMatchingParent(selection.anchor.getNode(), $isAutoLinkNode)
+        : null;
+      // Re-linking text that was unlinked above just clears the flag; the URL
+      // comes back from the text itself.
+      if ($isAutoLinkNode(autoLink) && autoLink.getIsUnlinked()) {
+        autoLink.setIsUnlinked(false);
+        autoLink.markDirty();
+        return;
+      }
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, '');
+    });
   };
 
   return createPortal(
     <div
+      ref={popoverRef}
       className={styles.popover}
-      style={{ top: active.top, left: active.left }}
+      style={{ top: position.top, left: position.left }}
     >
       {editing ? (
         <input
@@ -234,9 +423,11 @@ export function FloatingLinkEditorPlugin(): React.ReactNode {
             if (e.key === 'Enter') {
               e.preventDefault();
               commitUrl();
+              editor.focus();
             } else if (e.key === 'Escape') {
               e.preventDefault();
               cancelEdit();
+              editor.focus();
             }
           }}
           onBlur={commitUrl}
@@ -245,167 +436,65 @@ export function FloatingLinkEditorPlugin(): React.ReactNode {
         />
       ) : (
         <>
-          <a
-            className={styles.url}
-            href={active.url}
-            target='_blank'
-            rel='noopener noreferrer'
-          >
-            {active.url}
-          </a>
+          {TEXT_FORMATS.map(({ format, label, Icon }) => {
+            const isActive = active.formats.has(format);
+            return (
+              <button
+                key={format}
+                type='button'
+                className={
+                  isActive
+                    ? `${styles.button} ${styles.buttonActive}`
+                    : styles.button
+                }
+                aria-label={label}
+                aria-pressed={isActive}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() =>
+                  editor.dispatchCommand(FORMAT_TEXT_COMMAND, format)
+                }
+              >
+                <Icon size={16} />
+              </button>
+            );
+          })}
+          {link && (
+            <>
+              <a
+                className={styles.url}
+                href={link.url}
+                target='_blank'
+                rel='noopener noreferrer'
+              >
+                {link.url}
+              </a>
+              <button
+                type='button'
+                className={styles.button}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => startEdit(link.key, link.url)}
+                aria-label='Edit link'
+              >
+                <Pencil size={16} />
+              </button>
+            </>
+          )}
           <button
             type='button'
-            className={styles.button}
+            className={
+              hasLinks
+                ? `${styles.button} ${styles.buttonActive}`
+                : styles.button
+            }
+            aria-label={hasLinks ? 'Remove link' : 'Add link'}
+            aria-pressed={hasLinks}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setDraftUrl(active.url);
-              setEditing(true);
-            }}
-            aria-label='Edit link'
+            onClick={toggleLink}
           >
-            <Pencil size={16} />
+            {hasLinks ? <Unlink size={16} /> : <Link size={16} />}
           </button>
         </>
       )}
-    </div>,
-    shell,
-  );
-}
-
-const TEXT_FORMATS: {
-  format: TextFormatType;
-  label: string;
-  Icon: typeof Bold;
-}[] = [
-  { format: 'bold', label: 'Bold', Icon: Bold },
-  { format: 'italic', label: 'Italic', Icon: Italic },
-  { format: 'strikethrough', label: 'Strikethrough', Icon: Strikethrough },
-];
-
-type ActiveSelection = {
-  top: number;
-  left: number;
-  formats: Set<TextFormatType>;
-  isLink: boolean;
-};
-
-// Toolbar that floats above a non-empty text selection, toggling inline
-// formats (and links) on it. Positioned off the native selection rect since a
-// selection can span multiple nodes; buttons preventDefault on mousedown so
-// clicking one doesn't collapse the selection being formatted. It only appears
-// once the pointer is released, so it doesn't jump around during a drag-select.
-export function FloatingFormatToolbarPlugin(): React.ReactNode {
-  const [editor] = useLexicalComposerContext();
-  const [active, setActive] = useState<ActiveSelection | null>(null);
-  const draggingRef = useRef(false);
-
-  useEffect(() => {
-    const update = () => {
-      if (draggingRef.current) return;
-      const shell = editor.getRootElement()?.parentElement;
-      const info = editor.getEditorState().read(() => {
-        const selection = $getSelection();
-        if (
-          !$isRangeSelection(selection) ||
-          selection.isCollapsed() ||
-          selection.getTextContent().length === 0
-        ) {
-          return null;
-        }
-        return {
-          formats: new Set(
-            TEXT_FORMATS.map((f) => f.format).filter((f) =>
-              selection.hasFormat(f),
-            ),
-          ),
-          isLink: $getLinkInSelection() !== null,
-        };
-      });
-      const domSelection = window.getSelection();
-      if (!info || !shell || !domSelection || domSelection.rangeCount === 0) {
-        setActive(null);
-        return;
-      }
-      const rect = domSelection.getRangeAt(0).getBoundingClientRect();
-      const shellRect = shell.getBoundingClientRect();
-      setActive({
-        ...info,
-        top: rect.top - shellRect.top + shell.scrollTop,
-        left: rect.left - shellRect.left + shell.scrollLeft + rect.width / 2,
-      });
-    };
-    const onPointerDown = () => {
-      draggingRef.current = true;
-      setActive(null);
-    };
-    const onPointerUp = () => {
-      draggingRef.current = false;
-      update();
-    };
-    const unregisterRoot = editor.registerRootListener((root, prevRoot) => {
-      prevRoot?.removeEventListener('pointerdown', onPointerDown);
-      root?.addEventListener('pointerdown', onPointerDown);
-    });
-    window.addEventListener('pointerup', onPointerUp);
-    return mergeRegister(
-      editor.registerUpdateListener(update),
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        () => {
-          update();
-          return false;
-        },
-        COMMAND_PRIORITY_LOW,
-      ),
-      () => {
-        unregisterRoot();
-        window.removeEventListener('pointerup', onPointerUp);
-      },
-    );
-  }, [editor]);
-
-  if (!active) return null;
-  const shell = editor.getRootElement()?.parentElement;
-  if (!shell) return null;
-
-  const toggleLink = () =>
-    editor.dispatchCommand(TOGGLE_LINK_COMMAND, active.isLink ? null : '');
-
-  return createPortal(
-    <div
-      className={`${styles.popover} ${styles.formatToolbar}`}
-      style={{ top: active.top, left: active.left }}
-    >
-      {TEXT_FORMATS.map(({ format, label, Icon }) => {
-        const isActive = active.formats.has(format);
-        return (
-          <button
-            key={format}
-            type='button'
-            className={
-              isActive ? `${styles.button} ${styles.buttonActive}` : styles.button
-            }
-            aria-label={label}
-            aria-pressed={isActive}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, format)}
-          >
-            <Icon size={16} />
-          </button>
-        );
-      })}
-      <button
-        type='button'
-        className={
-          active.isLink ? `${styles.button} ${styles.buttonActive}` : styles.button
-        }
-        aria-label={active.isLink ? 'Remove link' : 'Add link'}
-        aria-pressed={active.isLink}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={toggleLink}
-      >
-        {active.isLink ? <Unlink size={16} /> : <Link size={16} />}
-      </button>
     </div>,
     shell,
   );

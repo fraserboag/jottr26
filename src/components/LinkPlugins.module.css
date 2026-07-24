@@ -47,10 +47,6 @@
   color: var(--color-text);
 }
 
-.formatToolbar {
-  transform: translate(-50%, calc(-100% - var(--space-2)));
-}
-
 .buttonActive {
   background: var(--color-surface-hover);
   color: var(--color-accent-text);

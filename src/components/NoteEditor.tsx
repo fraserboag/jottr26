@@ -3,6 +3,7 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
@@ -15,7 +16,7 @@ import { QuoteNode } from '@lexical/rich-text';
 // transformers use, so their class-identity checks ($isCodeNode, the LINK
 // transformer's dependencies) match the nodes registered below.
 import { CodeNode } from '@lexical/code-core';
-import { LinkNode } from '@lexical/link';
+import { AutoLinkNode, LinkNode } from '@lexical/link';
 import {
   HEADING,
   INLINE_CODE,
@@ -31,8 +32,9 @@ import { useAutosave } from '@/lib/useAutosave';
 import { useSyncStatus } from '@/lib/syncStatus';
 import {
   CmdClickLinkPlugin,
-  FloatingFormatToolbarPlugin,
-  FloatingLinkEditorPlugin,
+  FloatingToolbarPlugin,
+  PasteLinkPlugin,
+  URL_MATCHERS,
 } from './LinkPlugins';
 import styles from './NoteEditor.module.css';
 
@@ -149,7 +151,14 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
       <LexicalComposer
         initialConfig={{
           namespace: 'jottr-note',
-          nodes: [QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode],
+          nodes: [
+            QuoteNode,
+            ListNode,
+            ListItemNode,
+            CodeNode,
+            LinkNode,
+            AutoLinkNode,
+          ],
           theme: editorTheme,
           editorState: JSON.stringify(note.content),
           onError(error) {
@@ -176,9 +185,10 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         <HistoryPlugin />
         <ListPlugin />
         <LinkPlugin />
+        <AutoLinkPlugin matchers={URL_MATCHERS} />
+        <PasteLinkPlugin />
         <CmdClickLinkPlugin />
-        <FloatingLinkEditorPlugin />
-        <FloatingFormatToolbarPlugin />
+        <FloatingToolbarPlugin />
         <MarkdownShortcutPlugin transformers={NOTE_TRANSFORMERS} />
         <TabIndentationPlugin />
         <OnChangePlugin
