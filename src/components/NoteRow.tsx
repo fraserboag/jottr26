@@ -12,7 +12,7 @@ type NoteRowProps = {
 };
 
 function NoteRow({ note, isSelected, indent, onSelect, onDelete }: NoteRowProps) {
-  const label = note.title || 'Untitled';
+  const label = note.title || 'New Note';
 
   return (
     <div className={styles.row} style={indent}>

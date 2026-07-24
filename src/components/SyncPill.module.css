@@ -1,0 +1,46 @@
+.pill {
+  position: fixed;
+  right: calc(var(--space-4) + var(--inset-right));
+  bottom: calc(var(--space-4) + var(--inset-bottom));
+  z-index: var(--layer-toast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.pill svg {
+  color: var(--color-text-faint);
+}
+
+.pill[data-status='synced'] svg,
+.pill[data-status='saving'] svg {
+  color: var(--color-accent);
+}
+
+.pill[data-status='saving'] svg {
+  animation: spin 1s linear infinite;
+}
+
+.pill[data-status='error'] {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+}
+
+.pill[data-status='error'] svg {
+  color: var(--color-danger);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

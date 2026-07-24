@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "check": "tsc -b && eslint .",
-    "deploy:rules": "firebase deploy --only firestore:rules"
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:indexes": "firebase deploy --only firestore:indexes"
   },
   "dependencies": {
     "@lexical/code-core": "^0.48.0",

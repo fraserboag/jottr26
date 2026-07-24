@@ -1,7 +1,42 @@
 .sidebar {
-  width: 16rem;
+  position: relative;
+  display: flex;
+  flex: none;
   border-right: 1px solid var(--color-border);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
   overflow-y: auto;
+}
+
+.handle {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 11px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+/* Sits over the sidebar's own border so the highlight reads as that edge thickening. */
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: 0 5px;
+  background-color: transparent;
+  transition: background-color var(--duration-fast);
+}
+
+.handle:hover::after {
+  background-color: var(--color-border-strong);
+}
+
+.resizing::after,
+.resizing:hover::after {
+  background-color: var(--color-accent);
 }
 
 .actions {

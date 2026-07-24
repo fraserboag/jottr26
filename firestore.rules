@@ -13,7 +13,8 @@ service cloud.firestore {
     // match documents missing the field, so an absent value would make the
     // document permanently invisible to a `deletedAt == null` list query.
     function isLiveOnCreate() {
-      return request.resource.data.deletedAt == null;
+      return request.resource.data.deletedAt == null
+          && request.resource.data.get('expiresAt', null) == null;
     }
 
     // The reap window below trusts deletedAt, so the client must not get to
@@ -28,6 +29,40 @@ service cloud.firestore {
           || next == resource.data.deletedAt;
     }
 
+    // When the TTL policy on expiresAt may reap this tombstone (see the
+    // fieldOverrides in firestore.indexes.json). TTL deletion bypasses these
+    // rules, so this field is a hard-delete trigger the client gets to name:
+    // left unbounded, a backdated value would reap a document on the spot. It
+    // must be null, carried forward unchanged, or a window away — less a day,
+    // since the client computes it from its own clock while deletedAt is a
+    // serverTimestamp. Only ever set alongside a tombstone.
+    function isExpiresAtTrusted() {
+      let d = request.resource.data;
+      let next = d.get('expiresAt', null);
+      return next == null
+          || next == resource.data.get('expiresAt', null)
+          || (d.deletedAt != null
+              && next >= request.time + duration.value(6, 'd'));
+    }
+
+    // Optional, so documents predating the TTL policy stay writable.
+    function isExpiresAtTyped() {
+      let d = request.resource.data;
+      return !('expiresAt' in d)
+          || d.expiresAt == null
+          || d.expiresAt is timestamp;
+    }
+
+    // Which folder's deletion cascaded this tombstone, so restoring that folder
+    // can revive its subtree; null when the document was deleted on its own.
+    // Optional, so documents predating cascading deletes stay writable.
+    function isDeletedWithTyped() {
+      let d = request.resource.data;
+      return !('deletedWith' in d)
+          || d.deletedWith == null
+          || d.deletedWith is string;
+    }
+
     // createdAt is set once. ownerId and id are denormalized copies of the
     // path, and anything reading them off the document should be able to
     // trust them.
@@ -38,10 +73,11 @@ service cloud.firestore {
     }
 
     // Soft-deleted via deletedAt. Hard delete is only for reaping tombstones
-    // past their undo window.
+    // past their undo window — the same window as TRASH_RETENTION_DAYS in
+    // src/lib/trash.ts, since the trash view stops offering a restore there.
     function isExpiredTombstone() {
       return resource.data.deletedAt != null
-          && request.time > resource.data.deletedAt + duration.value(30, 'd');
+          && request.time > resource.data.deletedAt + duration.value(7, 'd');
     }
 
     // This document only. Subcollections need their own rules — a broad
@@ -59,7 +95,8 @@ service cloud.firestore {
         let d = request.resource.data;
         return d.keys().hasOnly(['id', 'ownerId', 'folderId', 'title',
                                  'content', 'order',
-                                 'createdAt', 'updatedAt', 'deletedAt'])
+                                 'createdAt', 'updatedAt', 'deletedAt',
+                                 'deletedWith', 'expiresAt'])
             && d.keys().hasAll(['id', 'ownerId', 'folderId', 'title',
                                 'content', 'createdAt', 'updatedAt', 'deletedAt'])
             && d.id == noteId
@@ -71,13 +108,16 @@ service cloud.firestore {
             && (!('order' in d) || d.order is string)
             && d.createdAt is timestamp
             && d.updatedAt is timestamp
-            && (d.deletedAt == null || d.deletedAt is timestamp);
+            && (d.deletedAt == null || d.deletedAt is timestamp)
+            && isDeletedWithTyped()
+            && isExpiresAtTyped();
       }
 
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && hasNoteShape() && isLiveOnCreate();
       allow update: if isOwner(uid) && hasNoteShape()
-                    && isImmutablePreserved() && isDeletedAtTrusted();
+                    && isImmutablePreserved() && isDeletedAtTrusted()
+                    && isExpiresAtTrusted();
       allow delete: if isOwner(uid) && isExpiredTombstone();
     }
 
@@ -93,7 +133,8 @@ service cloud.firestore {
       function hasFolderShape() {
         let d = request.resource.data;
         return d.keys().hasOnly(['id', 'ownerId', 'parentId', 'name', 'order',
-                                 'createdAt', 'updatedAt', 'deletedAt'])
+                                 'createdAt', 'updatedAt', 'deletedAt',
+                                 'deletedWith', 'expiresAt'])
             && d.keys().hasAll(['id', 'ownerId', 'parentId', 'name',
                                 'createdAt', 'updatedAt', 'deletedAt'])
             && d.id == folderId
@@ -106,13 +147,16 @@ service cloud.firestore {
             && (!('order' in d) || d.order is string)
             && d.createdAt is timestamp
             && d.updatedAt is timestamp
-            && (d.deletedAt == null || d.deletedAt is timestamp);
+            && (d.deletedAt == null || d.deletedAt is timestamp)
+            && isDeletedWithTyped()
+            && isExpiresAtTyped();
       }
 
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && hasFolderShape() && isLiveOnCreate();
       allow update: if isOwner(uid) && hasFolderShape()
-                    && isImmutablePreserved() && isDeletedAtTrusted();
+                    && isImmutablePreserved() && isDeletedAtTrusted()
+                    && isExpiresAtTrusted();
       allow delete: if isOwner(uid) && isExpiredTombstone();
     }
 

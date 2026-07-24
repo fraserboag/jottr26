@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import App from '@/App';
 import Home from '@/pages/Home';
 import Notes from '@/pages/Notes';
+import Trash from '@/pages/Trash';
 import RequireAuth from '@/components/RequireAuth';
 import RouteError from '@/components/RouteError';
 
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
         children: [
           { path: 'notes', element: <Notes /> },
           { path: 'notes/:noteId', element: <Notes /> },
+          { path: 'trash', element: <Trash /> },
         ],
       },
     ],

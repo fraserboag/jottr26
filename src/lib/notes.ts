@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { SerializedEditorState } from 'lexical';
 import { db } from '@/lib/firebase';
+import { trashExpiresAt } from '@/lib/trash';
 
 export type Note = {
   id: string;
@@ -28,6 +29,13 @@ export type Note = {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deletedAt: Timestamp | null;
+  // Id of the folder whose deletion cascaded this tombstone; null when the
+  // user deleted this note itself. See Folder.deletedWith in src/lib/folders.ts.
+  deletedWith?: string | null;
+  // When the Firestore TTL policy may reap this tombstone; null while live.
+  // Optional only for documents written before the policy existed — those are
+  // reaped by nothing, so their deletedAt is what the trash view goes by.
+  expiresAt?: Timestamp | null;
 };
 
 export function notesRef(uid: string) {
@@ -89,6 +97,8 @@ export function createNote(
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
+    deletedWith: null,
+    expiresAt: null,
   };
   void setDoc(ref, note);
   return note;
@@ -117,11 +127,24 @@ export function moveNote(
   return updateDoc(doc(notesRef(uid), noteId), dest);
 }
 
-// Tombstone, never deleteDoc. Writes only deletedAt so it merges with a concurrent,
-// unrelated edit instead of racing it.
+// Tombstone, never deleteDoc. Writes only the tombstone fields so it merges with
+// a concurrent, unrelated edit instead of racing it.
 export function deleteNote(uid: string, noteId: string): Promise<void> {
   return updateDoc(doc(notesRef(uid), noteId), {
     deletedAt: serverTimestamp(),
+    deletedWith: null,
+    expiresAt: trashExpiresAt(),
+  });
+}
+
+// Clears the tombstone, which also calls off the TTL reaper. A note whose
+// folder is still in the trash comes back at the top level: NoteTree renders
+// an unresolvable folderId there rather than hiding the note.
+export function restoreNote(uid: string, noteId: string): Promise<void> {
+  return updateDoc(doc(notesRef(uid), noteId), {
+    deletedAt: null,
+    deletedWith: null,
+    expiresAt: null,
   });
 }
 
@@ -145,6 +168,43 @@ export function useNotes(
           where('deletedAt', '==', null),
           orderBy('updatedAt', 'desc'),
         )
+    : null;
+
+  const [state, setState] = useState<NotesState>({
+    notes: [],
+    loading: q != null,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!q) {
+      return;
+    }
+    return onSnapshot(
+      q,
+      (snapshot) =>
+        setState({
+          notes: snapshot.docs.map((d) => d.data()),
+          loading: false,
+          error: null,
+        }),
+      (error) => setState({ notes: [], loading: false, error }),
+    );
+  }, [q]);
+
+  return q ? state : { notes: [], loading: false, error: null };
+}
+
+// Every tombstoned note, most recently deleted first — including the ones a
+// folder's deletion cascaded, which the trash view needs to restore alongside
+// their folder even though it doesn't list them separately.
+export function useTrashedNotes(uid: string | null): NotesState {
+  const q = uid
+    ? query(
+        notesRef(uid),
+        where('deletedAt', '!=', null),
+        orderBy('deletedAt', 'desc'),
+      )
     : null;
 
   const [state, setState] = useState<NotesState>({

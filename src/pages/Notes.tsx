@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { createNote, deleteNote, useNotes } from '@/lib/notes';
-import { createFolder, deleteFolder, useFolders } from '@/lib/folders';
+import {
+  createFolder,
+  deleteFolder,
+  getFolderSubtreeIds,
+  useFolders,
+} from '@/lib/folders';
 import { keyForEnd } from '@/lib/ordering';
+import { useReapExpired } from '@/lib/reap';
 import { SyncStatusProvider } from '@/lib/syncStatus';
 import { useCollapsedFolders } from '@/lib/useCollapsedFolders';
 import AppHeader from '@/components/AppHeader';
@@ -18,6 +24,7 @@ function Notes() {
   const { folders } = useFolders(user?.uid ?? null);
   const { notes, loading: notesLoading } = useNotes(user?.uid ?? null);
   const [collapsedFolderIds, setCollapsedFolderIds] = useCollapsedFolders();
+  useReapExpired(user?.uid ?? null);
   // Parent of the folder whose inline "new folder" input is currently open:
   // undefined = none open, null = new top-level folder, id = new subfolder.
   const [addingFolderParentId, setAddingFolderParentId] = useState<
@@ -82,9 +89,14 @@ function Notes() {
   };
 
   const handleDeleteFolder = (folderId: string) => {
-    void deleteFolder(user.uid, folderId);
-    if (addingFolderParentId === folderId) {
+    const subtree = getFolderSubtreeIds(folders, folderId);
+    void deleteFolder(user.uid, folderId, { folders, notes });
+    if (addingFolderParentId != null && subtree.has(addingFolderParentId)) {
       setAddingFolderParentId(undefined);
+    }
+    // The cascade takes the open note with it if it lived anywhere below.
+    if (selectedNote?.folderId != null && subtree.has(selectedNote.folderId)) {
+      void navigate('/notes');
     }
   };
 
@@ -103,7 +115,10 @@ function Notes() {
   return (
     <SyncStatusProvider>
       <div className={styles.layout}>
-        <AppHeader onSignOut={() => void signOut()} />
+        <AppHeader
+          onSignOut={() => void signOut()}
+          onOpenTrash={() => void navigate('/trash')}
+        />
 
         <div className={styles.body}>
           <Sidebar
