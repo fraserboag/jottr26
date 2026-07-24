@@ -3,53 +3,48 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
-import {
-  INSERT_UNORDERED_LIST_COMMAND,
-  ListItemNode,
-  ListNode,
-} from '@lexical/list';
-import {
-  $createHeadingNode,
-  HeadingNode,
-  QuoteNode,
-  type HeadingTagType,
-} from '@lexical/rich-text';
+import { ListItemNode, ListNode } from '@lexical/list';
+import { QuoteNode } from '@lexical/rich-text';
 // CodeNode/LinkNode imported from the exact packages @lexical/markdown's
 // transformers use, so their class-identity checks ($isCodeNode, the LINK
 // transformer's dependencies) match the nodes registered below.
 import { CodeNode } from '@lexical/code-core';
 import { LinkNode } from '@lexical/link';
-import { TRANSFORMERS } from '@lexical/markdown';
-import { $setBlocksType } from '@lexical/selection';
 import {
-  $createParagraphNode,
-  $getSelection,
-  $isRangeSelection,
-  FORMAT_TEXT_COMMAND,
-  type SerializedEditorState,
-} from 'lexical';
+  HEADING,
+  INLINE_CODE,
+  STRIKETHROUGH,
+  TRANSFORMERS,
+  type TextFormatTransformer,
+} from '@lexical/markdown';
+import { type SerializedEditorState } from 'lexical';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import {
-  Bold,
-  Heading1,
-  Heading2,
-  Italic,
-  List,
-  Pilcrow,
-} from 'lucide-react';
 import { updateNote, type Note } from '@/lib/notes';
 import { useAutosave } from '@/lib/useAutosave';
 import { useSyncStatus } from '@/lib/syncStatus';
+import {
+  CmdClickLinkPlugin,
+  FloatingFormatToolbarPlugin,
+  FloatingLinkEditorPlugin,
+} from './LinkPlugins';
 import styles from './NoteEditor.module.css';
 
+// Strikethrough via a single tilde (~text~) instead of Lexical's default ~~.
+const STRIKETHROUGH_TILDE: TextFormatTransformer = { ...STRIKETHROUGH, tag: '~' };
+
+// Heading and inline-code shortcuts are intentionally omitted.
+const NOTE_TRANSFORMERS = TRANSFORMERS.filter(
+  (t) => t !== HEADING && t !== INLINE_CODE,
+).map((t) => (t === STRIKETHROUGH ? STRIKETHROUGH_TILDE : t));
+
 const editorTheme = {
-  heading: { h1: styles.h1, h2: styles.h2 },
   list: {
     ul: styles.ul,
     ol: styles.ol,
@@ -65,68 +60,8 @@ const editorTheme = {
     bold: styles.bold,
     italic: styles.italic,
     strikethrough: styles.strikethrough,
-    code: styles.inlineCode,
   },
 };
-
-function Toolbar() {
-  const [editor] = useLexicalComposerContext();
-
-  const setHeading = (tag: HeadingTagType) => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType(selection, () => $createHeadingNode(tag));
-      }
-    });
-  };
-
-  const setParagraph = () => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType(selection, () => $createParagraphNode());
-      }
-    });
-  };
-
-  return (
-    <div className={styles.toolbar}>
-      <button
-        type='button'
-        aria-label='Bold'
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
-      >
-        <Bold size={16} />
-      </button>
-      <button
-        type='button'
-        aria-label='Italic'
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
-      >
-        <Italic size={16} />
-      </button>
-      <button type='button' aria-label='Heading 1' onClick={() => setHeading('h1')}>
-        <Heading1 size={16} />
-      </button>
-      <button type='button' aria-label='Heading 2' onClick={() => setHeading('h2')}>
-        <Heading2 size={16} />
-      </button>
-      <button type='button' aria-label='Normal text' onClick={setParagraph}>
-        <Pilcrow size={16} />
-      </button>
-      <button
-        type='button'
-        aria-label='Bulleted list'
-        onClick={() =>
-          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
-        }
-      >
-        <List size={16} />
-      </button>
-    </div>
-  );
-}
 
 type Draft = { title: string; content: SerializedEditorState };
 
@@ -214,14 +149,7 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
       <LexicalComposer
         initialConfig={{
           namespace: 'jottr-note',
-          nodes: [
-            HeadingNode,
-            QuoteNode,
-            ListNode,
-            ListItemNode,
-            CodeNode,
-            LinkNode,
-          ],
+          nodes: [QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode],
           theme: editorTheme,
           editorState: JSON.stringify(note.content),
           onError(error) {
@@ -229,7 +157,6 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
           },
         }}
       >
-        <Toolbar />
         {editorSyncContent && <RemoteContentSync content={editorSyncContent} />}
         <RichTextPlugin
           contentEditable={
@@ -248,7 +175,11 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         />
         <HistoryPlugin />
         <ListPlugin />
-        <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+        <LinkPlugin />
+        <CmdClickLinkPlugin />
+        <FloatingLinkEditorPlugin />
+        <FloatingFormatToolbarPlugin />
+        <MarkdownShortcutPlugin transformers={NOTE_TRANSFORMERS} />
         <TabIndentationPlugin />
         <OnChangePlugin
           ignoreSelectionChange

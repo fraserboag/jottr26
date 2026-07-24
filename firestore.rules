@@ -53,10 +53,13 @@ service cloud.firestore {
 
     match /users/{uid}/notes/{noteId} {
 
+      // `order` is the manual-sort key (see src/lib/ordering.ts). Optional so
+      // documents predating ordering stay writable; typed as a string when set.
       function hasNoteShape() {
         let d = request.resource.data;
         return d.keys().hasOnly(['id', 'ownerId', 'folderId', 'title',
-                                 'content', 'createdAt', 'updatedAt', 'deletedAt'])
+                                 'content', 'order',
+                                 'createdAt', 'updatedAt', 'deletedAt'])
             && d.keys().hasAll(['id', 'ownerId', 'folderId', 'title',
                                 'content', 'createdAt', 'updatedAt', 'deletedAt'])
             && d.id == noteId
@@ -65,6 +68,7 @@ service cloud.firestore {
             && d.title is string
             && d.title.size() <= 500
             && d.content is map
+            && (!('order' in d) || d.order is string)
             && d.createdAt is timestamp
             && d.updatedAt is timestamp
             && (d.deletedAt == null || d.deletedAt is timestamp);
@@ -84,9 +88,11 @@ service cloud.firestore {
     // src/lib/folders.ts.
     match /users/{uid}/folders/{folderId} {
 
+      // `order` is the manual-sort key (see src/lib/ordering.ts). Optional so
+      // documents predating ordering stay writable; typed as a string when set.
       function hasFolderShape() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['id', 'ownerId', 'parentId', 'name',
+        return d.keys().hasOnly(['id', 'ownerId', 'parentId', 'name', 'order',
                                  'createdAt', 'updatedAt', 'deletedAt'])
             && d.keys().hasAll(['id', 'ownerId', 'parentId', 'name',
                                 'createdAt', 'updatedAt', 'deletedAt'])
@@ -97,6 +103,7 @@ service cloud.firestore {
             && d.name is string
             && d.name.size() > 0
             && d.name.size() <= 200
+            && (!('order' in d) || d.order is string)
             && d.createdAt is timestamp
             && d.updatedAt is timestamp
             && (d.deletedAt == null || d.deletedAt is timestamp);

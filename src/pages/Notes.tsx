@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { createNote, deleteNote, useNotes } from '@/lib/notes';
 import { createFolder, deleteFolder, useFolders } from '@/lib/folders';
+import { keyForEnd } from '@/lib/ordering';
 import { SyncStatusProvider } from '@/lib/syncStatus';
 import { useCollapsedFolders } from '@/lib/useCollapsedFolders';
 import AppHeader from '@/components/AppHeader';
@@ -29,13 +30,26 @@ function Notes() {
 
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
 
+  // Folders and notes directly under `parentId`, whose shared order keyspace a
+  // newly created sibling appends to the end of.
+  const siblingsAt = (parentId: string | null) => [
+    ...folders.filter((folder) => folder.parentId === parentId),
+    ...notes.filter((note) => note.folderId === parentId),
+  ];
+
   const handleNewNote = () => {
-    const note = createNote(user.uid, { folderId: null });
+    const note = createNote(user.uid, {
+      folderId: null,
+      order: keyForEnd(siblingsAt(null)),
+    });
     void navigate(`/notes/${note.id}`, { state: { focusTitle: true } });
   };
 
   const handleNewNoteInFolder = (folderId: string) => {
-    const note = createNote(user.uid, { folderId });
+    const note = createNote(user.uid, {
+      folderId,
+      order: keyForEnd(siblingsAt(folderId)),
+    });
     setCollapsedFolderIds((prev) => {
       const next = new Set(prev);
       next.delete(folderId);
@@ -63,7 +77,7 @@ function Notes() {
   };
 
   const handleCreateFolder = (parentId: string | null, name: string) => {
-    void createFolder(user.uid, name, parentId);
+    void createFolder(user.uid, name, parentId, keyForEnd(siblingsAt(parentId)));
     setAddingFolderParentId(undefined);
   };
 

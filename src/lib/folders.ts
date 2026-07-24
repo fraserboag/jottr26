@@ -21,6 +21,10 @@ export type Folder = {
   ownerId: string;
   parentId: string | null;
   name: string;
+  // Fractional-index key for manual ordering among its siblings (the folders
+  // and notes sharing its parentId). Optional only for folders written before
+  // ordering existed; new folders always set it. See src/lib/ordering.ts.
+  order?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deletedAt: Timestamp | null;
@@ -33,7 +37,8 @@ export function foldersRef(uid: string) {
 export async function createFolder(
   uid: string,
   name: string,
-  parentId: string | null = null,
+  parentId: string | null,
+  order: string,
 ): Promise<Folder> {
   const ref = doc(foldersRef(uid));
   const now = Timestamp.now();
@@ -42,6 +47,7 @@ export async function createFolder(
     ownerId: uid,
     parentId,
     name,
+    order,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -61,6 +67,18 @@ export function updateFolder(
     ...patch,
     updatedAt: Timestamp.now(),
   });
+}
+
+// Reposition a folder: change its parent and/or its order key among siblings.
+// Deliberately does NOT bump updatedAt (see moveNote). Call wouldCreateCycle
+// first when parentId changes — rules only reject the direct self-parent case.
+// Compute `order` from the destination level's siblings with src/lib/ordering.ts.
+export function moveFolder(
+  uid: string,
+  folderId: string,
+  dest: { parentId: string | null; order: string },
+): Promise<void> {
+  return updateDoc(doc(foldersRef(uid), folderId), dest);
 }
 
 // True if setting folderId's parent to newParentId would create a cycle —

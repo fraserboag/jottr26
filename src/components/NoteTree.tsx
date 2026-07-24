@@ -1,5 +1,6 @@
 import type { Folder } from '@/lib/folders';
 import type { Note } from '@/lib/notes';
+import { compareOrder } from '@/lib/ordering';
 import FolderRow from './FolderRow';
 import NewFolderForm from './NewFolderForm';
 import NoteRow from './NoteRow';
@@ -63,6 +64,16 @@ function NoteTree(props: NoteTreeProps) {
   if (childFolders.length === 0 && childNotes.length === 0) {
     return null;
   }
+
+  // Folders and notes at this level share one order keyspace, so they're merged
+  // and sorted together. The id tiebreak keeps the sort stable when order keys
+  // are equal or absent (docs predating ordering sort last, then by id).
+  const items: TreeItem[] = [
+    ...childFolders.map((folder): TreeItem => ({ kind: 'folder', folder })),
+    ...childNotes.map((note): TreeItem => ({ kind: 'note', note })),
+  ].sort(
+    (a, b) => compareOrder(itemData(a), itemData(b)) || itemId(a).localeCompare(itemId(b)),
+  );
   const indent = {
     paddingLeft: `calc(var(--space-2) + ${depth} * var(--space-4))`,
   };
@@ -72,7 +83,22 @@ function NoteTree(props: NoteTreeProps) {
 
   return (
     <ul className={styles.tree}>
-      {childFolders.map((folder) => {
+      {items.map((item) => {
+        if (item.kind === 'note') {
+          const { note } = item;
+          return (
+            <li key={note.id}>
+              <NoteRow
+                note={note}
+                isSelected={note.id === selectedNoteId}
+                indent={indent}
+                onSelect={() => onSelectNote(note.id)}
+                onDelete={() => onDeleteNote(note.id)}
+              />
+            </li>
+          );
+        }
+        const { folder } = item;
         const isCollapsed = collapsedFolderIds.has(folder.id);
         return (
           <li key={folder.id}>
@@ -100,19 +126,16 @@ function NoteTree(props: NoteTreeProps) {
           </li>
         );
       })}
-      {childNotes.map((note) => (
-        <li key={note.id}>
-          <NoteRow
-            note={note}
-            isSelected={note.id === selectedNoteId}
-            indent={indent}
-            onSelect={() => onSelectNote(note.id)}
-            onDelete={() => onDeleteNote(note.id)}
-          />
-        </li>
-      ))}
     </ul>
   );
 }
+
+type TreeItem =
+  | { kind: 'folder'; folder: Folder }
+  | { kind: 'note'; note: Note };
+
+const itemData = (item: TreeItem) =>
+  item.kind === 'folder' ? item.folder : item.note;
+const itemId = (item: TreeItem) => itemData(item).id;
 
 export default NoteTree;

@@ -21,6 +21,10 @@ export type Note = {
   folderId: string | null; // null = unfiled
   title: string;
   content: SerializedEditorState;
+  // Fractional-index key for manual ordering among its siblings (the notes and
+  // folders sharing its folderId). Optional only for notes written before
+  // ordering existed; new notes always set it. See src/lib/ordering.ts.
+  order?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   deletedAt: Timestamp | null;
@@ -70,6 +74,7 @@ export function createNote(
     title?: string;
     content?: SerializedEditorState;
     folderId?: string | null;
+    order: string;
   },
 ): Note {
   const ref = doc(notesRef(uid));
@@ -80,6 +85,7 @@ export function createNote(
     folderId: input.folderId ?? null,
     title: input.title ?? '',
     content: input.content ?? EMPTY_NOTE_CONTENT,
+    order: input.order,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -97,6 +103,18 @@ export function updateNote(
     ...patch,
     updatedAt: Timestamp.now(),
   });
+}
+
+// Reposition a note: change its folder and/or its order key among siblings.
+// Deliberately does NOT bump updatedAt — a drag-reorder isn't a content edit,
+// and updatedAt drives the "recently updated" sort. Compute `order` from the
+// destination level's siblings with the helpers in src/lib/ordering.ts.
+export function moveNote(
+  uid: string,
+  noteId: string,
+  dest: { folderId: string | null; order: string },
+): Promise<void> {
+  return updateDoc(doc(notesRef(uid), noteId), dest);
 }
 
 // Tombstone, never deleteDoc. Writes only deletedAt so it merges with a concurrent,
