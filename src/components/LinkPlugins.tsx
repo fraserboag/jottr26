@@ -157,6 +157,11 @@ type ActiveSelection = {
 const TOOLBAR_GAP = 8;
 const SHELL_EDGE = 4;
 
+// Touch puts the bar below the selection instead of above it: iOS shows its own
+// callout (Copy / Look Up / Share) directly above a selection, and two bars
+// fighting over that space is worse than the bar sitting further from the text.
+const prefersBelow = () => window.matchMedia('(pointer: coarse)').matches;
+
 // An auto-linked URL re-derives its href from its own text, so a URL set by
 // hand has to leave the auto-link behind or AutoLinkPlugin would revert it.
 function $setLinkUrl(node: LinkNode, url: string): void {
@@ -169,12 +174,12 @@ function $setLinkUrl(node: LinkNode, url: string): void {
   node.replace(link);
 }
 
-// Toolbar that floats above a non-empty text selection, toggling inline
-// formats on it and editing any link it sits in — the URL input swaps into the
-// same bar. Positioned off the native selection rect since a selection can span
-// multiple nodes; buttons preventDefault on mousedown so clicking one doesn't
-// collapse the selection being formatted. It only appears once the pointer is
-// released, so it doesn't jump around during a drag-select.
+// Toolbar that floats over a non-empty text selection, toggling inline formats
+// on it and editing any link it sits in — the URL input swaps into the same
+// bar. Positioned off the native selection rect since a selection can span
+// multiple nodes; buttons preventDefault on pointerdown so activating one
+// doesn't collapse the selection being formatted. It only appears once the
+// pointer is released, so it doesn't jump around during a drag-select.
 export function FloatingToolbarPlugin(): React.ReactNode {
   const [editor] = useLexicalComposerContext();
   const [active, setActive] = useState<ActiveSelection | null>(null);
@@ -264,7 +269,13 @@ export function FloatingToolbarPlugin(): React.ReactNode {
         setEditing(true);
       }
     };
-    const onPointerDown = () => {
+    // On the document rather than the editor root, because iOS draws the
+    // grabbers that adjust a selection as OS-level UI outside it — a
+    // root-scoped listener never sees that drag, and the bar would chase the
+    // selection through every intermediate position. The bar's own pointers
+    // are exempt, or tapping a button would dismiss it before the click landed.
+    const onPointerDown = (event: PointerEvent) => {
+      if (popoverRef.current?.contains(event.target as Node)) return;
       draggingRef.current = true;
       setActive(null);
     };
@@ -272,10 +283,7 @@ export function FloatingToolbarPlugin(): React.ReactNode {
       draggingRef.current = false;
       update();
     };
-    const unregisterRoot = editor.registerRootListener((root, prevRoot) => {
-      prevRoot?.removeEventListener('pointerdown', onPointerDown);
-      root?.addEventListener('pointerdown', onPointerDown);
-    });
+    document.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
     return mergeRegister(
       editor.registerUpdateListener(update),
@@ -288,7 +296,7 @@ export function FloatingToolbarPlugin(): React.ReactNode {
         COMMAND_PRIORITY_LOW,
       ),
       () => {
-        unregisterRoot();
+        document.removeEventListener('pointerdown', onPointerDown);
         window.removeEventListener('pointerup', onPointerUp);
       },
     );
@@ -300,9 +308,9 @@ export function FloatingToolbarPlugin(): React.ReactNode {
     inputRef.current?.select();
   }, [editing]);
 
-  // Centres the bar above the selection, clamped inside the shell (which clips
-  // it — overflow-y: auto scrolls both axes) and flipped below when the
-  // selection is too near the top. Re-runs on content changes since the bar's
+  // Centres the bar on the selection, clamped inside the shell (which clips it
+  // — overflow-y: auto scrolls both axes) and flipped to the other side when
+  // the preferred one has no room. Re-runs on content changes since the bar's
   // measured width drives the clamp.
   useLayoutEffect(() => {
     const el = popoverRef.current;
@@ -313,12 +321,19 @@ export function FloatingToolbarPlugin(): React.ReactNode {
     const minLeft = shell.scrollLeft + SHELL_EDGE;
     const maxLeft = minLeft + shell.clientWidth - width - SHELL_EDGE * 2;
     const above = active.anchorTop - height - TOOLBAR_GAP;
+    const below = active.anchorBottom + TOOLBAR_GAP;
+    const fitsAbove = above >= shell.scrollTop + SHELL_EDGE;
+    const fitsBelow =
+      below + height <= shell.scrollTop + shell.clientHeight - SHELL_EDGE;
     setPosition({
       left: Math.max(minLeft, Math.min(centred, maxLeft)),
-      top:
-        above >= shell.scrollTop + SHELL_EDGE
+      top: prefersBelow()
+        ? fitsBelow || !fitsAbove
+          ? below
+          : above
+        : fitsAbove
           ? above
-          : active.anchorBottom + TOOLBAR_GAP,
+          : below,
     });
   }, [active, editing, draftUrl, editor]);
 
@@ -449,7 +464,7 @@ export function FloatingToolbarPlugin(): React.ReactNode {
                 }
                 aria-label={label}
                 aria-pressed={isActive}
-                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
                 onClick={() =>
                   editor.dispatchCommand(FORMAT_TEXT_COMMAND, format)
                 }
@@ -471,7 +486,7 @@ export function FloatingToolbarPlugin(): React.ReactNode {
               <button
                 type='button'
                 className={styles.button}
-                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => e.preventDefault()}
                 onClick={() => startEdit(link.key, link.url)}
                 aria-label='Edit link'
               >
@@ -488,7 +503,7 @@ export function FloatingToolbarPlugin(): React.ReactNode {
             }
             aria-label={hasLinks ? 'Remove link' : 'Add link'}
             aria-pressed={hasLinks}
-            onMouseDown={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.preventDefault()}
             onClick={toggleLink}
           >
             {hasLinks ? <Unlink size={16} /> : <Link size={16} />}

@@ -36,6 +36,7 @@ import {
   PasteLinkPlugin,
   URL_MATCHERS,
 } from './LinkPlugins';
+import { MarkdownPastePlugin } from './MarkdownPastePlugin';
 import styles from './NoteEditor.module.css';
 
 // Strikethrough via a single tilde (~text~) instead of Lexical's default ~~.
@@ -126,10 +127,16 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
     setEditorSyncContent(incoming.content);
   }, [note]);
 
-  const { flush, status } = useAutosave(draft, (value) => {
-    baselineRef.current = value;
-    return updateNote(uid, note.id, value);
-  });
+  // isEqual by value, not identity: OnChangePlugin hands back a fresh state
+  // object per change, so an edit undone back to the same text would write.
+  const { flush, status } = useAutosave(
+    draft,
+    (value) => {
+      baselineRef.current = value;
+      return updateNote(uid, note.id, value);
+    },
+    { isEqual: draftsEqual },
+  );
 
   const { setStatus } = useSyncStatus();
   useEffect(() => {
@@ -187,6 +194,7 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         <LinkPlugin />
         <AutoLinkPlugin matchers={URL_MATCHERS} />
         <PasteLinkPlugin />
+        <MarkdownPastePlugin transformers={NOTE_TRANSFORMERS} />
         <CmdClickLinkPlugin />
         <FloatingToolbarPlugin />
         <MarkdownShortcutPlugin transformers={NOTE_TRANSFORMERS} />
