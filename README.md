@@ -21,11 +21,27 @@ across devices in real time once connectivity returns.
 ## Editor
 
 Formatting is available three ways, and they all go through the same Lexical
-commands: a toolbar that floats above a selection, the standard shortcuts
-(cmd+B, cmd+I) that Lexical handles in core, and Markdown shortcuts as you
-type. The transformer set is `NOTE_TRANSFORMERS` in
-`src/components/NoteEditor.tsx` — the stock list minus headings and inline
-code, with strikethrough rebound to a single tilde (`~text~`).
+commands: the toolbar, the standard shortcuts (cmd+B, cmd+I) that Lexical
+handles in core, and Markdown shortcuts as you type. The transformer set is
+`NOTE_TRANSFORMERS` in `src/components/NoteEditor.tsx` — the stock list minus
+headings and inline code, with strikethrough rebound to a single tilde
+(`~text~`).
+
+The toolbar in `src/components/FormattingToolbar.tsx` has two presentations
+over one set of state, chosen by `(pointer: coarse)`:
+
+- **Mouse** — a popover floating over the selection, shown only when there is
+  one.
+- **Touch** — a bar docked above the keyboard, shown whenever the editor has
+  focus, positioned from `visualViewport` since that is the only thing that
+  reports where the keyboard's top edge is.
+
+Touch is docked rather than floating because iOS puts its own Cut/Copy/Paste
+callout directly over a selection and will not yield that space to a
+contenteditable. Docking also means the bar can act on a collapsed cursor —
+tapping Bold with nothing selected sets the format for what you type next,
+which a selection-anchored bar cannot do. The link button is the one control
+that still needs a selection, and disables itself without one.
 
 Paste is handled in three layers, ordered by command priority so each gets
 first refusal before the next:
@@ -106,9 +122,7 @@ Lexical editor (floating toolbar, Markdown shortcuts and paste, links with
 editing and removal), autosave with cross-device sync, and trash with restore
 and TTL reaping.
 
-Next up: linking notes to each other. The floating toolbar's touch handling has
-been written but not yet confirmed on a real iPhone — see the notes in
-`src/components/LinkPlugins.tsx`. Bullets are reachable by typing `- ` and
+Next up: linking notes to each other. Bullets are reachable by typing `- ` and
 deliberately have no toolbar button.
 
 Not yet decided: the schema migration path — documents carry no version field

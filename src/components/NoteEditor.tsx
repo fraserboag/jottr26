@@ -32,10 +32,10 @@ import { useAutosave } from '@/lib/useAutosave';
 import { useSyncStatus } from '@/lib/syncStatus';
 import {
   CmdClickLinkPlugin,
-  FloatingToolbarPlugin,
   PasteLinkPlugin,
   URL_MATCHERS,
 } from './LinkPlugins';
+import { FormattingToolbarPlugin } from './FormattingToolbar';
 import { MarkdownPastePlugin } from './MarkdownPastePlugin';
 import styles from './NoteEditor.module.css';
 
@@ -196,7 +196,7 @@ function NoteEditor({ uid, note }: NoteEditorProps) {
         <PasteLinkPlugin />
         <MarkdownPastePlugin transformers={NOTE_TRANSFORMERS} />
         <CmdClickLinkPlugin />
-        <FloatingToolbarPlugin />
+        <FormattingToolbarPlugin />
         <MarkdownShortcutPlugin transformers={NOTE_TRANSFORMERS} />
         <TabIndentationPlugin />
         <OnChangePlugin

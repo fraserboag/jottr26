@@ -22,6 +22,14 @@
   outline: none;
 }
 
+/* Clears the toolbar docked at the bottom of the viewport on touch, which
+   would otherwise sit over the last line of the note. */
+@media (pointer: coarse) {
+  .editorShell {
+    padding-bottom: calc(var(--space-7) + var(--space-2));
+  }
+}
+
 .placeholder {
   position: absolute;
   top: var(--space-4);
