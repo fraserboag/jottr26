@@ -18,7 +18,7 @@ import {
   COMMAND_PRIORITY_LOW,
   type TextFormatType,
 } from 'lexical';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Bold, Italic, Link, Pencil, Strikethrough, Unlink } from 'lucide-react';
 import styles from './FormattingToolbar.module.css';
@@ -85,6 +85,15 @@ const EMPTY_STATE: ToolbarState = {
 const TOOLBAR_GAP = 8;
 const SHELL_EDGE = 4;
 
+// How a button is activated depends on the presentation. A mouse keeps the
+// selection by cancelling mousedown's default and acting on the click. Touch
+// can't: the bar's non-passive touchstart handler has already cancelled the
+// tap to stop iOS blurring the editor, which suppresses the click iOS would
+// otherwise synthesise — so touch acts on touchend. The two are mutually
+// exclusive rather than both registered, since a click that did slip through
+// would toggle the format straight back off.
+const preventDefault = (event: React.MouseEvent) => event.preventDefault();
+
 // Touch docks the bar above the keyboard instead of floating it over the
 // selection: iOS puts its own Cut/Copy/Paste callout there and won't yield it,
 // and a docked bar can act on a collapsed cursor, which a selection-anchored
@@ -130,6 +139,30 @@ export function FormattingToolbarPlugin(): React.ReactNode {
   useEffect(() => {
     draftRef.current = draftUrl;
   }, [draftUrl]);
+
+  // Native and non-passive, because React registers touchstart as passive at
+  // the root and silently drops preventDefault from a synthetic handler. This
+  // is what keeps the editor focused when a button is tapped: iOS moves focus
+  // (closing the keyboard and dropping the selection) off the touch itself,
+  // which preventDefault on pointerdown does not suppress. Only buttons are
+  // prevented — the URL input still has to be tappable to focus.
+  const barRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      popoverRef.current = node;
+      if (!node || !docked) return;
+      const onTouchStart = (event: TouchEvent) => {
+        if ((event.target as HTMLElement).closest('button')) {
+          event.preventDefault();
+        }
+      };
+      node.addEventListener('touchstart', onTouchStart, { passive: false });
+      return () => {
+        popoverRef.current = null;
+        node.removeEventListener('touchstart', onTouchStart);
+      };
+    },
+    [docked],
+  );
 
   useEffect(() => {
     // Applies the typed URL to the link left behind, dropping the link when the
@@ -400,7 +433,7 @@ export function FormattingToolbarPlugin(): React.ReactNode {
 
   const bar = (
     <div
-      ref={popoverRef}
+      ref={barRef}
       className={
         docked
           ? `${styles.bar} ${styles.docked} ${keyboardInset ? styles.aboveKeyboard : ''}`
@@ -446,10 +479,16 @@ export function FormattingToolbarPlugin(): React.ReactNode {
                 }
                 aria-label={label}
                 aria-pressed={isActive}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() =>
-                  editor.dispatchCommand(FORMAT_TEXT_COMMAND, format)
-                }
+                {...(docked
+                  ? {
+                      onTouchEnd: () =>
+                        editor.dispatchCommand(FORMAT_TEXT_COMMAND, format),
+                    }
+                  : {
+                      onMouseDown: preventDefault,
+                      onClick: () =>
+                        editor.dispatchCommand(FORMAT_TEXT_COMMAND, format),
+                    })}
               >
                 <Icon size={16} />
               </button>
@@ -468,8 +507,12 @@ export function FormattingToolbarPlugin(): React.ReactNode {
               <button
                 type='button'
                 className={styles.button}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => startEdit(link.key, link.url)}
+                {...(docked
+                  ? { onTouchEnd: () => startEdit(link.key, link.url) }
+                  : {
+                      onMouseDown: preventDefault,
+                      onClick: () => startEdit(link.key, link.url),
+                    })}
                 aria-label='Edit link'
               >
                 <Pencil size={16} />
@@ -488,8 +531,9 @@ export function FormattingToolbarPlugin(): React.ReactNode {
             // Nothing to link at a collapsed cursor, which the docked bar can
             // sit at; the floating one only ever shows over a selection.
             disabled={!shown.hasSelection}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={toggleLink}
+            {...(docked
+              ? { onTouchEnd: toggleLink }
+              : { onMouseDown: preventDefault, onClick: toggleLink })}
           >
             {hasLinks ? <Unlink size={16} /> : <Link size={16} />}
           </button>
