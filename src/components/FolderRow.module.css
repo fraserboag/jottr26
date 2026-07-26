@@ -10,6 +10,12 @@
   background: var(--color-surface-hover);
 }
 
+.row.dropTarget {
+  background: var(--color-accent-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
 .name {
   flex: 1;
   min-width: 0;

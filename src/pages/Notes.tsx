@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { createNote, deleteNote, useNotes } from '@/lib/notes';
+import { createNote, deleteNote, moveNote, useNotes } from '@/lib/notes';
 import {
   createFolder,
   deleteFolder,
   getFolderSubtreeIds,
+  moveFolder,
   useFolders,
+  wouldCreateCycle,
 } from '@/lib/folders';
 import { keyForEnd } from '@/lib/ordering';
+import { childrenOf } from '@/lib/tree';
 import { useReapExpired } from '@/lib/reap';
 import { SyncStatusProvider } from '@/lib/syncStatus';
 import { useCollapsedFolders } from '@/lib/useCollapsedFolders';
+import type { MoveDest } from '@/components/NoteTree';
 import AppHeader from '@/components/AppHeader';
 import NoteEditor from '@/components/NoteEditor';
 import Sidebar from '@/components/Sidebar';
@@ -39,10 +43,8 @@ function Notes() {
 
   // Folders and notes directly under `parentId`, whose shared order keyspace a
   // newly created sibling appends to the end of.
-  const siblingsAt = (parentId: string | null) => [
-    ...folders.filter((folder) => folder.parentId === parentId),
-    ...notes.filter((note) => note.folderId === parentId),
-  ];
+  const siblingsAt = (parentId: string | null) =>
+    childrenOf({ folders, notes }, parentId);
 
   const handleNewNote = () => {
     const note = createNote(user.uid, {
@@ -100,6 +102,24 @@ function Notes() {
     }
   };
 
+  const handleMoveItem = (
+    item: { id: string; kind: 'folder' | 'note' },
+    dest: MoveDest,
+  ) => {
+    if (item.kind === 'note') {
+      void moveNote(user.uid, item.id, {
+        folderId: dest.parentId,
+        order: dest.order,
+      });
+      return;
+    }
+    // The sidebar hides a dragged folder's subtree so a cycle can't be
+    // projected, but moveFolder's contract asks for the check regardless.
+    if (!wouldCreateCycle(folders, item.id, dest.parentId)) {
+      void moveFolder(user.uid, item.id, dest);
+    }
+  };
+
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds((prev) => {
       const next = new Set(prev);
@@ -136,6 +156,7 @@ function Notes() {
             onCancelAddFolder={() => setAddingFolderParentId(undefined)}
             onDeleteNote={handleDeleteNote}
             onDeleteFolder={handleDeleteFolder}
+            onMoveItem={handleMoveItem}
           />
 
           <main className={styles.main}>

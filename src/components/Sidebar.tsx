@@ -11,7 +11,7 @@ import {
   useSidebarWidth,
 } from '@/lib/useSidebarWidth';
 import NewFolderForm from './NewFolderForm';
-import NoteTree from './NoteTree';
+import NoteTree, { type MoveDest } from './NoteTree';
 import styles from './Sidebar.module.css';
 
 const KEYBOARD_STEP = 16;
@@ -31,6 +31,7 @@ type SidebarProps = {
   onCancelAddFolder: () => void;
   onDeleteNote: (noteId: string) => void;
   onDeleteFolder: (folderId: string) => void;
+  onMoveItem: (item: { id: string; kind: 'folder' | 'note' }, dest: MoveDest) => void;
 };
 
 function Sidebar({ folders, notes, onNewNote, ...tree }: SidebarProps) {

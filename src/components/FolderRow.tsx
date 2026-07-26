@@ -12,6 +12,9 @@ import styles from './FolderRow.module.css';
 type FolderRowProps = {
   folder: Folder;
   isCollapsed: boolean;
+  // True while a drag would drop into this folder — the only cue there is when
+  // the folder is collapsed and the landing slot isn't rendered.
+  isDropTarget: boolean;
   indent: CSSProperties;
   onToggle: () => void;
   onNewNote: () => void;
@@ -22,6 +25,7 @@ type FolderRowProps = {
 function FolderRow({
   folder,
   isCollapsed,
+  isDropTarget,
   indent,
   onToggle,
   onNewNote,
@@ -29,7 +33,10 @@ function FolderRow({
   onDelete,
 }: FolderRowProps) {
   return (
-    <div className={styles.row} style={indent}>
+    <div
+      className={`${styles.row} ${isDropTarget ? styles.dropTarget : ''}`}
+      style={indent}
+    >
       <button
         type='button'
         className={styles.name}

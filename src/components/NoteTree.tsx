@@ -1,10 +1,28 @@
+import { useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import {
+  DndContext,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragMoveEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import type { Folder } from '@/lib/folders';
 import type { Note } from '@/lib/notes';
-import { compareOrder } from '@/lib/ordering';
+import { flattenTree } from '@/lib/tree';
+import { project, resolveDrop, type Projection } from '@/lib/treeDrop';
 import FolderRow from './FolderRow';
 import NewFolderForm from './NewFolderForm';
 import NoteRow from './NoteRow';
 import styles from './NoteTree.module.css';
+
+export type MoveDest = { parentId: string | null; order: string };
 
 type NoteTreeProps = {
   folders: Folder[];
@@ -20,122 +38,202 @@ type NoteTreeProps = {
   onCancelAddFolder: () => void;
   onDeleteNote: (noteId: string) => void;
   onDeleteFolder: (folderId: string) => void;
-  parentId?: string | null;
-  depth?: number;
+  onMoveItem: (item: { id: string; kind: 'folder' | 'note' }, dest: MoveDest) => void;
 };
 
-// Recursive: renders the folders and notes that live directly under parentId,
-// at the given nesting depth, and (for expanded folders) their children below
-// them — folders and unfiled notes are siblings in one tree, not separate
-// sections.
-function NoteTree(props: NoteTreeProps) {
-  const {
-    folders,
-    notes,
-    selectedNoteId,
-    collapsedFolderIds,
-    addingFolderParentId,
-    onSelectNote,
-    onToggleFolder,
-    onNewNoteInFolder,
-    onStartAddFolder,
-    onCreateFolder,
-    onCancelAddFolder,
-    onDeleteNote,
-    onDeleteFolder,
-    parentId = null,
-    depth = 0,
-  } = props;
+type DragState = { activeId: string; overId: string; offsetX: number };
 
-  const folderIds = new Set(folders.map((folder) => folder.id));
-  // A folderId/parentId pointing at a folder that's been deleted (tombstoned,
-  // so no longer in `folders`) is treated as top-level.
-  // Without this, a deleted folder's notes and subfolders would still exist
-  // in Firestore but never render anywhere in the tree.
-  const effectiveParentId = (id: string | null) =>
-    id !== null && folderIds.has(id) ? id : null;
+// The tree renders flat: one row per visible folder/note, indented by depth, so
+// a single vertical sortable covers the whole thing. Nesting is expressed by
+// dragging sideways — see src/lib/treeDrop.ts.
+function NoteTree({
+  folders,
+  notes,
+  selectedNoteId,
+  collapsedFolderIds,
+  addingFolderParentId,
+  onSelectNote,
+  onToggleFolder,
+  onNewNoteInFolder,
+  onStartAddFolder,
+  onCreateFolder,
+  onCancelAddFolder,
+  onDeleteNote,
+  onDeleteFolder,
+  onMoveItem,
+}: NoteTreeProps) {
+  const [drag, setDrag] = useState<DragState | null>(null);
 
-  const childFolders = folders.filter(
-    (folder) => effectiveParentId(folder.parentId) === parentId,
+  // Touch activates on a long press rather than a distance, so a swipe still
+  // scrolls the sidebar instead of dragging a row out of it.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
   );
-  const childNotes = notes.filter(
-    (note) => effectiveParentId(note.folderId) === parentId,
-  );
-  if (childFolders.length === 0 && childNotes.length === 0) {
-    return null;
+
+  const tree = { folders, notes };
+  // A dragged folder takes its subtree with it, so those rows are hidden for
+  // the duration rather than offered as drop targets — which also makes it
+  // impossible to project a drop inside the folder being moved.
+  const hidden = drag
+    ? new Set([...collapsedFolderIds, drag.activeId])
+    : collapsedFolderIds;
+  const items = flattenTree(tree, hidden);
+  const projection = drag
+    ? project(items, drag.activeId, drag.overId, drag.offsetX)
+    : null;
+
+  function handleDragStart({ active }: DragStartEvent) {
+    const activeId = String(active.id);
+    setDrag({ activeId, overId: activeId, offsetX: 0 });
   }
 
-  // Folders and notes at this level share one order keyspace, so they're merged
-  // and sorted together. The id tiebreak keeps the sort stable when order keys
-  // are equal or absent (docs predating ordering sort last, then by id).
-  const items: TreeItem[] = [
-    ...childFolders.map((folder): TreeItem => ({ kind: 'folder', folder })),
-    ...childNotes.map((note): TreeItem => ({ kind: 'note', note })),
-  ].sort(
-    (a, b) => compareOrder(itemData(a), itemData(b)) || itemId(a).localeCompare(itemId(b)),
-  );
-  const indent = {
-    paddingLeft: `calc(var(--space-2) + ${depth} * var(--space-4))`,
-  };
-  const childIndent = {
-    paddingLeft: `calc(var(--space-2) + ${depth + 1} * var(--space-4))`,
-  };
+  function handleDragMove({ delta }: DragMoveEvent) {
+    setDrag((prev) => (prev ? { ...prev, offsetX: delta.x } : prev));
+  }
+
+  function handleDragOver({ over }: DragOverEvent) {
+    setDrag((prev) => (prev && over ? { ...prev, overId: String(over.id) } : prev));
+  }
+
+  function handleDragEnd({ active, over, delta }: DragEndEvent) {
+    setDrag(null);
+    if (!over) {
+      return;
+    }
+    const activeId = String(active.id);
+    const item = items.find((candidate) => candidate.id === activeId);
+    const projected = project(items, activeId, String(over.id), delta.x);
+    if (!item || !projected) {
+      return;
+    }
+    const dest = resolveDrop(tree, activeId, projected);
+    if (dest) {
+      onMoveItem({ id: item.id, kind: item.kind }, dest);
+    }
+  }
 
   return (
-    <ul className={styles.tree}>
-      {items.map((item) => {
-        if (item.kind === 'note') {
-          const { note } = item;
-          return (
-            <li key={note.id}>
-              <NoteRow
-                note={note}
-                isSelected={note.id === selectedNoteId}
-                indent={indent}
-                onSelect={() => onSelectNote(note.id)}
-                onDelete={() => onDeleteNote(note.id)}
-              />
-            </li>
-          );
-        }
-        const { folder } = item;
-        const isCollapsed = collapsedFolderIds.has(folder.id);
-        return (
-          <li key={folder.id}>
-            <FolderRow
-              folder={folder}
-              isCollapsed={isCollapsed}
-              indent={indent}
-              onToggle={() => onToggleFolder(folder.id)}
-              onNewNote={() => onNewNoteInFolder(folder.id)}
-              onAddSubfolder={() => onStartAddFolder(folder.id)}
-              onDelete={() => onDeleteFolder(folder.id)}
-            />
-            {addingFolderParentId === folder.id && (
-              <div style={childIndent}>
-                <NewFolderForm
-                  autoFocus
-                  onCreate={(name) => onCreateFolder(folder.id, name)}
-                  onCancel={onCancelAddFolder}
-                />
-              </div>
-            )}
-            {!isCollapsed && (
-              <NoteTree {...props} parentId={folder.id} depth={depth + 1} />
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setDrag(null)}
+    >
+      <SortableContext items={items.map((item) => item.id)} strategy={noDisplacement}>
+        <ul className={styles.tree}>
+          {items.map((item, index) => {
+            const indent = indentAt(item.depth);
+            return (
+              <SortableItem
+                key={item.id}
+                id={item.id}
+                indicator={indicatorFor(projection, item.id, index)}
+                indicatorDepth={projection?.depth ?? 0}
+              >
+                {item.kind === 'note' ? (
+                  <NoteRow
+                    note={item.note}
+                    isSelected={item.note.id === selectedNoteId}
+                    indent={indent}
+                    onSelect={() => onSelectNote(item.note.id)}
+                    onDelete={() => onDeleteNote(item.note.id)}
+                  />
+                ) : (
+                  <>
+                    <FolderRow
+                      folder={item.folder}
+                      isCollapsed={collapsedFolderIds.has(item.id)}
+                      isDropTarget={projection?.parentId === item.id}
+                      indent={indent}
+                      onToggle={() => onToggleFolder(item.id)}
+                      onNewNote={() => onNewNoteInFolder(item.id)}
+                      onAddSubfolder={() => onStartAddFolder(item.id)}
+                      onDelete={() => onDeleteFolder(item.id)}
+                    />
+                    {addingFolderParentId === item.id && (
+                      <div style={indentAt(item.depth + 1)}>
+                        <NewFolderForm
+                          autoFocus
+                          onCreate={(name) => onCreateFolder(item.id, name)}
+                          onCancel={onCancelAddFolder}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </SortableItem>
+            );
+          })}
+        </ul>
+      </SortableContext>
+    </DndContext>
   );
 }
 
-type TreeItem =
-  | { kind: 'folder'; folder: Folder }
-  | { kind: 'note'; note: Note };
+const indentAt = (depth: number): CSSProperties => ({
+  paddingLeft: `calc(var(--space-2) + ${depth} * var(--space-4))`,
+});
 
-const itemData = (item: TreeItem) =>
-  item.kind === 'folder' ? item.folder : item.note;
-const itemId = (item: TreeItem) => itemData(item).id;
+// Rows hold their place for the whole drag: the indicator line alone says where
+// the item lands, so nothing slides around to open a gap for it.
+const noDisplacement = () => null;
+
+// Which edge of this row, if any, the drop indicator sits on.
+type Indicator = 'before' | 'after' | null;
+
+function indicatorFor(
+  projection: Projection | null,
+  id: string,
+  index: number,
+): Indicator {
+  if (!projection) {
+    return null;
+  }
+  if (projection.afterId === id) {
+    return 'after';
+  }
+  return projection.afterId === null && index === 0 ? 'before' : null;
+}
+
+// The whole row is the drag handle; the buttons inside it stay clickable
+// because the mouse sensor only activates past a few pixels of movement.
+function SortableItem({
+  id,
+  indicator,
+  indicatorDepth,
+  children,
+}: {
+  id: string;
+  indicator: Indicator;
+  indicatorDepth: number;
+  children: ReactNode;
+}) {
+  const { setNodeRef, listeners, isDragging } = useSortable({
+    id,
+    animateLayoutChanges: () => false,
+  });
+
+  return (
+    <li
+      ref={setNodeRef}
+      className={`${styles.item} ${isDragging ? styles.dragging : ''}`}
+      {...listeners}
+    >
+      {children}
+      {indicator && (
+        <div
+          className={`${styles.indicator} ${indicator === 'before' ? styles.indicatorBefore : ''}`}
+          style={{
+            left: `calc(var(--space-2) + ${indicatorDepth} * var(--space-4))`,
+          }}
+        />
+      )}
+    </li>
+  );
+}
 
 export default NoteTree;
