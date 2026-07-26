@@ -15,6 +15,7 @@ import { childrenOf } from '@/lib/tree';
 import { useReapExpired } from '@/lib/reap';
 import { SyncStatusProvider } from '@/lib/syncStatus';
 import { useCollapsedFolders } from '@/lib/useCollapsedFolders';
+import { useIsNarrow } from '@/lib/useIsNarrow';
 import type { MoveDest } from '@/components/NoteTree';
 import AppHeader from '@/components/AppHeader';
 import NoteEditor from '@/components/NoteEditor';
@@ -34,6 +35,18 @@ function Notes() {
   const [addingFolderParentId, setAddingFolderParentId] = useState<
     string | null | undefined
   >(undefined);
+  const isNarrow = useIsNarrow();
+  // null until the user expresses a preference, so the sidebar tracks the
+  // viewport (open beside the editor, closed over it) until they say otherwise.
+  const [sidebarPreference, setSidebarPreference] = useState<boolean | null>(
+    null,
+  );
+  const sidebarOpen = sidebarPreference ?? !isNarrow;
+  // Narrow puts the sidebar over the editor, so anything that opens a note has
+  // to dismiss it or the note it just opened stays hidden behind it.
+  const closeSidebarIfNarrow = () => {
+    if (isNarrow) setSidebarPreference(false);
+  };
 
   if (!user) {
     return null;
@@ -51,6 +64,7 @@ function Notes() {
       folderId: null,
       order: keyForEnd(siblingsAt(null)),
     });
+    closeSidebarIfNarrow();
     void navigate(`/notes/${note.id}`, { state: { focusTitle: true } });
   };
 
@@ -64,6 +78,7 @@ function Notes() {
       next.delete(folderId);
       return next;
     });
+    closeSidebarIfNarrow();
     void navigate(`/notes/${note.id}`, { state: { focusTitle: true } });
   };
 
@@ -138,26 +153,33 @@ function Notes() {
         <AppHeader
           onSignOut={() => void signOut()}
           onOpenTrash={() => void navigate('/trash')}
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarPreference(!sidebarOpen)}
         />
 
         <div className={styles.body}>
-          <Sidebar
-            folders={folders}
-            notes={notes}
-            selectedNoteId={selectedNoteId ?? null}
-            collapsedFolderIds={collapsedFolderIds}
-            addingFolderParentId={addingFolderParentId}
-            onNewNote={handleNewNote}
-            onSelectNote={(noteId) => void navigate(`/notes/${noteId}`)}
-            onToggleFolder={toggleFolder}
-            onNewNoteInFolder={handleNewNoteInFolder}
-            onStartAddFolder={handleStartAddFolder}
-            onCreateFolder={handleCreateFolder}
-            onCancelAddFolder={() => setAddingFolderParentId(undefined)}
-            onDeleteNote={handleDeleteNote}
-            onDeleteFolder={handleDeleteFolder}
-            onMoveItem={handleMoveItem}
-          />
+          {sidebarOpen && (
+            <Sidebar
+              folders={folders}
+              notes={notes}
+              selectedNoteId={selectedNoteId ?? null}
+              collapsedFolderIds={collapsedFolderIds}
+              addingFolderParentId={addingFolderParentId}
+              onNewNote={handleNewNote}
+              onSelectNote={(noteId) => {
+                closeSidebarIfNarrow();
+                void navigate(`/notes/${noteId}`);
+              }}
+              onToggleFolder={toggleFolder}
+              onNewNoteInFolder={handleNewNoteInFolder}
+              onStartAddFolder={handleStartAddFolder}
+              onCreateFolder={handleCreateFolder}
+              onCancelAddFolder={() => setAddingFolderParentId(undefined)}
+              onDeleteNote={handleDeleteNote}
+              onDeleteFolder={handleDeleteFolder}
+              onMoveItem={handleMoveItem}
+            />
+          )}
 
           <main className={styles.main}>
             {selectedNote ? (

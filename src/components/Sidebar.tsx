@@ -10,6 +10,7 @@ import {
   MIN_SIDEBAR_WIDTH,
   useSidebarWidth,
 } from '@/lib/useSidebarWidth';
+import { useIsNarrow } from '@/lib/useIsNarrow';
 import NewFolderForm from './NewFolderForm';
 import NoteTree, { type MoveDest } from './NoteTree';
 import styles from './Sidebar.module.css';
@@ -38,6 +39,9 @@ function Sidebar({ folders, notes, onNewNote, ...tree }: SidebarProps) {
   const isEmpty = folders.length === 0 && notes.length === 0;
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const [isResizing, setIsResizing] = useState(false);
+  // Narrow lays the sidebar out as a full-width overlay in CSS, so the stored
+  // width has to stay off the element entirely rather than be overridden.
+  const isNarrow = useIsNarrow();
 
   function handleResizeStart(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
@@ -82,7 +86,10 @@ function Sidebar({ folders, notes, onNewNote, ...tree }: SidebarProps) {
   }
 
   return (
-    <aside className={styles.sidebar} style={{ width: sidebarWidth }}>
+    <aside
+      className={styles.sidebar}
+      style={isNarrow ? undefined : { width: sidebarWidth }}
+    >
       <div className={styles.content}>
         <div className={styles.actions}>
           <button type='button' aria-label='New note' onClick={onNewNote}>

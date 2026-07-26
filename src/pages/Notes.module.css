@@ -4,7 +4,9 @@
   height: 100dvh;
 }
 
+/* Anchors the sidebar's overlay layout on narrow viewports. */
 .body {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;

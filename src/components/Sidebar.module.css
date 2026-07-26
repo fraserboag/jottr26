@@ -39,6 +39,23 @@
   background-color: var(--color-accent);
 }
 
+/* Must stay in step with NARROW_QUERY in src/lib/useIsNarrow.ts. Full width
+   rather than a drawer, so there is no backdrop to dismiss and nothing to
+   layer against the editor's floating toolbar. */
+@media (max-width: 40rem) {
+  .sidebar {
+    position: absolute;
+    inset: 0;
+    z-index: var(--layer-overlay);
+    background-color: var(--color-bg);
+    border-right: none;
+  }
+
+  .handle {
+    display: none;
+  }
+}
+
 .actions {
   display: flex;
   align-items: center;
