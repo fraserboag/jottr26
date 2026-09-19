@@ -1,0 +1,61 @@
+'use client'
+
+import { useLiveQuery } from 'dexie-react-hooks'
+import { activeDatabase } from './dexie'
+import { bySortKey } from './pages'
+import type { PageRow } from './schema'
+
+/** Live queries against IndexedDB. Dexie keeps these in sync across tabs, so a
+ *  page created in one window appears in the other without a reload. */
+
+export function useAllPages(userId: string | null): PageRow[] | undefined {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db || !userId) return []
+    const rows = await db.pages.where('deletedAt').equals(0).toArray()
+    return rows.sort(bySortKey)
+  }, [userId])
+}
+
+export function useTrashedPages(userId: string | null): PageRow[] | undefined {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db || !userId) return []
+    const rows = await db.pages.where('deletedAt').above(0).toArray()
+    return rows.sort((a, b) => b.deletedAt - a.deletedAt)
+  }, [userId])
+}
+
+export function usePage(pageId: string | null, userId: string | null): PageRow | undefined | null {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db || !pageId || !userId) return null
+    return (await db.pages.get(pageId)) ?? null
+  }, [pageId, userId])
+}
+
+export interface TreeNode {
+  page: PageRow
+  children: TreeNode[]
+}
+
+/** Builds the sidebar tree. A page whose parent is missing — deleted, or not
+ *  pulled down yet — is shown at the root rather than disappearing. */
+export function buildTree(pages: PageRow[]): TreeNode[] {
+  const nodes = new Map<string, TreeNode>()
+  for (const page of pages) nodes.set(page.id, { page, children: [] })
+
+  const roots: TreeNode[] = []
+  for (const node of nodes.values()) {
+    const parent = node.page.parentId ? nodes.get(node.page.parentId) : undefined
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+  }
+
+  const sort = (list: TreeNode[]) => {
+    list.sort((a, b) => bySortKey(a.page, b.page))
+    for (const node of list) sort(node.children)
+  }
+  sort(roots)
+  return roots
+}

@@ -1,0 +1,122 @@
+'use client'
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabaseClient } from '@/lib/supabase/client'
+import { activeDatabase, closeDatabase, eraseDatabase, openDatabase } from '@/lib/db/dexie'
+import { releaseAll } from '@/lib/db/ydoc'
+import { SyncEngine } from '@/lib/sync/engine'
+import { initialStatus, type SyncStatus } from '@/lib/sync/types'
+
+interface WorkspaceValue {
+  session: Session | null
+  userId: string | null
+  /** True once we know whether there is a session and, if so, the local
+   *  database is open. Everything downstream can assume storage is ready. */
+  ready: boolean
+  status: SyncStatus
+  retrySync: () => void
+  syncNow: () => void
+  signOut: () => Promise<void>
+  /** Unsynced pages, for the confirmation shown before signing out. */
+  pendingCount: number
+}
+
+const WorkspaceContext = createContext<WorkspaceValue | null>(null)
+
+export function useWorkspace() {
+  const value = useContext(WorkspaceContext)
+  if (!value) throw new Error('useWorkspace must be used inside WorkspaceProvider')
+  return value
+}
+
+export function useSyncStatus() {
+  return useWorkspace().status
+}
+
+export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(false)
+  const [engineStatus, setEngineStatus] = useState<SyncStatus>(initialStatus)
+  const engineRef = useRef<SyncEngine | null>(null)
+
+  useEffect(() => {
+    const supabase = supabaseClient()
+    let cancelled = false
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return
+      setSession(data.session)
+      setReady(true)
+    })
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession(next)
+      setReady(true)
+    })
+
+    return () => {
+      cancelled = true
+      subscription.subscription.unsubscribe()
+    }
+  }, [])
+
+  const userId = session?.user.id ?? null
+
+  useEffect(() => {
+    if (!userId) {
+      engineRef.current?.stop()
+      engineRef.current = null
+      releaseAll()
+      closeDatabase()
+      return
+    }
+
+    openDatabase(userId)
+    const engine = new SyncEngine(supabaseClient(), userId)
+    engineRef.current = engine
+    const unsubscribe = engine.subscribe(setEngineStatus)
+    void engine.start()
+
+    return () => {
+      unsubscribe()
+      engine.stop()
+      engineRef.current = null
+      releaseAll()
+    }
+  }, [userId])
+
+  // Signed out is a fact about the session, not a value the engine reports, so
+  // it is derived rather than pushed into state from an effect.
+  const status: SyncStatus = useMemo(
+    () => (userId ? engineStatus : { ...initialStatus, phase: 'signedOut' }),
+    [userId, engineStatus],
+  )
+
+  const signOut = useCallback(async () => {
+    const id = userId
+    engineRef.current?.stop()
+    engineRef.current = null
+    releaseAll()
+    await supabaseClient().auth.signOut()
+    // Notes are cloud-backed; leaving a copy in IndexedDB on a device that may
+    // be shared is not a trade worth making.
+    if (id) await eraseDatabase(id)
+  }, [userId])
+
+  const value = useMemo<WorkspaceValue>(
+    () => ({
+      session,
+      userId,
+      ready: ready && (!userId || activeDatabase() !== null),
+      status,
+      pendingCount: status.pending,
+      retrySync: () => engineRef.current?.retryNow(),
+      syncNow: () => engineRef.current?.request(),
+      signOut,
+    }),
+    [session, userId, ready, status, signOut],
+  )
+
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+}

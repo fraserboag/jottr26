@@ -1,26 +1,371 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Palette. Every colour is defined here on bare :root, then re-pointed for
+   dark. Nothing gets its only definition inside a media query, so the explicit
+   theme toggle can win in both directions.
+   --------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --surface: #ffffff;
+  --surface-sunken: #f7f7f5;
+  --surface-raised: #ffffff;
+  --sidebar: #fafaf9;
+  --overlay: rgb(23 23 22 / 0.28);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --text: #1f1f1e;
+  --text-muted: #6f6e6a;
+  --text-faint: #a3a29d;
+
+  --line: #e9e8e4;
+  --line-strong: #dcdbd6;
+
+  --hover: rgb(23 23 22 / 0.045);
+  --active: rgb(23 23 22 / 0.075);
+
+  --accent: #2f6fed;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgb(47 111 237 / 0.1);
+
+  --ok: #2f9e44;
+  --warn: #d97706;
+  --danger: #e03131;
+
+  --shadow-soft: 0 1px 2px rgb(23 23 22 / 0.06), 0 4px 14px rgb(23 23 22 / 0.07);
+  --shadow-pop: 0 2px 6px rgb(23 23 22 / 0.08), 0 12px 32px rgb(23 23 22 / 0.14);
+
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --surface: #1a1a19;
+    --surface-sunken: #141413;
+    --surface-raised: #242422;
+    --sidebar: #151514;
+    --overlay: rgb(0 0 0 / 0.55);
+
+    --text: #ececea;
+    --text-muted: #9a9993;
+    --text-faint: #6d6c67;
+
+    --line: #2c2c29;
+    --line-strong: #3a3a36;
+
+    --hover: rgb(255 255 255 / 0.055);
+    --active: rgb(255 255 255 / 0.09);
+
+    --accent: #6e9cff;
+    --accent-contrast: #10131c;
+    --accent-soft: rgb(110 156 255 / 0.14);
+
+    --ok: #51cf66;
+    --warn: #f5a524;
+    --danger: #ff6b6b;
+
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.36);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.55);
+
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --surface: #1a1a19;
+  --surface-sunken: #141413;
+  --surface-raised: #242422;
+  --sidebar: #151514;
+  --overlay: rgb(0 0 0 / 0.55);
+
+  --text: #ececea;
+  --text-muted: #9a9993;
+  --text-faint: #6d6c67;
+
+  --line: #2c2c29;
+  --line-strong: #3a3a36;
+
+  --hover: rgb(255 255 255 / 0.055);
+  --active: rgb(255 255 255 / 0.09);
+
+  --accent: #6e9cff;
+  --accent-contrast: #10131c;
+  --accent-soft: rgb(110 156 255 / 0.14);
+
+  --ok: #51cf66;
+  --warn: #f5a524;
+  --danger: #ff6b6b;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.36);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.55);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-raised: var(--surface-raised);
+  --color-sidebar: var(--sidebar);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+
+  /* No webfont: the fastest font is the one already on the device, and the
+     first paint of a local-first app should not wait on a download. */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Thin, unobtrusive scrollbars that only show up when there is something to
+   scroll — the sidebar spends most of its life not needing them. */
+@supports (scrollbar-width: thin) {
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Editor
+   --------------------------------------------------------------------------- */
+.ProseMirror {
+  outline: none;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.7;
+  padding-bottom: 40vh; /* Room to keep the caret away from the bottom edge. */
+  word-break: break-word;
+}
+
+.ProseMirror > * + * {
+  margin-top: 2px;
+}
+
+.ProseMirror p {
+  margin: 1px 0;
+  min-height: 1.7em;
+}
+
+.ProseMirror h1.jottr-title {
+  font-size: clamp(2rem, 6vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  margin: 0 0 6px;
+}
+
+.ProseMirror h1:not(.jottr-title) {
+  font-size: 1.75rem;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.018em;
+  margin: 1.6em 0 0.15em;
+}
+.ProseMirror h2 {
+  font-size: 1.375rem;
+  line-height: 1.3;
+  font-weight: 640;
+  letter-spacing: -0.012em;
+  margin: 1.35em 0 0.15em;
+}
+.ProseMirror h3 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  font-weight: 640;
+  margin: 1.1em 0 0.1em;
+}
+.ProseMirror :is(h1, h2, h3):first-child {
+  margin-top: 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.6em;
+  margin: 2px 0;
+}
+.ProseMirror ul {
+  list-style: disc;
+}
+.ProseMirror ul ul {
+  list-style: circle;
+}
+.ProseMirror ul ul ul {
+  list-style: square;
+}
+.ProseMirror ol {
+  list-style: decimal;
+}
+.ProseMirror li > p {
+  margin: 0;
+}
+.ProseMirror li {
+  margin: 1px 0;
+}
+
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.15em;
+}
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  gap: 0.6em;
+  align-items: flex-start;
+}
+.ProseMirror ul[data-type="taskList"] li > label {
+  display: flex;
+  align-items: center;
+  height: 1.7em;
+  flex: 0 0 auto;
+}
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M3.5 8.5l3 3 6-7'/></svg>");
+  background-size: 100%;
+}
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 0.95em;
+  margin: 6px 0;
+  color: var(--text-muted);
+}
+
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.12em 0.34em;
+}
+
+.ProseMirror pre {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+.ProseMirror pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 1.4em 0;
+}
+
+.ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror-selectednode {
+  background: var(--accent-soft);
+  border-radius: 4px;
+}
+
+/* Yjs paints a class on text it just merged in from elsewhere; keeping it
+   invisible avoids a flash of highlight on every pull. */
+.ProseMirror .ychange,
+.ProseMirror ychange {
+  background: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
