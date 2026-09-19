@@ -155,6 +155,12 @@ export class SyncEngine {
     void this.run()
   }
 
+  /** Runs a sync and resolves once it has settled, rather than firing and
+   *  forgetting. Used wherever the caller needs to know the round trip is over. */
+  async syncOnce() {
+    await this.run()
+  }
+
   /** Used by the retry affordance in the status menu. */
   retryNow() {
     this.failures = 0

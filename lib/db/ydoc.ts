@@ -55,9 +55,12 @@ function notifyLocalEdit() {
 export function seedDocument(doc: Y.Doc) {
   const fragment = doc.getXmlFragment(DOC_FIELD)
   if (fragment.length > 0) return
+  // Committed as an ordinary local edit, so it is persisted and pushed like
+  // anything else the user types. Seeding under a load origin would leave the
+  // page's initial shape in memory only, and it would come back empty.
   doc.transact(() => {
     fragment.insert(0, [new Y.XmlElement('title'), new Y.XmlElement('paragraph')])
-  }, LOAD_ORIGIN)
+  })
 }
 
 async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc) {
@@ -109,16 +112,12 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     const doc = new Y.Doc({ gc: true })
     const { state, deltaCount } = await loadFromDisk(db, pageId, doc)
 
-    if (options?.seed) seedDocument(doc)
-
-    const handle: DocHandle = {
-      pageId,
-      doc,
-      ready: doc.getXmlFragment(DOC_FIELD).length > 0 || (state?.version ?? 0) > 0,
-    }
-
+    const handle: DocHandle = { pageId, doc, ready: false }
     let pending = deltaCount
 
+    // Attached before anything else touches the document, so no edit — not even
+    // the initial title and paragraph of a brand new page — can slip past
+    // persistence.
     doc.on('update', (update: Uint8Array, origin: unknown) => {
       if (origin === LOAD_ORIGIN) return
       if (origin === PEER_ORIGIN) {
@@ -131,16 +130,19 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
 
       // Persisted immediately, one small row per transaction. The user's work is
       // on disk before the next keystroke lands, whatever the network is doing.
+      //
+      // The database is the one this document was opened against, not whichever
+      // is active when the write lands: an edit made just before signing out
+      // must never end up in the next account's database.
       void (async () => {
-        const database = activeDatabase()
-        if (!database) return
-        await database.docUpdates.add({ pageId, update })
+        if (!db.isOpen()) return
+        await db.docUpdates.add({ pageId, update })
         pending += 1
 
         if (isLocal) {
           broadcastUpdate(pageId, update)
-          const current = await database.docStates.get(pageId)
-          await database.docStates.put({
+          const current = await db.docStates.get(pageId)
+          await db.docStates.put({
             pageId,
             snapshot: current?.snapshot ?? new Uint8Array(),
             version: current?.version ?? 0,
@@ -152,10 +154,13 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
 
         if (pending >= COMPACT_THRESHOLD) {
           pending = 0
-          await compact(database, pageId, doc)
+          await compact(db, pageId, doc)
         }
       })()
     })
+
+    if (options?.seed) seedDocument(doc)
+    handle.ready = doc.getXmlFragment(DOC_FIELD).length > 0 || (state?.version ?? 0) > 0
 
     handles.set(pageId, handle)
     return handle

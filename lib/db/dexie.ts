@@ -15,12 +15,21 @@ export function databaseName(userId: string) {
   return `jottr:${userId}`
 }
 
+/** Open handles, keyed by account. In the app there is only ever one, but
+ *  keeping them rather than closing on every call means an in-flight write can
+ *  never land against a handle that was closed underneath it. Sign-out closes
+ *  and deletes through eraseDatabase. */
+const open = new Map<string, JottrDB>()
 let current: { userId: string; db: JottrDB } | null = null
 
 export function openDatabase(userId: string): JottrDB {
   if (current?.userId === userId) return current.db
 
-  current?.db.close()
+  const cached = open.get(userId)
+  if (cached) {
+    current = { userId, db: cached }
+    return cached
+  }
 
   const db = new Dexie(databaseName(userId)) as JottrDB
   db.version(1).stores({
@@ -31,6 +40,7 @@ export function openDatabase(userId: string): JottrDB {
     meta: 'key',
   })
 
+  open.set(userId, db)
   current = { userId, db }
   return db
 }
@@ -46,17 +56,17 @@ export function activeUserId(): string | null {
 }
 
 export function closeDatabase() {
-  current?.db.close()
+  for (const db of open.values()) db.close()
+  open.clear()
   current = null
 }
 
 /** Used when signing out: the notes are cloud-backed, and leaving them in
  *  IndexedDB on a device someone else may use is not a tradeoff worth making. */
 export async function eraseDatabase(userId: string) {
-  if (current?.userId === userId) {
-    current.db.close()
-    current = null
-  }
+  open.get(userId)?.close()
+  open.delete(userId)
+  if (current?.userId === userId) current = null
   await Dexie.delete(databaseName(userId))
 }
 
