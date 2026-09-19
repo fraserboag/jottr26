@@ -79,11 +79,13 @@ export function Workspace() {
   // A brand new account gets one page to land on rather than an empty screen.
   useEffect(() => {
     if (!userId || !pages || pages.length > 0) return
-    if (status.lastSyncedAt === null && status.phase !== 'offline') return
+    // Only once the server has confirmed the account really is empty. A device
+    // that first opens offline would otherwise write a second welcome page.
+    if (status.lastSyncedAt === null) return
     void ensureWelcomePage().then((id) => {
       if (id) open(id, { replace: true })
     })
-  }, [userId, pages, status.lastSyncedAt, status.phase, open])
+  }, [userId, pages, status.lastSyncedAt, open])
 
   // The manifest shortcut lands here asking for a blank page.
   useEffect(() => {

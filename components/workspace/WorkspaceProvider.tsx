@@ -98,10 +98,23 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     engineRef.current?.stop()
     engineRef.current = null
     releaseAll()
-    await supabaseClient().auth.signOut()
+    // Local scope: a server-side revoke needs the network, and being unable to
+    // reach Supabase is not a reason to leave someone signed in on a device they
+    // are trying to hand back.
+    await supabaseClient()
+      .auth.signOut({ scope: 'local' })
+      .catch(() => undefined)
+
     // Notes are cloud-backed; leaving a copy in IndexedDB on a device that may
-    // be shared is not a trade worth making.
-    if (id) await eraseDatabase(id)
+    // be shared is not a trade worth making. Another tab holding the database
+    // open would make the delete wait, so it is given a deadline rather than
+    // being allowed to hang the sign-out.
+    if (id) {
+      await Promise.race([
+        eraseDatabase(id),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ])
+    }
   }, [userId])
 
   const value = useMemo<WorkspaceValue>(

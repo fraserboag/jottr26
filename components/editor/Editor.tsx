@@ -13,6 +13,7 @@ import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBrid
 import { SlashMenu, type SlashMenuState } from './SlashMenu'
 import { FormatMenu } from './FormatMenu'
 import { openDoc, type DocHandle } from '@/lib/db/ydoc'
+import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
 
@@ -24,6 +25,10 @@ export function Editor({ pageId }: { pageId: string }) {
 
 function Loader({ pageId }: { pageId: string }) {
   const [handle, setHandle] = useState<DocHandle | null>(null)
+  // Read from IndexedDB rather than from the handle: a document that arrives
+  // mid-wait has to flip this view over on its own, and a mutable field on a
+  // plain object is something React cannot see change.
+  const ready = useDocReady(pageId)
 
   useEffect(() => {
     let cancelled = false
@@ -35,9 +40,9 @@ function Loader({ pageId }: { pageId: string }) {
     }
   }, [pageId])
 
-  if (!handle) return <EditorSkeleton />
+  if (!handle || ready === undefined) return <EditorSkeleton />
 
-  if (!handle.ready) {
+  if (!ready) {
     return (
       <div className="px-2 py-16 text-center">
         <p className="text-[13.5px] text-muted">Fetching this page…</p>

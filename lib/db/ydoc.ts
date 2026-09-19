@@ -77,7 +77,21 @@ async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc) {
   return { state, deltaCount: updates.length }
 }
 
+/** One compaction at a time per page: two crossing the threshold together would
+ *  both rewrite the snapshot and both clear the delta table. */
+const compacting = new Set<string>()
+
 async function compact(db: JottrDB, pageId: string, doc: Y.Doc) {
+  if (compacting.has(pageId)) return
+  compacting.add(pageId)
+  try {
+    await compactNow(db, pageId, doc)
+  } finally {
+    compacting.delete(pageId)
+  }
+}
+
+async function compactNow(db: JottrDB, pageId: string, doc: Y.Doc) {
   const snapshot = Y.encodeStateAsUpdate(doc)
   await db.transaction('rw', db.docStates, db.docUpdates, async () => {
     const existing = await db.docStates.get(pageId)
@@ -235,20 +249,30 @@ export function readPlainText(doc: Y.Doc): string {
   let out = ''
   for (const child of fragment.toArray()) {
     if (child instanceof Y.XmlElement) out += `${collectText(child)}\n`
-    else if (child instanceof Y.XmlText) out += `${child.toString()}\n`
+    else if (child instanceof Y.XmlText) out += `${textOf(child)}\n`
     if (out.length > 8000) break
   }
-  return out.replace(/<[^>]*>/g, '').replace(/\n{2,}/g, '\n').slice(0, 8000)
+  return out.replace(/\n{2,}/g, '\n').slice(0, 8000)
+}
+
+/** Read a text node through its delta rather than toString(): toString()
+ *  serialises marks as HTML tags, and stripping those back out would also eat a
+ *  literal '<b>' that someone actually typed. */
+function textOf(node: Y.XmlText): string {
+  let out = ''
+  for (const op of node.toDelta() as Array<{ insert?: unknown }>) {
+    if (typeof op.insert === 'string') out += op.insert
+  }
+  return out
 }
 
 function collectText(node: Y.XmlElement | Y.XmlFragment): string {
   let out = ''
   for (const child of node.toArray()) {
-    if (child instanceof Y.XmlText) out += child.toString()
+    if (child instanceof Y.XmlText) out += textOf(child)
     else if (child instanceof Y.XmlElement) out += collectText(child)
   }
-  // XmlText#toString serialises marks as tags; strip them for a plain title.
-  return out.replace(/<[^>]*>/g, '')
+  return out
 }
 
 export function releaseAll() {

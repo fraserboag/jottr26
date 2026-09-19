@@ -148,6 +148,12 @@ grant execute on function public.push_page_doc(uuid, text, bigint) to authentica
 -- authoritative read is always a REST query, so a dropped socket or a truncated
 -- payload can never cost you data.
 -- ---------------------------------------------------------------------------
+-- Filtered realtime (user_id=eq.…) only matches on UPDATE and DELETE when the
+-- old row carries every column, which is not the default. Without this, cross
+-- device updates silently fall back to the 45-second poll.
+alter table public.pages replica identity full;
+alter table public.page_docs replica identity full;
+
 do $$
 begin
   if not exists (

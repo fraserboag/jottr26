@@ -159,10 +159,12 @@ Deliberate, and worth stating plainly.
 
 - **No sharing or collaboration.** Every row is scoped to one user. The sync
   model is simple precisely because there is never a second person in a document.
-- **Page *metadata* is last-writer-wins.** Icon, parent and sort order resolve by
-  server timestamp if two offline devices change the same one. Titles are exempt
-  — they live in the CRDT. In practice this needs two devices to reorganise the
-  same page while both are offline.
+- **Page *metadata* resolves in favour of whichever device has unpushed
+  changes.** Icon, parent and sort order are pulled last-writer-wins, except that
+  a pull never overwrites a row this device has not yet pushed — so if two
+  offline devices move the same page, the one that syncs second wins. Titles are
+  exempt; they live in the CRDT and merge. In practice this needs two devices to
+  reorganise the same page while both are offline.
 - **Search covers pages this device has opened.** The searchable text is derived
   locally from documents that have been loaded or pulled; it is never uploaded.
 - **No images or file attachments**, no tables, no databases, no templates.

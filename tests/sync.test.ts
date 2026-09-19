@@ -5,7 +5,8 @@ import { FakeServer, installBrowserGlobals, setOnline } from './harness'
 
 installBrowserGlobals()
 
-const { openDatabase, closeDatabase, activeDatabase } = await import('@/lib/db/dexie')
+const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName } =
+  await import('@/lib/db/dexie')
 const { createPage, trashPage, deleteForever, refreshDerived } = await import('@/lib/db/pages')
 const { openDoc, releaseAll, readTitle, readPlainText, DOC_FIELD } = await import('@/lib/db/ydoc')
 const { SyncEngine } = await import('@/lib/sync/engine')
@@ -271,6 +272,50 @@ describe('local-first sync', () => {
 
     assert.equal(server.pages.has(id), false, 'the row should be gone from the server')
     assert.equal(server.docs.has(id), false, 'the document should be gone too')
+  })
+
+  it('keeps literal angle brackets in a title', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Using <b> tags')
+    await laptop.sync()
+    await phone.sync()
+
+    // Titles are read through the text node's delta, not its serialised markup,
+    // so typing a tag is just typing.
+    assert.equal(await laptop.title(id), 'Using <b> tags')
+    assert.equal(await phone.title(id), 'Using <b> tags')
+  })
+
+  it('marks a page pulled from the server as not yet carrying its document', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Later')
+    await laptop.sync()
+
+    await phone.sync()
+    const row = await phone.page(id)
+    assert.equal(row?.origin, 'remote', 'the phone did not write this page')
+
+    await phone.focus()
+    const state = await activeDatabase()!.docStates.get(id)
+    assert.ok((state?.version ?? 0) > 0, 'its document arrived, so the editor may open it')
+  })
+
+  it('erases the local copy on sign-out', async () => {
+    const Dexie = (await import('dexie')).default
+    openDatabase('departing')
+    const id = await createPage()
+    await settle()
+    assert.ok(await activeDatabase()!.pages.get(id))
+
+    await eraseDatabase('departing')
+
+    assert.equal(
+      await Dexie.exists(databaseName('departing')),
+      false,
+      'no notes should be left behind for the next person to use this device',
+    )
   })
 
   it('queues work while offline and flushes it on reconnect', async () => {

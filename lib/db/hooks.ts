@@ -34,6 +34,21 @@ export function usePage(pageId: string | null, userId: string | null): PageRow |
   }, [pageId, userId])
 }
 
+/** Whether a page's document is on this device yet.
+ *
+ *  A page created here owns its own initial content. A page that arrived from
+ *  the server does not, and letting the editor fill in an empty document would
+ *  give the page two titles once the real one merged in — so it waits. */
+export function useDocReady(pageId: string): boolean | undefined {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db) return undefined
+    const [page, state] = await Promise.all([db.pages.get(pageId), db.docStates.get(pageId)])
+    if (!page) return undefined
+    return page.origin === 'local' || (state?.version ?? 0) > 0
+  }, [pageId])
+}
+
 export interface TreeNode {
   page: PageRow
   children: TreeNode[]
