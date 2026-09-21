@@ -40,6 +40,12 @@ const paths = {
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2',
   inbox: 'M4 13h4l1.5 3h5L16 13h4M4 13l2.4-7.4A1 1 0 0 1 7.4 5h9.2a1 1 0 0 1 1 .6L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z',
   download: 'M12 3v12M8 11l4 4 4-4M4 20h16',
+  minus: 'M5 12h14',
+  pound: 'M15.5 7.2a3 3 0 0 0-5.3 2v5.4c0 1.8-1 3.3-2.7 4.1M7.5 18.7h9.6M8.2 13h6.3',
+  table:
+    'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1ZM4 9.5h16M4 15h16M9.5 4v16',
+  tableHeader:
+    'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1ZM4 9.5h16M7 6.8h10M9.5 9.5v10.5',
 } as const
 
 export type IconName = keyof typeof paths

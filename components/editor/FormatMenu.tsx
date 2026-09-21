@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { CellSelection } from '@tiptap/pm/tables'
 import { useEditorState } from '@tiptap/react'
-import { Icon, type IconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
+import { ToolButton } from '@/components/ui/ToolButton'
 
 export function FormatMenu({ editor }: { editor: Editor }) {
   const [linkOpen, setLinkOpen] = useState(false)
@@ -53,6 +55,9 @@ export function FormatMenu({ editor }: { editor: Editor }) {
         if (from === to) return false
         // The title takes no marks, so a toolbar over it would only mislead.
         if (instance.isActive('title')) return false
+        // Whole cells selected is a table gesture, not a text one; the table
+        // toolbar is already showing for it.
+        if (instance.state.selection instanceof CellSelection) return false
         return !instance.isActive('codeBlock')
       }}
       className="flex items-center gap-0.5 rounded-lg border border-line bg-raised p-1 shadow-[var(--shadow-pop)]"
@@ -85,11 +90,11 @@ export function FormatMenu({ editor }: { editor: Editor }) {
         </form>
       ) : (
         <>
-          <Tool icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-          <Tool icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-          <Tool icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
-          <Tool icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
-          <Tool
+          <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+          <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+          <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
+          <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
+          <ToolButton
             icon="link"
             label="Link"
             active={state.link}
@@ -99,41 +104,14 @@ export function FormatMenu({ editor }: { editor: Editor }) {
             }}
           />
           <span className="mx-1 h-5 w-px bg-line" />
-          <Tool icon="h1" label="Heading 1" active={state.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
-          <Tool icon="h2" label="Heading 2" active={state.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-          <Tool icon="h3" label="Heading 3" active={state.h3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
+          <ToolButton icon="h1" label="Heading 1" active={state.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
+          <ToolButton icon="h2" label="Heading 2" active={state.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+          <ToolButton icon="h3" label="Heading 3" active={state.h3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
           <span className="mx-1 h-5 w-px bg-line" />
-          <Tool icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-          <Tool icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+          <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+          <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
         </>
       )}
     </BubbleMenu>
-  )
-}
-
-function Tool({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: IconName
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={`grid size-7 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] ${
-        active ? 'text-accent' : 'text-muted'
-      }`}
-    >
-      <Icon name={icon} size={15} strokeWidth={active ? 2.1 : 1.8} />
-    </button>
   )
 }

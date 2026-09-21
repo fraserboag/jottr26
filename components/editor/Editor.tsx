@@ -7,11 +7,14 @@ import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TableKit } from '@tiptap/extension-table'
+import { FinanceTable } from './extensions/finance'
 import { JottrDocument, Title } from './extensions/title'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
 import { SlashMenu, type SlashMenuState } from './SlashMenu'
 import { FormatMenu } from './FormatMenu'
+import { TableMenu } from './TableMenu'
 import { openDoc, type DocHandle } from '@/lib/db/ydoc'
 import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
@@ -142,15 +145,34 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         }),
         TaskList,
         TaskItem.configure({ nested: true }),
+        // Rows, cells and headers come from the kit; the table node itself is
+        // the finance-aware one, so its extra attribute and plugin are in the
+        // schema from the start.
+        TableKit.configure({ table: false }),
+        FinanceTable.configure({
+          resizable: true,
+          // Dragging writes a colwidth onto one column only, so the rest stay
+          // unsized and the table keeps filling the page. It pins to an exact
+          // width just once every column has been dragged, which by then is
+          // what was asked for.
+          cellMinWidth: 40,
+          // Only reaches serialised HTML: while the editor is editable the
+          // resizing plugin renders the table through TableView, which brings
+          // the wrapper the sideways scroll hangs off.
+          renderWrapper: true,
+        }),
         Collaboration.configure({ document: doc }),
         Placeholder.configure({
           // Shown on every empty node so the title always reads 'Untitled',
           // while body placeholders appear only where the caret is.
           showOnlyCurrent: false,
           emptyNodeClass: 'is-empty',
-          placeholder: ({ node, hasAnchor }) => {
+          placeholder: ({ editor: instance, node, hasAnchor }) => {
             if (node.type.name === 'title') return 'Untitled'
             if (!hasAnchor) return ''
+            // Every cell holds an empty paragraph, and prompting in each one
+            // would fill the grid with the same sentence.
+            if (instance.isActive('table')) return ''
             if (node.type.name === 'paragraph') return "Write something, or press '/' for blocks"
             return ''
           },
@@ -206,6 +228,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
     <>
       <EditorContent editor={editor} />
       <FormatMenu editor={editor} />
+      <TableMenu editor={editor} />
       {slash && (
         <SlashMenu
           state={slash}

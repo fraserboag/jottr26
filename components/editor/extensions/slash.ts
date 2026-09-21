@@ -7,6 +7,7 @@ import type { IconName } from '@/components/ui/Icon'
 // packages are in scope.
 import type {} from '@tiptap/starter-kit'
 import type {} from '@tiptap/extension-list'
+import type {} from '@tiptap/extension-table'
 
 export interface SlashItem {
   id: string
@@ -14,6 +15,8 @@ export interface SlashItem {
   hint: string
   icon: IconName
   keywords: string[]
+  /** Hides the item in contexts where it would not make sense. */
+  hidden?: (editor: Editor) => boolean
   run: (editor: Editor, range: Range) => void
 }
 
@@ -96,6 +99,23 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
+    id: 'table',
+    title: 'Table',
+    hint: 'A grid of rows and columns',
+    icon: 'table',
+    keywords: ['grid', 'row', 'column', 'cell', 'spreadsheet'],
+    // Nested tables are a mess to edit and nobody asks for them, so this item
+    // is filtered out while the caret is already inside one.
+    hidden: (editor) => editor.isActive('table'),
+    run: (editor, range) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run(),
+  },
+  {
     id: 'divider',
     title: 'Divider',
     hint: 'A horizontal rule',
@@ -105,10 +125,11 @@ export const slashItems: SlashItem[] = [
   },
 ]
 
-export function filterSlashItems(query: string): SlashItem[] {
+export function filterSlashItems(query: string, editor?: Editor): SlashItem[] {
   const q = query.trim().toLowerCase()
-  if (!q) return slashItems
-  return slashItems.filter(
+  const available = editor ? slashItems.filter((item) => !item.hidden?.(editor)) : slashItems
+  if (!q) return available
+  return available.filter(
     (item) =>
       item.title.toLowerCase().includes(q) ||
       item.keywords.some((keyword) => keyword.startsWith(q)),
@@ -137,7 +158,7 @@ export function createSlashExtension(handlers: () => SlashHandlers | null) {
           allowSpaces: false,
           // A slash inside a word is a slash, not a command.
           allowedPrefixes: [' ', '\n'],
-          items: ({ query }) => filterSlashItems(query),
+          items: ({ query, editor }) => filterSlashItems(query, editor),
           command: ({ editor, range, props }) => props.run(editor, range),
           render: () => ({
             onStart: (props) => handlers()?.onStart(props),

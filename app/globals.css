@@ -263,6 +263,90 @@ body {
   font-size: inherit;
 }
 
+.ProseMirror .tableWrapper {
+  /* A grid wider than the column scrolls sideways on its own rather than
+     stretching the page, which on a phone is most tables. */
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  /* Fixed layout keeps a long word in one cell from starving the others. */
+  table-layout: fixed;
+  width: 100%;
+  font-size: 0.95em;
+}
+
+.ProseMirror :is(td, th) {
+  border: 1px solid var(--line-strong);
+  padding: 6px 9px;
+  vertical-align: top;
+  /* No min-width: the colgroup owns column widths once they are resizable, and
+     a floor here would quietly refuse the narrow columns a drag asks for. */
+  position: relative;
+}
+
+.ProseMirror th {
+  background: var(--surface-sunken);
+  font-weight: 620;
+  text-align: left;
+}
+
+/* Cells carry paragraphs, whose own rhythm would otherwise pad every row. */
+.ProseMirror :is(td, th) > p {
+  margin: 0;
+  min-height: 0;
+}
+
+/* The grab strip at a column's right edge. It is a decoration rather than
+   content, so it is never written to the document or synced to other devices.
+   The pointer is caught by the cell within a few pixels of the edge, not by
+   this element, which is why it takes no pointer events of its own. */
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: -1px;
+  right: -1px;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Set on the editor while a handle is under the pointer, so the whole surface
+   shows the resize cursor instead of a caret. */
+.ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Finance mode. Amounts line up on the decimal point, which is the whole
+   reason for tabular figures. */
+.ProseMirror :is(td, th).money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The totals row is a decoration, not a row of the document: it cannot be
+   typed in, selected or deleted, and it never reaches the CRDT. */
+.ProseMirror tr.finance-total > td {
+  background: var(--surface-sunken);
+  border-top: 2px solid var(--line-strong);
+  font-weight: 620;
+  color: var(--text);
+  user-select: none;
+}
+
+/* prosemirror-tables marks a multi-cell selection with a class rather than the
+   native highlight, so the tint has to be drawn on top of the cell. */
+.ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-soft);
+  pointer-events: none;
+}
+
 .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--line);

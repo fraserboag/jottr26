@@ -18,6 +18,7 @@
     "@tiptap/extension-collaboration": "^3.31.3",
     "@tiptap/extension-list": "^3.31.3",
     "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/extension-table": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
