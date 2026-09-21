@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { resolveLink } from '@/lib/util/links'
+import { looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
 
 /** The workspace URL a link would be clicked on. */
 const HERE = 'https://jottr.app/app?p=home'
@@ -75,5 +75,52 @@ describe('resolveLink', () => {
       kind: 'external',
       href: 'http://localhost:3001/app?p=abc123',
     })
+  })
+})
+
+describe('normalizeHref', () => {
+  it('assumes https for a bare host, the way a typed link field should', () => {
+    assert.equal(normalizeHref('example.com'), 'https://example.com')
+    assert.equal(normalizeHref('  example.com/docs  '), 'https://example.com/docs')
+  })
+
+  it('leaves anything that already names a scheme alone', () => {
+    assert.equal(normalizeHref('https://example.com'), 'https://example.com')
+    assert.equal(normalizeHref('HTTP://example.com'), 'HTTP://example.com')
+    // Used to come back as https://mailto:… , which went nowhere.
+    assert.equal(normalizeHref('mailto:someone@example.com'), 'mailto:someone@example.com')
+    assert.equal(normalizeHref('tel:+441234567890'), 'tel:+441234567890')
+  })
+
+  it('leaves a link to one of your own pages alone', () => {
+    // Re-applying an internal link used to produce https:///app?p=abc123.
+    assert.equal(normalizeHref('/app?p=abc123'), '/app?p=abc123')
+  })
+
+  it('has nothing to say about an empty field', () => {
+    assert.equal(normalizeHref('   '), '')
+  })
+})
+
+describe('looksLikeUrl', () => {
+  it('recognises what someone means as a destination', () => {
+    assert.equal(looksLikeUrl('https://example.com'), true)
+    assert.equal(looksLikeUrl('example.com'), true)
+    assert.equal(looksLikeUrl('mailto:someone@example.com'), true)
+    assert.equal(looksLikeUrl('/app?p=abc123'), true)
+  })
+
+  it('treats ordinary words as a page search', () => {
+    assert.equal(looksLikeUrl('meeting notes'), false)
+    // A colon is punctuation in a page title far more often than it is a scheme.
+    assert.equal(looksLikeUrl('Meeting: agenda'), false)
+    assert.equal(looksLikeUrl('Q3'), false)
+    assert.equal(looksLikeUrl(''), false)
+  })
+})
+
+describe('pageHref', () => {
+  it('addresses a page the same way the workspace does', () => {
+    assert.deepEqual(resolveLink(pageHref('abc123'), HERE), { kind: 'page', pageId: 'abc123' })
   })
 })

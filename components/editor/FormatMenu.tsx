@@ -1,17 +1,22 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { CellSelection } from '@tiptap/pm/tables'
 import { useEditorState } from '@tiptap/react'
-import { Icon } from '@/components/ui/Icon'
 import { ToolButton } from '@/components/ui/ToolButton'
+import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
+import { useAllPages } from '@/lib/db/hooks'
+import { LinkPicker } from './LinkPicker'
 
 export function FormatMenu({ editor }: { editor: Editor }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  // The picker searches the same local page list the sidebar and quick search
+  // read, so linking to a note works offline like everything else here.
+  const { userId } = useWorkspace()
+  const pages = useAllPages(userId)
 
   // v3 does not re-render on every transaction by default, which is what keeps
   // typing cheap; this subscribes to just the flags the toolbar draws.
@@ -31,20 +36,16 @@ export function FormatMenu({ editor }: { editor: Editor }) {
     }),
   })
 
-  useEffect(() => {
-    if (linkOpen) inputRef.current?.focus()
-  }, [linkOpen])
-
-  const applyLink = () => {
-    const href = linkValue.trim()
+  const applyLink = (href: string) => {
     setLinkOpen(false)
     setLinkValue('')
-    if (!href) {
-      editor.chain().focus().unsetLink().run()
-      return
-    }
-    const url = /^https?:\/\//i.test(href) ? href : `https://${href}`
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+  }
+
+  const clearLink = () => {
+    setLinkOpen(false)
+    setLinkValue('')
+    editor.chain().focus().unsetLink().run()
   }
 
   return (
@@ -63,31 +64,13 @@ export function FormatMenu({ editor }: { editor: Editor }) {
       className="flex items-center gap-0.5 rounded-lg border border-line bg-raised p-1 shadow-[var(--shadow-pop)]"
     >
       {linkOpen ? (
-        <form
-          className="flex items-center gap-1 px-1"
-          onSubmit={(event) => {
-            event.preventDefault()
-            applyLink()
-          }}
-        >
-          <Icon name="link" size={14} className="text-faint" />
-          <input
-            ref={inputRef}
-            value={linkValue}
-            onChange={(event) => setLinkValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault()
-                setLinkOpen(false)
-              }
-            }}
-            placeholder="Paste a link and press Enter"
-            className="w-56 bg-transparent py-1 text-[13px] outline-none placeholder:text-faint"
-          />
-          <button type="submit" className="rounded px-1.5 py-1 text-[12px] font-medium text-accent">
-            Apply
-          </button>
-        </form>
+        <LinkPicker
+          initialHref={linkValue}
+          pages={pages ?? []}
+          onApply={applyLink}
+          onUnset={clearLink}
+          onClose={() => setLinkOpen(false)}
+        />
       ) : (
         <>
           <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />

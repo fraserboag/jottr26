@@ -40,3 +40,37 @@ export function resolveLink(href: string, base: string): LinkTarget | null {
   if (!SAFE_PROTOCOLS.has(url.protocol)) return null
   return { kind: 'external', href: url.href }
 }
+
+/** `mailto:`, `tel:`, `https:` — anything already carrying a scheme. A real one
+ *  is always followed by something, which is what keeps a page called
+ *  'Meeting: agenda' from being read as an address. */
+const SCHEME = /^[a-z][a-z0-9+.-]*:\S/i
+
+/** The href for a link to one of your own pages. Relative on purpose: the same
+ *  note opens on a dev server and on the deployed app, and never sends you
+ *  across origins to read a page this copy already has. */
+export function pageHref(pageId: string): string {
+  return `/app?p=${encodeURIComponent(pageId)}`
+}
+
+/** What a typed link field means. Bare hostnames get https, because that is
+ *  what someone typing `example.com` into a link box wants; anything that
+ *  already says where it is going — a scheme, or a path into this app — is
+ *  left exactly as typed. */
+export function normalizeHref(input: string): string {
+  const value = input.trim()
+  if (!value) return ''
+  if (SCHEME.test(value) || value.startsWith('/')) return value
+  return `https://${value}`
+}
+
+/** Whether what has been typed reads as a destination rather than a search.
+ *  Only used to decide which suggestion to offer first — both are always
+ *  offered, so guessing wrong costs an arrow key. */
+export function looksLikeUrl(input: string): boolean {
+  const value = input.trim()
+  if (!value) return false
+  if (SCHEME.test(value) || value.startsWith('/')) return true
+  // A bare host: no spaces, and a dot with something either side of it.
+  return !/\s/.test(value) && /^[^\s.]+\.[^\s.]{2,}/.test(value)
+}
