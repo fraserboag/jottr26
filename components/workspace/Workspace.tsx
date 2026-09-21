@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
@@ -21,6 +21,17 @@ const Editor = dynamic(() => import('@/components/editor/Editor').then((m) => m.
 })
 
 const SIDEBAR_KEY = 'jottr.sidebar'
+const WIDTH_KEY = 'jottr.sidebarWidth'
+
+// The floor keeps the header's workspace button and the collapse control side
+// by side; the ceiling stops a drag from crowding out the page itself.
+const MIN_WIDTH = 200
+const MAX_WIDTH = 480
+const DEFAULT_WIDTH = 264
+
+function clampWidth(value: number) {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(value)))
+}
 
 export function Workspace() {
   const { userId, status } = useWorkspace()
@@ -30,12 +41,27 @@ export function Workspace() {
 
   const [wide, setWide] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const [dragging, setDragging] = useState(false)
+  const drag = useRef<{ x: number; width: number } | null>(null)
   const [overlay, setOverlay] = useState<'search' | 'trash' | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 880px)')
     const apply = () => {
       setWide(media.matches)
+
+      let storedWidth: string | null = null
+      try {
+        storedWidth = localStorage.getItem(WIDTH_KEY)
+      } catch {
+        /* Ignore. */
+      }
+      // Clamped on the way in as well as out: a value left behind by an older
+      // build, or by hand, should not be able to produce an unusable sidebar.
+      const parsedWidth = Number(storedWidth)
+      if (Number.isFinite(parsedWidth) && parsedWidth > 0) setWidth(clampWidth(parsedWidth))
+
       if (!media.matches) setSidebarOpen(false)
       else {
         let stored: string | null = null
@@ -114,12 +140,53 @@ export function Workspace() {
     [open, wide],
   )
 
+  // Dragging the sidebar's edge works like dragging a table column: the
+  // pointer is captured so the drag survives leaving the few pixels of the
+  // handle, and the width is only written back once the pointer is released.
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = { x: event.clientX, width }
+    setDragging(true)
+  }
+
+  const moveResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const from = drag.current
+    if (!from) return
+    setWidth(clampWidth(from.width + event.clientX - from.x))
+  }
+
+  const endResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const from = drag.current
+    if (!from) return
+    drag.current = null
+    setDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    // Worked out from the event rather than read off `width`: releasing is a
+    // discrete event and can land before the last move has rendered, which
+    // would otherwise store a width a few pixels behind the one on screen.
+    const final = clampWidth(from.width + event.clientX - from.x)
+    setWidth(final)
+    try {
+      localStorage.setItem(WIDTH_KEY, String(final))
+    } catch {
+      /* Ignore. */
+    }
+  }
+
   if (!pages) return <Splash />
 
   const showSidebar = sidebarOpen
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-surface">
+    <div
+      className={`flex h-dvh overflow-hidden bg-surface${
+        dragging ? ' cursor-col-resize select-none' : ''
+      }`}
+    >
       {showSidebar && !wide && (
         <div
           className="fixed inset-0 z-40 bg-[var(--overlay)]"
@@ -131,14 +198,15 @@ export function Workspace() {
       <aside
         className={`${
           wide
-            ? `relative shrink-0 border-r border-line transition-[width] duration-200 ${showSidebar ? 'w-[264px]' : 'w-0'}`
+            ? `relative shrink-0 border-r border-line ${dragging ? '' : 'transition-[width] duration-200'}`
             : `fixed inset-y-0 left-0 z-40 w-[min(300px,86vw)] border-r border-line shadow-[var(--shadow-pop)] transition-transform duration-200 ${showSidebar ? 'translate-x-0' : '-translate-x-full'}`
         } overflow-hidden`}
+        style={wide ? { width: showSidebar ? width : 0 } : undefined}
         aria-label="Pages"
         aria-hidden={!showSidebar}
         inert={!showSidebar}
       >
-        <div className={wide ? 'h-full w-[264px]' : 'h-full w-full'}>
+        <div className={wide ? 'h-full' : 'h-full w-full'} style={wide ? { width } : undefined}>
           <Sidebar
             pages={pages}
             openId={openId}
@@ -149,6 +217,29 @@ export function Workspace() {
           />
         </div>
       </aside>
+
+      {/* Outside the sidebar on purpose. Inside it, the six pixels of grab area
+          would sit on top of the page list's own scrollbar, which is nine
+          pixels wide, and anyone whose scrollbars are always visible could not
+          reach the thumb. Out here it hangs over the page's left margin, and
+          above the top bar, which is sticky at z-30. */}
+      {wide && showSidebar && (
+        <div className="relative z-40 w-0 shrink-0">
+          <div
+            className="group absolute inset-y-0 left-0 w-1.5 cursor-col-resize touch-none"
+            onPointerDown={startResize}
+            onPointerMove={moveResize}
+            onPointerUp={endResize}
+            onPointerCancel={endResize}
+          >
+            <div
+              className={`absolute inset-y-0 -left-px w-0.5 bg-accent transition-opacity ${
+                dragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
+            />
+          </div>
+        </div>
+      )}
 
       <main className="flex min-w-0 flex-1 flex-col">
         <TopBar
