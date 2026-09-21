@@ -152,7 +152,6 @@ export function Workspace() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         <TopBar
-          page={page}
           trail={trail}
           sidebarHidden={!showSidebar}
           onShowSidebar={() => setSidebar(true)}

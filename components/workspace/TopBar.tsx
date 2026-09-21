@@ -1,18 +1,14 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
-import { MenuItem, Popover } from '@/components/ui/Popover'
-import { createPage, trashPage } from '@/lib/db/pages'
 import type { PageRow } from '@/lib/db/schema'
 
 export function TopBar({
-  page,
   trail,
   sidebarHidden,
   onShowSidebar,
   onOpen,
 }: {
-  page: PageRow | null
   trail: PageRow[]
   sidebarHidden: boolean
   onShowSidebar: () => void
@@ -47,50 +43,6 @@ export function TopBar({
           </span>
         ))}
       </nav>
-
-      {page && (
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Popover
-            width={214}
-            align="end"
-            trigger={({ ref, toggle }) => (
-              <button
-                type="button"
-                ref={ref}
-                onClick={toggle}
-                aria-label="Page actions"
-                className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
-              >
-                <Icon name="more" size={16} strokeWidth={2.4} />
-              </button>
-            )}
-          >
-            {(close) => (
-              <>
-                <MenuItem
-                  icon={<Icon name="plus" size={14} className="text-faint" />}
-                  onClick={() => {
-                    close()
-                    void createPage({ parentId: page.id }).then(onOpen)
-                  }}
-                >
-                  Add a subpage
-                </MenuItem>
-                <MenuItem
-                  icon={<Icon name="trash" size={14} />}
-                  tone="danger"
-                  onClick={() => {
-                    close()
-                    void trashPage(page.id).then(() => onOpen(null))
-                  }}
-                >
-                  Move to trash
-                </MenuItem>
-              </>
-            )}
-          </Popover>
-        </div>
-      )}
     </header>
   )
 }
