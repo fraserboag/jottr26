@@ -16,6 +16,8 @@ import { openDoc, type DocHandle } from '@/lib/db/ydoc'
 import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
+import { resolveLink } from '@/lib/util/links'
+import { useOpenPageId } from '@/lib/util/route'
 
 export function Editor({ pageId }: { pageId: string }) {
   // Keyed, so switching pages remounts with fresh state instead of clearing the
@@ -59,6 +61,9 @@ function Loader({ pageId }: { pageId: string }) {
 }
 
 function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
+  // Stable across renders, so the click handler below can be captured once
+  // when the editor is built without going stale.
+  const [, openPage] = useOpenPageId()
   const [slash, setSlash] = useState<SlashMenuState | null>(null)
   const slashRef = useRef<{ items: SlashItem[]; index: number; command: (item: SlashItem) => void }>({
     items: [],
@@ -157,6 +162,27 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           spellcheck: 'true',
           autocapitalize: 'sentences',
           'aria-label': 'Page content',
+        },
+        // An anchor inside a contenteditable does nothing on its own, so
+        // following a link is this handler's job.
+        handleClick: (_view, _pos, event) => {
+          // A held modifier or a middle click is the browser being asked for a
+          // tab or a window explicitly; the anchor's href is real, so letting
+          // it through does the right thing for internal links too.
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return false
+          }
+          const node = event.target
+          const anchor = node instanceof HTMLElement ? node.closest('a[href]') : null
+          if (!anchor) return false
+
+          const target = resolveLink(anchor.getAttribute('href') ?? '', window.location.href)
+          if (!target) return false
+
+          event.preventDefault()
+          if (target.kind === 'page') openPage(target.pageId)
+          else window.open(target.href, '_blank', 'noopener,noreferrer')
+          return true
         },
       },
       onUpdate: () => syncTitle(),
