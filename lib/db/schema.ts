@@ -8,11 +8,9 @@
 export interface PageRow {
   id: string
   title: string
-  icon: string
   /** '' means the page sits at the root. */
   parentId: string
   sortKey: string
-  isFavorite: 0 | 1
   /** Epoch ms, or 0 when the page is not in the trash. */
   deletedAt: number
   createdAt: number

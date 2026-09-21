@@ -10,16 +10,12 @@ const paths = {
   chevronDown: 'm6 9 6 6 6-6',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35',
   trash: 'M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3',
-  star: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9L12 3Z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   check: 'm5 13 4 4L19 7',
   cloudCheck: 'M7 18a4 4 0 0 1-.4-7.98 5.5 5.5 0 0 1 10.6-1.2A4.2 4.2 0 0 1 17.5 18H7Zm2.5-4.2 1.8 1.8 3.4-3.6',
   cloudOff: 'M3 3l18 18M7.5 18A4.5 4.5 0 0 1 7 9.03M9.6 5.6A5.5 5.5 0 0 1 17.2 8.8 4.2 4.2 0 0 1 19.4 16M11 18h6',
   refresh: 'M20 11a8 8 0 1 0-.6 4M20 5v6h-6',
   alert: 'M12 8v5M12 17h.01M10.3 3.9 2.5 17.5A2 2 0 0 0 4.2 20.5h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
-  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM12 2v2M12 20v2M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2M20 12h2M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5',
-  moon: 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z',
-  monitor: 'M4 5h16v11H4zM9 20h6M12 16v4',
   panel: 'M4 5h16v14H4zM10 5v14',
   file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5ZM14 3v5h5',
   undo: 'M4 9h11a5 5 0 0 1 0 10h-6M4 9l4-4M4 9l4 4',
@@ -53,20 +49,18 @@ export function Icon({
   size = 16,
   className = '',
   strokeWidth = 1.7,
-  filled = false,
 }: {
   name: IconName
   size?: number
   className?: string
   strokeWidth?: number
-  filled?: boolean
 }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
+      fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
       strokeLinecap="round"

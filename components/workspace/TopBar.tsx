@@ -1,10 +1,9 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
-import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
-import { createPage, toggleFavorite, trashPage } from '@/lib/db/pages'
+import { MenuItem, Popover } from '@/components/ui/Popover'
+import { createPage, trashPage } from '@/lib/db/pages'
 import type { PageRow } from '@/lib/db/schema'
-import { EmojiPicker } from './EmojiPicker'
 
 export function TopBar({
   page,
@@ -43,7 +42,6 @@ export function TopBar({
                 index === trail.length - 1 ? 'text-ink' : 'text-muted'
               }`}
             >
-              {crumb.icon && <span className="mr-1">{crumb.icon}</span>}
               {crumb.title || 'Untitled'}
             </button>
           </span>
@@ -52,18 +50,6 @@ export function TopBar({
 
       {page && (
         <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => void toggleFavorite(page.id)}
-            aria-label={page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-            aria-pressed={page.isFavorite === 1}
-            className={`grid size-7 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] ${
-              page.isFavorite ? 'text-warn' : 'text-faint'
-            }`}
-          >
-            <Icon name="star" size={15} filled={page.isFavorite === 1} />
-          </button>
-
           <Popover
             width={214}
             align="end"
@@ -81,8 +67,6 @@ export function TopBar({
           >
             {(close) => (
               <>
-                <EmojiPicker pageId={page.id} onDone={close} />
-                <MenuSeparator />
                 <MenuItem
                   icon={<Icon name="plus" size={14} className="text-faint" />}
                   onClick={() => {

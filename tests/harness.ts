@@ -37,10 +37,8 @@ interface PageRecord {
   id: string
   user_id: string
   title: string
-  icon: string | null
   parent_id: string | null
   sort_key: string
-  is_favorite: boolean
   deleted_at: string | null
   created_at: string
   updated_at: string

@@ -46,10 +46,8 @@ const MAX_BACKOFF_MS = 30_000
 interface ServerPage {
   id: string
   title: string
-  icon: string | null
   parent_id: string | null
   sort_key: string
-  is_favorite: boolean
   deleted_at: string | null
   created_at: string
   updated_at: string
@@ -358,10 +356,8 @@ export class SyncEngine {
           await this.db.pages.put({
             id: row.id,
             title: row.title,
-            icon: row.icon ?? '',
             parentId: row.parent_id ?? '',
             sortKey: row.sort_key,
-            isFavorite: row.is_favorite ? 1 : 0,
             deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
             searchText: local?.searchText ?? '',
             createdAt: Date.parse(row.created_at),
@@ -493,10 +489,8 @@ export class SyncEngine {
         id: page.id,
         user_id: this.userId,
         title: page.title,
-        icon: page.icon || null,
         parent_id: page.parentId || null,
         sort_key: page.sortKey,
-        is_favorite: page.isFavorite === 1,
         deleted_at: page.deletedAt ? new Date(page.deletedAt).toISOString() : null,
         created_at: new Date(page.createdAt).toISOString(),
       }))

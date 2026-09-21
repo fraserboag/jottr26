@@ -18,22 +18,12 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1a19' },
-  ],
+  themeColor: '#ffffff',
 }
-
-/** Applied before first paint so an explicitly chosen theme never flashes the
- *  system one on the way in. */
-const themeScript = `(function(){try{var t=localStorage.getItem('jottr.theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}})()`
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
+    <html lang="en">
       <body>{children}</body>
     </html>
   )

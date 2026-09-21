@@ -160,7 +160,7 @@ export function QuickSearch({
                 }`}
               >
                 <span className="mt-px w-4 shrink-0 text-center text-[13px] leading-5">
-                  {hit.page.icon || <Icon name="file" size={14} className="text-faint" />}
+                  <Icon name="file" size={14} className="text-faint" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] text-ink">

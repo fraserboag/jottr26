@@ -10,13 +10,11 @@ create table if not exists public.pages (
   id          uuid primary key,
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
   title       text not null default '',
-  icon        text,
   -- Deliberately not a foreign key: a child can reach the server before its
   -- parent when several pages are created offline. The client keeps the tree
   -- honest and treats a dangling parent_id as a root page.
   parent_id   uuid,
   sort_key    text not null default 'a0',
-  is_favorite boolean not null default false,
   deleted_at  timestamptz,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()

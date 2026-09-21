@@ -9,7 +9,6 @@ import { useWorkspace } from './WorkspaceProvider'
 import { buildTree, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
 import type { PageRow } from '@/lib/db/schema'
-import { useTheme, type Theme } from '@/lib/util/theme'
 
 const EXPANDED_KEY = 'jottr.expanded'
 
@@ -29,7 +28,6 @@ export function Sidebar({
   onCollapse: () => void
 }) {
   const { session, signOut, status } = useWorkspace()
-  const [theme, setTheme] = useTheme()
   // The sidebar only ever renders after the workspace has mounted and read
   // IndexedDB, so there is no server render to disagree with.
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -56,7 +54,6 @@ export function Sidebar({
   }, [])
 
   const tree: TreeNode[] = buildTree(pages)
-  const favourites = pages.filter((page) => page.isFavorite)
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -85,34 +82,6 @@ export function Sidebar({
               <p className="truncate px-2.5 pb-1.5 pt-1 text-[12px] text-faint">
                 {session?.user.email}
               </p>
-              <MenuSeparator />
-              <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-faint">
-                Appearance
-              </p>
-              <div className="flex gap-0.5 px-1 pb-1">
-                {(
-                  [
-                    ['light', 'sun', 'Light'],
-                    ['dark', 'moon', 'Dark'],
-                    ['system', 'monitor', 'System'],
-                  ] as Array<[Theme, IconName, string]>
-                ).map(([value, icon, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setTheme(value)}
-                    aria-pressed={theme === value}
-                    className={`flex flex-1 flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] transition-colors ${
-                      theme === value
-                        ? 'border-[var(--accent)] bg-accent-soft text-accent'
-                        : 'border-line text-muted hover:bg-[var(--hover)]'
-                    }`}
-                  >
-                    <Icon name={icon} size={15} />
-                    {label}
-                  </button>
-                ))}
-              </div>
               <MenuSeparator />
               <MenuItem
                 icon={<Icon name="logout" size={14} />}
@@ -158,32 +127,6 @@ export function Sidebar({
       </div>
 
       <nav className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-        {favourites.length > 0 && (
-          <>
-            <SectionLabel>Favourites</SectionLabel>
-            <ul className="mb-3 min-w-0">
-              {favourites.map((page) => (
-                <li key={page.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpen(page.id)}
-                    className={`flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 pl-[26px] pr-1 text-left transition-colors ${
-                      openId === page.id ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
-                    }`}
-                  >
-                    <span className="w-4 shrink-0 text-center text-[13px] leading-none">
-                      {page.icon || <Icon name="star" size={13} className="text-faint" />}
-                    </span>
-                    <span className="truncate text-[13.5px] text-muted">
-                      {page.title || 'Untitled'}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
           <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint">

@@ -2,10 +2,9 @@
 
 import { useCallback, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
-import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
-import { createPage, dropRelative, toggleFavorite, trashPage, type DropZone } from '@/lib/db/pages'
+import { MenuItem, Popover } from '@/components/ui/Popover'
+import { createPage, dropRelative, trashPage, type DropZone } from '@/lib/db/pages'
 import type { TreeNode } from '@/lib/db/hooks'
-import { EmojiPicker } from './EmojiPicker'
 
 interface TreeProps {
   nodes: TreeNode[]
@@ -139,7 +138,7 @@ function Row({
           className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left"
         >
           <span className="w-4 shrink-0 text-center text-[13px] leading-none">
-            {page.icon || <Icon name="file" size={14} className="text-faint" />}
+            <Icon name="file" size={14} className="text-faint" />
           </span>
           <span
             className={`truncate text-[13.5px] ${isOpen ? 'font-medium text-ink' : 'text-muted'}`}
@@ -168,17 +167,6 @@ function Row({
           >
             {(close) => (
               <>
-                <EmojiPicker pageId={page.id} onDone={close} />
-                <MenuSeparator />
-                <MenuItem
-                  icon={<Icon name="star" size={14} className="text-faint" />}
-                  onClick={() => {
-                    void toggleFavorite(page.id)
-                    close()
-                  }}
-                >
-                  {page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-                </MenuItem>
                 <MenuItem
                   icon={<Icon name="trash" size={14} />}
                   tone="danger"

@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Palette. Every colour is defined here on bare :root, then re-pointed for
-   dark. Nothing gets its only definition inside a media query, so the explicit
-   theme toggle can win in both directions.
+   Palette. Jottr is light only: every colour is defined once here on bare
+   :root, and `color-scheme: light` keeps form controls and scrollbars in step
+   even on a device set to dark.
    --------------------------------------------------------------------------- */
 :root {
   --surface: #ffffff;
@@ -34,70 +34,6 @@
   --shadow-pop: 0 2px 6px rgb(23 23 22 / 0.08), 0 12px 32px rgb(23 23 22 / 0.14);
 
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface: #1a1a19;
-    --surface-sunken: #141413;
-    --surface-raised: #242422;
-    --sidebar: #151514;
-    --overlay: rgb(0 0 0 / 0.55);
-
-    --text: #ececea;
-    --text-muted: #9a9993;
-    --text-faint: #6d6c67;
-
-    --line: #2c2c29;
-    --line-strong: #3a3a36;
-
-    --hover: rgb(255 255 255 / 0.055);
-    --active: rgb(255 255 255 / 0.09);
-
-    --accent: #6e9cff;
-    --accent-contrast: #10131c;
-    --accent-soft: rgb(110 156 255 / 0.14);
-
-    --ok: #51cf66;
-    --warn: #f5a524;
-    --danger: #ff6b6b;
-
-    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.36);
-    --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.55);
-
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme="dark"] {
-  --surface: #1a1a19;
-  --surface-sunken: #141413;
-  --surface-raised: #242422;
-  --sidebar: #151514;
-  --overlay: rgb(0 0 0 / 0.55);
-
-  --text: #ececea;
-  --text-muted: #9a9993;
-  --text-faint: #6d6c67;
-
-  --line: #2c2c29;
-  --line-strong: #3a3a36;
-
-  --hover: rgb(255 255 255 / 0.055);
-  --active: rgb(255 255 255 / 0.09);
-
-  --accent: #6e9cff;
-  --accent-contrast: #10131c;
-  --accent-soft: rgb(110 156 255 / 0.14);
-
-  --ok: #51cf66;
-  --warn: #f5a524;
-  --danger: #ff6b6b;
-
-  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.36);
-  --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.55);
-
-  color-scheme: dark;
 }
 
 @theme inline {

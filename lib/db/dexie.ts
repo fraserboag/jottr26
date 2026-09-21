@@ -32,8 +32,11 @@ export function openDatabase(userId: string): JottrDB {
   }
 
   const db = new Dexie(databaseName(userId)) as JottrDB
-  db.version(1).stores({
-    pages: 'id, parentId, dirty, updatedAt, deletedAt, isFavorite, [deletedAt+parentId]',
+  // v2 dropped the `isFavorite` index along with the feature. An index can
+  // only be removed by a version bump — declaring the new shape under v1 would
+  // throw against a database already on disk.
+  db.version(2).stores({
+    pages: 'id, parentId, dirty, updatedAt, deletedAt, [deletedAt+parentId]',
     docStates: 'pageId, dirty',
     docUpdates: '++seq, pageId',
     purges: 'id',
