@@ -139,6 +139,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Collaboration brings its own Yjs-aware undo stack. Keeping
           // ProseMirror's would undo other devices' edits along with yours.
           undoRedo: false,
+          // StarterKit brings Heading unless this is exactly false. Section
+          // headings here are bold body text, not their own block.
+          heading: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
         }),
