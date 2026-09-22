@@ -202,8 +202,11 @@ export function Workspace() {
             ? `relative shrink-0 border-r border-line ${dragging ? '' : 'transition-[width] duration-200'}`
             : // The shadow fades out with the slide: its blur reaches far enough
               // past the drawer's edge to stay visible on the page once the
-              // drawer itself is off screen.
-              `fixed inset-y-0 left-0 z-40 w-[min(300px,86vw)] border-r border-line transition-[transform,box-shadow] duration-200 ${showSidebar ? 'translate-x-0 shadow-[var(--shadow-pop)]' : '-translate-x-full shadow-none'}`
+              // drawer itself is off screen. The slide is named as `translate`
+              // rather than `transform` because that is the property the
+              // translate utilities set — transitioning `transform` leaves the
+              // drawer snapping open with no animation at all.
+              `fixed inset-y-0 left-0 z-40 w-[min(300px,86vw)] border-r border-line transition-[translate,box-shadow] duration-200 ${showSidebar ? 'translate-x-0 shadow-[var(--shadow-pop)]' : '-translate-x-full shadow-none'}`
         } overflow-hidden`}
         style={wide ? { width: showSidebar ? width : 0 } : undefined}
         aria-label="Pages"
