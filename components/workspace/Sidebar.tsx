@@ -22,7 +22,7 @@ export function Sidebar({
 }: {
   pages: PageRow[]
   openId: string | null
-  onOpen: (id: string) => void
+  onOpen: (id: string | null) => void
   onOpenSearch: () => void
   onOpenTrash: () => void
   onCollapse: () => void
@@ -121,7 +121,15 @@ export function Sidebar({
         <SidebarAction icon="search" label="Search" shortcut="⌘K" onClick={onOpenSearch} />
       </div>
 
-      <nav className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+      {/* Clicking the empty space under the list closes the open page. Rows,
+          and the menus they portal out of this element, bubble through here
+          too, so only a click that landed on the space itself counts. */}
+      <nav
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onOpen(null)
+        }}
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4"
+      >
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
           <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint">

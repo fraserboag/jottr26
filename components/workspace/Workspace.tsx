@@ -135,7 +135,9 @@ export function Workspace() {
   const openPage = useCallback(
     (id: string | null) => {
       open(id)
-      if (!wide) setSidebarOpen(false)
+      // Opening a page on a narrow screen gets the drawer out of the way.
+      // Closing one leaves it up: the list is what you came back to.
+      if (id && !wide) setSidebarOpen(false)
     },
     [open, wide],
   )
