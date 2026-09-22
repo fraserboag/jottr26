@@ -5,11 +5,11 @@ import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
-import { lift, liftEmptyBlock, splitBlock, wrapIn } from '@tiptap/pm/commands'
+import { lift, wrapIn } from '@tiptap/pm/commands'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
-import { Callout } from '@/components/editor/extensions/callout'
+import { Callout, leaveCallout, newLineInCallout } from '@/components/editor/extensions/callout'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -44,6 +44,15 @@ function page(...body: Node[]) {
 function paragraph(text?: string) {
   return schema.node('paragraph', null, text ? [schema.text(text)] : [])
 }
+
+/** The same document with the caret parked at an exact position. */
+function caretAt(state: EditorState, pos: number) {
+  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)))
+}
+
+/** The two keys the callout binds, as the extension binds them. */
+const enter = leaveCallout('callout')
+const shiftEnter = newLineInCallout('callout')
 
 /** Run a ProseMirror command the way the editor's chain does. */
 function run(state: EditorState, command: Command) {
@@ -96,30 +105,73 @@ describe('callout block', () => {
     )
   })
 
-  it('lets a second Enter escape the box', () => {
-    // The way out, keystroke for keystroke. A callout can be the last block on
-    // a page, so without this there would be no way back down past one sitting
-    // at the bottom. Enter runs splitBlock and then liftEmptyBlock: the first
-    // press opens an empty line inside the box, the second lifts that line out
-    // and leaves the text behind.
-    let state = page(callout.create(null, paragraph('Watch out')))
-
-    const split = run(state, splitBlock)
-    assert.equal(split.applied, true)
-    state = split.state
-    assert.deepEqual(outline(state), ['title', 'callout'], 'the first Enter stays inside')
-    assert.equal((state.doc.lastChild as Node).childCount, 2)
-
-    const lifted = run(state, liftEmptyBlock)
-    assert.equal(lifted.applied, true)
-    state = lifted.state
+  it('leaves the box on Enter, and opens a line under it', () => {
+    // The way out. A callout is allowed to be the last block on a page, so
+    // without this there is no way back down past one sitting at the foot of
+    // the page.
+    const start = page(callout.create(null, paragraph('Watch out')))
+    const { state, applied } = run(start, enter)
+    assert.equal(applied, true)
     assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
-    assert.equal((state.doc.child(1) as Node).childCount, 1, 'the text stays in the box')
-    assert.equal(state.doc.child(1).textContent, 'Watch out')
+    assert.equal(state.doc.child(1).textContent, 'Watch out', 'the text stays in the box')
+    // The caret is on the new line, directly in the page rather than the box.
+    assert.equal(state.selection.$from.parent.type.name, 'paragraph')
+    assert.equal(state.selection.$from.depth, 1)
+    assert.equal(state.selection.$from.parent.content.size, 0)
+  })
 
-    // And there is nothing left to lift: a third press is a no-op, not a way
-    // of unpicking the callout from underneath.
-    assert.equal(run(state, liftEmptyBlock).applied, false)
+  it('leaves the line it was on alone, wherever the caret was', () => {
+    // Enter part-way through a line does not split it: the box keeps the words
+    // it had, and the new line opens after the box.
+    const start = page(callout.create(null, paragraph('Watch out')))
+    const middle = caretAt(start, start.selection.from - 4)
+    const { state, applied } = run(middle, enter)
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
+    assert.equal(state.doc.child(1).textContent, 'Watch out')
+  })
+
+  it('takes an empty last line with it rather than leaving a blank row', () => {
+    const start = page(callout.create(null, [paragraph('Watch out'), paragraph()]))
+    const { state, applied } = run(start, enter)
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
+    assert.equal((state.doc.child(1) as Node).childCount, 1, 'the blank line is not left behind')
+  })
+
+  it('drops a callout that was never written in', () => {
+    // Enter on the empty line of an empty box is the way out of one opened by
+    // accident: the box goes with the line.
+    const start = page(callout.create(null, paragraph()))
+    const { state, applied } = run(start, enter)
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'paragraph'])
+  })
+
+  it('leaves Enter alone inside a list in a callout, where it means next item', () => {
+    const start = page(
+      callout.create(null, [
+        schema.node('bulletList', null, [schema.node('listItem', null, [paragraph('one')])]),
+      ]),
+    )
+    assert.equal(run(start, enter).applied, false)
+  })
+
+  it('leaves Enter alone outside a callout', () => {
+    assert.equal(run(page(paragraph('Watch out')), enter).applied, false)
+  })
+
+  it('opens a line inside the box on Shift-Enter', () => {
+    const start = page(callout.create(null, paragraph('Watch out')))
+    const { state, applied } = run(start, shiftEnter)
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'callout'], 'the new line stays in the box')
+    assert.equal((state.doc.lastChild as Node).childCount, 2)
+    assert.equal(state.selection.$from.depth, 2)
+  })
+
+  it('leaves Shift-Enter alone outside a callout, where it is a line break', () => {
+    assert.equal(run(page(paragraph('Watch out')), shiftEnter).applied, false)
   })
 
   it('carries its text into the Yjs document that sync and search read', async () => {
