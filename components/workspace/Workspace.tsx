@@ -289,21 +289,20 @@ export function Workspace() {
 }
 
 /** Only the ancestors: the page's own name is the title right underneath, and
- *  most pages are top level and get no trail at all. Each crumb is outlined
- *  rather than bare: against the page's white background, padded text with no
- *  edge to it just reads as a line indented a few pixels off the title. The
- *  border is there at rest and gives way to the hover fill, so the box keeps
- *  its size either way. */
+ *  most pages are top level and get no trail at all. Plain text with no box
+ *  around it: a crumb starts exactly where the title does, and hovering
+ *  underlines it the way a link would. The spacing either side of a chevron
+ *  carries the separation the padding used to. */
 function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string | null) => void }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-2 flex min-w-0 items-center gap-0.5 overflow-hidden">
+    <nav aria-label="Breadcrumb" className="mb-3 flex min-w-0 items-center gap-1.5 overflow-hidden">
       {trail.map((crumb, index) => (
-        <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
+        <span key={crumb.id} className="flex min-w-0 items-center gap-1.5">
           {index > 0 && <Icon name="chevronRight" size={12} className="text-faint" />}
           <button
             type="button"
             onClick={() => onOpen(crumb.id)}
-            className="truncate rounded border border-line px-1.5 py-1 text-[13px] text-muted transition-colors hover:border-transparent hover:bg-[var(--hover)]"
+            className="truncate text-[13px] text-muted underline-offset-2 hover:underline"
           >
             {crumb.title || 'Untitled'}
           </button>
