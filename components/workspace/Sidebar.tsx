@@ -123,10 +123,15 @@ export function Sidebar({
 
       {/* Clicking the empty space under the list closes the open page. Rows,
           and the menus they portal out of this element, bubble through here
-          too, so only a click that landed on the space itself counts. */}
+          too, so only a click that landed on the space itself counts — and
+          not one on the scrollbar, which Firefox reports as a click on the
+          element it scrolls. */}
       <nav
         onClick={(event) => {
-          if (event.target === event.currentTarget) onOpen(null)
+          if (!openId || event.target !== event.currentTarget) return
+          const bounds = event.currentTarget.getBoundingClientRect()
+          if (event.clientX - bounds.left >= event.currentTarget.clientWidth) return
+          onOpen(null)
         }}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4"
       >
