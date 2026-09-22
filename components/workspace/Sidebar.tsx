@@ -65,12 +65,12 @@ export function Sidebar({
               type="button"
               ref={ref}
               onClick={toggle}
-              className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
             >
               <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#1a1a19] text-[11px] font-bold text-white">
                 J
               </span>
-              <span className="min-w-0 truncate text-left text-[13.5px] font-semibold text-ink">
+              <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink">
                 Jottr
               </span>
               <Icon name="chevronDown" size={13} className="text-faint" strokeWidth={2} />
@@ -113,7 +113,7 @@ export function Sidebar({
           type="button"
           onClick={onCollapse}
           aria-label="Hide sidebar"
-          className="ml-auto grid size-7 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+          className="grid size-7 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
         >
           <Icon name="panel" size={16} />
         </button>
