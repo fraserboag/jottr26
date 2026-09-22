@@ -28,9 +28,8 @@ export const Callout = Node.create({
   name: 'callout',
   group: 'block',
   content: 'block+',
-  /** Pasting into a callout replaces its contents rather than dissolving the
-   *  box, and Backspace at the top lifts the block out instead of merging it
-   *  into whatever sits above. */
+  /** Pasting into a callout replaces the blocks inside it rather than
+   *  dissolving the box around them. */
   defining: true,
 
   parseHTML() {

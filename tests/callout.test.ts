@@ -5,7 +5,7 @@ import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
-import { lift, liftEmptyBlock, wrapIn } from '@tiptap/pm/commands'
+import { lift, liftEmptyBlock, splitBlock, wrapIn } from '@tiptap/pm/commands'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
@@ -96,17 +96,30 @@ describe('callout block', () => {
     )
   })
 
-  it('lets an empty line at the end escape the box', () => {
-    // The way out. A callout is the last block a page allows, so without this
-    // there would be no way to get back below one sitting at the bottom of the
-    // page. Enter runs liftEmptyBlock; the first press leaves the callout, the
-    // second lands the paragraph after it.
-    let state = page(callout.create(null, [paragraph('Watch out'), paragraph()]))
-    state = run(state, liftEmptyBlock).state
-    state = run(state, liftEmptyBlock).state
+  it('lets a second Enter escape the box', () => {
+    // The way out, keystroke for keystroke. A callout can be the last block on
+    // a page, so without this there would be no way back down past one sitting
+    // at the bottom. Enter runs splitBlock and then liftEmptyBlock: the first
+    // press opens an empty line inside the box, the second lifts that line out
+    // and leaves the text behind.
+    let state = page(callout.create(null, paragraph('Watch out')))
+
+    const split = run(state, splitBlock)
+    assert.equal(split.applied, true)
+    state = split.state
+    assert.deepEqual(outline(state), ['title', 'callout'], 'the first Enter stays inside')
+    assert.equal((state.doc.lastChild as Node).childCount, 2)
+
+    const lifted = run(state, liftEmptyBlock)
+    assert.equal(lifted.applied, true)
+    state = lifted.state
     assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
-    assert.equal(state.doc.lastChild?.type.name, 'paragraph')
     assert.equal((state.doc.child(1) as Node).childCount, 1, 'the text stays in the box')
+    assert.equal(state.doc.child(1).textContent, 'Watch out')
+
+    // And there is nothing left to lift: a third press is a no-op, not a way
+    // of unpicking the callout from underneath.
+    assert.equal(run(state, liftEmptyBlock).applied, false)
   })
 
   it('carries its text into the Yjs document that sync and search read', async () => {
