@@ -46,6 +46,23 @@ class Device {
     await this.engine.syncOnce()
   }
 
+  /** What a real tab's onLocalEdit listener does: recount the dirty rows so
+   *  the reported phase catches up with what is actually on disk. */
+  async noticeEdit() {
+    await this.focus()
+    await (this.engine as unknown as { refreshPending: () => Promise<void> }).refreshPending()
+  }
+
+  /** The phase the indicator would be showing right now. subscribe() hands the
+   *  current status to a new listener before returning its own unsubscribe. */
+  phase() {
+    let phase = ''
+    this.engine.subscribe((status) => {
+      phase = status.phase
+    })()
+    return phase
+  }
+
   /** Push without pulling first. This is the state a device is in when another
    *  device writes in the window between its own pull and push — the only way a
    *  compare-and-swap is ever rejected in practice. */
@@ -236,6 +253,20 @@ describe('local-first sync', () => {
 
     // The sidebar's denormalised copy has to follow the document.
     assert.equal((await laptop.page(pageId))?.title, title)
+  })
+
+  it('reports a typed-but-unsynced page as pending rather than synced', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.sync()
+    assert.equal(laptop.phase(), 'synced')
+
+    await laptop.type(id, 'still only on this device')
+    await laptop.noticeEdit()
+    assert.equal(laptop.phase(), 'pending', 'an unsynced edit must not read as synced')
+
+    await laptop.sync()
+    assert.equal(laptop.phase(), 'synced', 'the push settles it')
   })
 
   it('keeps a document edited during its own push marked as pending', async () => {

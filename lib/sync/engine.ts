@@ -248,7 +248,15 @@ export class SyncEngine {
       this.db.docStates.where('dirty').equals(1).primaryKeys(),
     ])
     const pending = new Set([...pages, ...docs] as string[]).size
-    this.emit({ pending, ...patch })
+
+    // 'synced' claims everything on this device is on the server, so it can
+    // only be told from 'pending' once the dirty rows have been counted — and
+    // this is the one place that counts them. Offline, error and syncing are
+    // explicit states about the connection and are left exactly as passed.
+    let phase = patch.phase ?? this.status.phase
+    if (phase === 'synced' || phase === 'pending') phase = pending > 0 ? 'pending' : 'synced'
+
+    this.emit({ pending, ...patch, phase })
   }
 
   // --- the loop -----------------------------------------------------------

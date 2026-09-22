@@ -18,6 +18,7 @@ function timeAgo(timestamp: number | null) {
 }
 
 const look: Record<SyncPhase, { icon: IconName; tone: string; label: string }> = {
+  pending: { icon: 'cloud', tone: 'text-muted', label: 'Not synced yet' },
   synced: { icon: 'cloudCheck', tone: 'text-muted', label: 'Synced' },
   syncing: { icon: 'refresh', tone: 'text-muted', label: 'Saving' },
   offline: { icon: 'cloudOff', tone: 'text-warn', label: 'Offline' },
@@ -50,11 +51,14 @@ export function SyncIndicator() {
         ? (waiting ?? 'Everything here was uploaded before you went offline.')
         : status.phase === 'syncing'
           ? 'Uploading your latest changes…'
-          : `Last synced ${timeAgo(status.lastSyncedAt)}.`
+          : status.phase === 'pending'
+            ? (waiting ?? 'Waiting to upload.')
+            : `Last synced ${timeAgo(status.lastSyncedAt)}.`
 
   // Only the icon shows, so anything the old row carried in a badge — the
   // count of pages still waiting — has to reach the tooltip instead.
-  const summary = [saving ? 'Saving…' : visual.label, detail, status.phase === 'offline' ? null : waiting]
+  const repeatsWaiting = status.phase === 'offline' || status.phase === 'pending'
+  const summary = [saving ? 'Saving…' : visual.label, detail, repeatsWaiting ? null : waiting]
     .filter(Boolean)
     .join(' — ')
 
@@ -91,7 +95,10 @@ export function SyncIndicator() {
             getting those changes onto your other devices.
           </p>
 
-          {(status.phase === 'error' || status.phase === 'offline' || status.phase === 'synced') && (
+          {(status.phase === 'error' ||
+            status.phase === 'offline' ||
+            status.phase === 'pending' ||
+            status.phase === 'synced') && (
             <button
               type="button"
               onClick={() => {

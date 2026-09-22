@@ -6,6 +6,8 @@ export type SyncPhase =
   /** A push or pull has been in flight long enough to be worth showing. Quick
    *  syncs never reach this state, so the indicator does not blink as you type. */
   | 'syncing'
+  /** Edits are saved on this device but have not reached the server yet. */
+  | 'pending'
   /** Everything on this device is on the server. */
   | 'synced'
   /** The last attempt failed; a retry is scheduled. */
