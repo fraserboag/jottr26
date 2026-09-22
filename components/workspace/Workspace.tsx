@@ -185,7 +185,7 @@ export function Workspace() {
   return (
     <div
       className={`flex h-dvh overflow-hidden bg-surface${
-        dragging ? ' cursor-col-resize select-none' : ''
+        dragging ? ' cursor-col-resize select-none [&_button]:cursor-col-resize' : ''
       }`}
     >
       {showSidebar && !wide && (
