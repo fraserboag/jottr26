@@ -149,11 +149,12 @@ body {
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.022em;
-  /* One blank body line between the name of the page and the page itself. The
-     figure is the body's own 16px x 1.7 above, not an em of this heading, and
-     it outruns every block's top margin so the gap reads the same whether the
-     note opens on a paragraph, a list or a table. */
-  margin: 0 0 calc(16px * 1.7);
+  /* A blank body line between the name of the page and the page itself: the
+     body's own 16px x 1.7 above — not an em of this heading — plus the 2px
+     that sits above and below any block, which an actual empty line would
+     carry too. The total outruns every block's top margin, so the gap reads
+     the same whether the note opens on a paragraph, a list or a table. */
+  margin: 0 0 calc(16px * 1.7 + 4px);
 }
 
 .ProseMirror ul,
