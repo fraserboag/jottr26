@@ -25,6 +25,7 @@ export function Popover({
   side = 'bottom',
   width = 220,
   className = '',
+  role = 'menu',
 }: {
   trigger: (props: { open: boolean; toggle: () => void; ref: (node: HTMLElement | null) => void }) => ReactElement
   children: (close: () => void) => React.ReactNode
@@ -32,6 +33,7 @@ export function Popover({
   side?: Side
   width?: number
   className?: string
+  role?: 'menu' | 'dialog'
 }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -97,7 +99,7 @@ export function Popover({
         createPortal(
           <div
             ref={panelRef}
-            role="menu"
+            role={role}
             style={{
               top: position?.top ?? -9999,
               left: position?.left ?? -9999,

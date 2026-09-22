@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { Popover } from '@/components/ui/Popover'
 import { useWorkspace } from './WorkspaceProvider'
 import type { SyncPhase } from '@/lib/sync/types'
 
@@ -26,70 +27,57 @@ const look: Record<SyncPhase, { icon: IconName; tone: string; label: string }> =
 
 export function SyncIndicator() {
   const { status, retrySync, syncNow } = useWorkspace()
-  const [open, setOpen] = useState(false)
   const [, forceTick] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = setInterval(() => forceTick((n) => n + 1), 30_000)
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
   // The engine only reports 'syncing' once a round trip is slow enough to be
   // worth mentioning, so there is no timing logic left to do here.
   const visual = look[status.phase]
   const saving = status.phase === 'syncing'
+  const waiting =
+    status.pending > 0
+      ? `${status.pending} ${status.pending === 1 ? 'page' : 'pages'} waiting to upload.`
+      : null
 
   const detail =
     status.phase === 'error'
       ? (status.error ?? 'Something went wrong.')
       : status.phase === 'offline'
-        ? status.pending
-          ? `${status.pending} ${status.pending === 1 ? 'page' : 'pages'} waiting to upload.`
-          : 'Everything here was uploaded before you went offline.'
+        ? (waiting ?? 'Everything here was uploaded before you went offline.')
         : status.phase === 'syncing'
           ? 'Uploading your latest changes…'
           : `Last synced ${timeAgo(status.lastSyncedAt)}.`
 
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)] ${visual.tone}`}
-        aria-expanded={open}
-        aria-label={`Sync status: ${visual.label}`}
-      >
-        <Icon name={visual.icon} size={15} className={saving ? 'animate-spin' : ''} />
-        <span className="truncate font-medium">{saving ? 'Saving…' : visual.label}</span>
-        {status.pending > 0 && !saving && (
-          <span className="ml-auto rounded-full bg-[var(--active)] px-1.5 py-px text-[11px] font-semibold tabular-nums text-ink">
-            {status.pending}
-          </span>
-        )}
-      </button>
+  // Only the icon shows, so anything the old row carried in a badge — the
+  // count of pages still waiting — has to reach the tooltip instead.
+  const summary = [saving ? 'Saving…' : visual.label, detail, status.phase === 'offline' ? null : waiting]
+    .filter(Boolean)
+    .join(' — ')
 
-      {open && (
-        <div
-          role="dialog"
-          className="absolute bottom-full left-0 z-50 mb-2 w-[min(19rem,calc(100vw-2rem))] rounded-xl border border-line bg-raised p-3.5 shadow-[var(--shadow-pop)]"
+  return (
+    <Popover
+      width={304}
+      role="dialog"
+      trigger={({ ref, toggle, open }) => (
+        <button
+          type="button"
+          ref={ref}
+          onClick={toggle}
+          title={summary}
+          aria-expanded={open}
+          aria-label={`Sync status: ${visual.label}`}
+          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] ${visual.tone}`}
         >
+          <Icon name={visual.icon} size={15} className={saving ? 'animate-spin' : ''} />
+        </button>
+      )}
+    >
+      {(close) => (
+        <div className="p-3">
           <div className={`flex items-center gap-2 text-[13px] font-semibold ${visual.tone}`}>
             <Icon name={visual.icon} size={15} />
             {status.phase === 'syncing' ? 'Saving to your account' : visual.label}
@@ -109,7 +97,7 @@ export function SyncIndicator() {
               onClick={() => {
                 if (status.phase === 'error') retrySync()
                 else syncNow()
-                setOpen(false)
+                close()
               }}
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[var(--hover)]"
             >
@@ -119,6 +107,6 @@ export function SyncIndicator() {
           )}
         </div>
       )}
-    </div>
+    </Popover>
   )
 }
