@@ -149,7 +149,11 @@ body {
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.022em;
-  margin: 0 0 6px;
+  /* One blank body line between the name of the page and the page itself. The
+     figure is the body's own 16px x 1.7 above, not an em of this heading, and
+     it outruns every block's top margin so the gap reads the same whether the
+     note opens on a paragraph, a list or a table. */
+  margin: 0 0 calc(16px * 1.7);
 }
 
 .ProseMirror ul,
@@ -273,8 +277,16 @@ body {
   margin: 10px 0;
 }
 
+/* Separate borders rather than collapsed, so the grid can be rounded off like
+   a callout: a collapsed table hands its outer edge to the cells, whose square
+   corners would sit over any radius set here. The perimeter is drawn once by
+   the table, and each cell keeps only the two inner lines it shares with the
+   neighbours below and to its right. */
 .ProseMirror table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
   /* Fixed layout keeps a long word in one cell from starving the others. */
   table-layout: fixed;
   width: 100%;
@@ -282,12 +294,37 @@ body {
 }
 
 .ProseMirror :is(td, th) {
-  border: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
   padding: 6px 9px;
   vertical-align: top;
   /* No min-width: the colgroup owns column widths once they are resizable, and
      a floor here would quietly refuse the narrow columns a drag asks for. */
   position: relative;
+}
+
+/* The last of each doubles up with the table's own border otherwise. */
+.ProseMirror :is(td, th):last-child {
+  border-right: none;
+}
+.ProseMirror tr:last-child > :is(td, th) {
+  border-bottom: none;
+}
+
+/* A cell's background is squared off, so the corner ones are rounded to the
+   curve they sit in: the header strip at the top, the totals row at the foot.
+   One pixel less than the table, which is the width of the border between. */
+.ProseMirror tr:first-child > :is(td, th):first-child {
+  border-top-left-radius: 7px;
+}
+.ProseMirror tr:first-child > :is(td, th):last-child {
+  border-top-right-radius: 7px;
+}
+.ProseMirror tr:last-child > :is(td, th):first-child {
+  border-bottom-left-radius: 7px;
+}
+.ProseMirror tr:last-child > :is(td, th):last-child {
+  border-bottom-right-radius: 7px;
 }
 
 .ProseMirror th {
@@ -334,7 +371,9 @@ body {
    typed in, selected or deleted, and it never reaches the CRDT. */
 .ProseMirror tr.finance-total > td {
   background: var(--surface-sunken);
-  border-top: 2px solid var(--line-strong);
+  /* Stacked against the bottom border of the row above, which separate borders
+     no longer merge with, this reads as the 2px rule it used to be. */
+  border-top: 1px solid var(--line-strong);
   font-weight: 620;
   color: var(--text);
   user-select: none;
@@ -346,6 +385,8 @@ body {
   content: "";
   position: absolute;
   inset: 0;
+  /* A corner cell is rounded, and a square tint would fill the curve back in. */
+  border-radius: inherit;
   background: var(--accent-soft);
   pointer-events: none;
 }
