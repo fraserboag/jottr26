@@ -243,13 +243,14 @@ export function Workspace() {
 
       <main className="relative flex min-w-0 flex-1 flex-col">
         {/* The only way back to a hidden sidebar, so it floats over the page
-            rather than scrolling away with it. */}
+            rather than scrolling away with it. It keeps the old top bar's
+            backdrop: on a phone the page's left edge passes underneath. */}
         {!showSidebar && (
           <button
             type="button"
             onClick={() => setSidebar(true)}
             aria-label="Show sidebar"
-            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted"
           >
             <Icon name="panel" size={16} />
           </button>
@@ -257,10 +258,14 @@ export function Workspace() {
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
           {/* Narrow screens centre nothing, so the floating button would sit on
-              the first line of the page. The extra padding drops it clear. */}
+              the first line of the page. The extra padding drops it clear, and
+              follows the notch the button is offset by. It does not depend on
+              the sidebar being hidden: there the sidebar is a drawer over the
+              page, and keying on it would shuffle the page up and down as the
+              drawer opened and closed. */}
           <div
             className={`mx-auto w-full max-w-[46rem] px-5 pb-16 sm:px-10 ${
-              !showSidebar && !wide ? 'pt-14' : 'pt-8'
+              wide ? 'pt-8' : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)]'
             }`}
           >
             {page ? (
