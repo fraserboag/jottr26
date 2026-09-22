@@ -388,7 +388,10 @@ body {
 .ProseMirror hr {
   border: none;
   border-top: 1px solid var(--line);
-  margin: 1.4em 0;
+  /* One body line tall, rule included, so a divider takes the room of a blank
+     line and no more. The old 1.4em stood it off by half again as much as an
+     empty line, which read as a hole in a document whose blocks sit 2px apart. */
+  margin: calc((16px * 1.7 - 1px) / 2) 0;
 }
 
 .ProseMirror a {
