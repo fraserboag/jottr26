@@ -18,7 +18,7 @@ import { filterSlashItems } from '@/components/editor/extensions/slash'
 const schema = getSchema([
   JottrDocument,
   Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false }),
+  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
   TaskList,
   TaskItem.configure({ nested: true }),
   Callout,
@@ -89,10 +89,10 @@ describe('callout block', () => {
     assert.deepEqual(outline(unwrapped.state), ['title', 'paragraph'])
   })
 
-  it('holds more than a paragraph: a quote and a list go in too', () => {
+  it('holds more than a paragraph: a code block and a list go in too', () => {
     const state = page(
       callout.create(null, [
-        schema.node('blockquote', null, [paragraph('Watch out')]),
+        schema.node('codeBlock', null, [schema.text('watch()')]),
         schema.node('bulletList', null, [
           schema.node('listItem', null, [paragraph('one')]),
         ]),
@@ -101,7 +101,7 @@ describe('callout block', () => {
     state.doc.check()
     assert.deepEqual(
       (state.doc.lastChild as Node).children.map((node) => node.type.name),
-      ['blockquote', 'bulletList'],
+      ['codeBlock', 'bulletList'],
     )
   })
 

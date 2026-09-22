@@ -6,8 +6,8 @@ import type { ResolvedPos } from '@tiptap/pm/model'
 /** A callout: a padded box that sets a passage apart from the page around it.
  *
  *  It wraps blocks rather than holding inline content of its own, so a callout
- *  can carry a quote, a list or several paragraphs — the same deal a blockquote
- *  offers, with a background instead of a rule down the side.
+ *  can carry a list, a code block or several paragraphs, and it is the only
+ *  block here that sets a passage apart — the editor has no blockquote.
  *
  *  No attributes, on purpose. There is nothing here to pick a colour or an icon
  *  for, so there is nothing for two devices to disagree about: the node rides
@@ -40,9 +40,9 @@ export function leaveCallout(name: string): Command {
     const after = $from.after(-1)
     const paragraph = state.schema.nodes.paragraph
     const $after = state.doc.resolve(after)
-    // A callout can sit inside a list item or a quote, and not every parent
-    // takes a loose paragraph. Where one is refused, Enter is left to whatever
-    // would have handled it.
+    // A callout can sit inside a list item or a table cell, and not every
+    // parent takes a loose paragraph. Where one is refused, Enter is left to
+    // whatever would have handled it.
     if (!$after.parent.canReplaceWith($after.index(), $after.index(), paragraph)) return false
 
     if (dispatch) {
