@@ -8,6 +8,7 @@ import type { IconName } from '@/components/ui/Icon'
 import type {} from '@tiptap/starter-kit'
 import type {} from '@tiptap/extension-list'
 import type {} from '@tiptap/extension-table'
+import type {} from './callout'
 
 export interface SlashItem {
   id: string
@@ -62,6 +63,14 @@ export const slashItems: SlashItem[] = [
     icon: 'quote',
     keywords: ['blockquote', 'cite'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
+  },
+  {
+    id: 'callout',
+    title: 'Callout',
+    hint: 'A shaded box for an aside',
+    icon: 'callout',
+    keywords: ['note', 'box', 'panel', 'aside', 'info', 'highlight'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCallout().run(),
   },
   {
     id: 'code',

@@ -8,6 +8,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
+import { Callout } from './extensions/callout'
 import { FinanceTable } from './extensions/finance'
 import { JottrDocument, Title } from './extensions/title'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
@@ -147,6 +148,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         }),
         TaskList,
         TaskItem.configure({ nested: true }),
+        Callout,
         // Rows, cells and headers come from the kit; the table node itself is
         // the finance-aware one, so its extra attribute and plugin are in the
         // schema from the start.

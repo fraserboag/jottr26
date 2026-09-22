@@ -5,6 +5,7 @@ import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit, createColGroup, createTable } from '@tiptap/extension-table'
+import { Callout } from '@/components/editor/extensions/callout'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import {
   CellSelection,
@@ -31,6 +32,7 @@ const schema = getSchema([
   StarterKit.configure({ document: false, undoRedo: false, heading: false }),
   TaskList,
   TaskItem.configure({ nested: true }),
+  Callout,
   TableKit.configure({ table: false }),
   FinanceTable.configure({ renderWrapper: true }),
 ])

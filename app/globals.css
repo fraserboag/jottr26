@@ -222,6 +222,23 @@ body {
   color: var(--text-muted);
 }
 
+/* A callout: a padded box with a background, for a passage that wants setting
+   apart from the page around it. It holds blocks, so the first and last of
+   them give up their outer margins rather than doubling the padding. */
+.ProseMirror div[data-type="callout"] {
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+.ProseMirror div[data-type="callout"] > :first-child {
+  margin-top: 0;
+}
+.ProseMirror div[data-type="callout"] > :last-child {
+  margin-bottom: 0;
+}
+
 .ProseMirror code {
   font-family: var(--font-mono);
   font-size: 0.875em;
