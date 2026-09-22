@@ -66,6 +66,7 @@ export function SyncIndicator() {
     <Popover
       width={304}
       role="dialog"
+      shadow="soft"
       trigger={({ ref, toggle, open }) => (
         <button
           type="button"

@@ -26,6 +26,7 @@ export function Popover({
   width = 220,
   className = '',
   role = 'menu',
+  shadow = 'pop',
 }: {
   trigger: (props: { open: boolean; toggle: () => void; ref: (node: HTMLElement | null) => void }) => ReactElement
   children: (close: () => void) => React.ReactNode
@@ -34,6 +35,7 @@ export function Popover({
   width?: number
   className?: string
   role?: 'menu' | 'dialog'
+  shadow?: 'pop' | 'soft'
 }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -106,7 +108,9 @@ export function Popover({
               width,
               visibility: position ? 'visible' : 'hidden',
             }}
-            className={`fixed z-50 overflow-hidden rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] ${className}`}
+            className={`fixed z-50 overflow-hidden rounded-xl border border-line bg-raised p-1 ${
+              shadow === 'soft' ? 'shadow-[var(--shadow-soft)]' : 'shadow-[var(--shadow-pop)]'
+            } ${className}`}
           >
             {children(close)}
           </div>,
