@@ -1,5 +1,5 @@
 import { mergeAttributes, Node } from '@tiptap/core'
-import { Selection } from '@tiptap/pm/state'
+import { Selection, TextSelection, type Command } from '@tiptap/pm/state'
 
 /** The document's own top node, requiring a title followed by at least one
  *  block. Because the title is node 0 of the same ProseMirror document, it is
@@ -10,6 +10,60 @@ export const JottrDocument = Node.create({
   topNode: true,
   content: 'title block+',
 })
+
+/** Enter, in the title: drop into the body on a fresh line of your own.
+ *
+ *  Naming a page and starting to write are one movement, so Enter has to land
+ *  the caret somewhere you can type — not at the head of the first line
+ *  already there, where the next word would run into it. A new paragraph opens
+ *  at the top of the body and the caret goes in it.
+ *
+ *  The title cannot be split in two anyway: the schema has exactly one, and it
+ *  holds no marks. So this is what Enter means wherever the caret sits in the
+ *  title. */
+export function openBodyLine(name: string): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.depth !== 1 || $from.parent.type.name !== name) return false
+
+    const after = $from.after()
+    const first = state.doc.maybeChild($from.index(0) + 1)
+    const paragraph = state.schema.nodes.paragraph
+
+    // A page that has only ever had its title typed already opens on a blank
+    // line. Use that one rather than pushing it down under a second.
+    if (first?.type === paragraph && first.content.size === 0) {
+      if (dispatch) {
+        dispatch(state.tr.setSelection(TextSelection.create(state.doc, after + 1)).scrollIntoView())
+      }
+      return true
+    }
+
+    if (dispatch) {
+      const tr = state.tr.insert(after, paragraph.create())
+      tr.setSelection(TextSelection.create(tr.doc, after + 1))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
+/** Tab, in the title: into the body, leaving the page as it stands.
+ *
+ *  Tab moves between fields, so it goes to the first line of the body without
+ *  writing anything — the difference from Enter, which opens a line to type on. */
+export function leaveTitle(name: string): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.depth !== 1 || $from.parent.type.name !== name) return false
+
+    if (dispatch) {
+      const $after = state.doc.resolve($from.after())
+      dispatch(state.tr.setSelection(Selection.near($after, 1)).scrollIntoView())
+    }
+    return true
+  }
+}
 
 export const Title = Node.create({
   name: 'title',
@@ -28,32 +82,14 @@ export const Title = Node.create({
   },
 
   addKeyboardShortcuts() {
-    const leaveTitle = () => {
-      const { state, view } = this.editor
-      const { $from, empty } = state.selection
-      if (!empty || $from.parent.type.name !== this.name) return false
-
-      const after = $from.after(1)
-      if (after >= state.doc.content.size) {
-        return this.editor
-          .chain()
-          .insertContentAt(state.doc.content.size, { type: 'paragraph' })
-          .focus('end')
-          .run()
-      }
-
-      view.dispatch(
-        state.tr.setSelection(Selection.near(state.doc.resolve(after), 1)).scrollIntoView(),
-      )
-      return true
-    }
+    const openLine = () =>
+      this.editor.commands.command(({ state, dispatch }) => openBodyLine(this.name)(state, dispatch))
 
     return {
-      // Enter in the title moves into the body rather than splitting the title
-      // in two, which the schema would not allow anyway.
-      Enter: leaveTitle,
-      'Mod-Enter': leaveTitle,
-      Tab: leaveTitle,
+      Enter: openLine,
+      'Mod-Enter': openLine,
+      Tab: () =>
+        this.editor.commands.command(({ state, dispatch }) => leaveTitle(this.name)(state, dispatch)),
     }
   },
 })
