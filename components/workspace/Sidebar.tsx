@@ -168,8 +168,8 @@ function AddPage({ onClick }: { onClick: () => void }) {
       style={{ paddingLeft: 28 }}
       className="flex w-full items-center gap-1.5 rounded-md py-1 pr-1 text-[13px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
     >
-      <span className="grid w-4 shrink-0 place-items-center">
-        <Icon name="plus" size={13} strokeWidth={2} />
+      <span className="w-4 shrink-0">
+        <Icon name="plus" size={14} strokeWidth={2} />
       </span>
       <span className="flex-1 text-left">Add new</span>
     </button>
