@@ -263,6 +263,8 @@ export function Workspace() {
         )}
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+          {/* 700px of text, the same column Notion sets, plus the side padding:
+              the cap is the two added together, not the column on its own. */}
           {/* Narrow screens centre nothing, so the floating button would sit on
               the first line of the page. The extra padding drops it clear, and
               follows the notch the button is offset by. It does not depend on
@@ -270,7 +272,7 @@ export function Workspace() {
               page, and keying on it would shuffle the page up and down as the
               drawer opened and closed. */}
           <div
-            className={`mx-auto w-full max-w-[46rem] px-5 pb-16 sm:px-10 ${
+            className={`mx-auto w-full max-w-[780px] px-5 pb-16 sm:px-10 ${
               wide ? 'pt-16' : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)]'
             }`}
           >
