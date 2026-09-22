@@ -265,7 +265,7 @@ export function Workspace() {
               drawer opened and closed. */}
           <div
             className={`mx-auto w-full max-w-[46rem] px-5 pb-16 sm:px-10 ${
-              wide ? 'pt-8' : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)]'
+              wide ? 'pt-16' : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)]'
             }`}
           >
             {page ? (
