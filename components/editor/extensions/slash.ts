@@ -32,33 +32,6 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).setParagraph().run(),
   },
   {
-    id: 'h1',
-    title: 'Heading 1',
-    hint: 'Big section heading',
-    icon: 'h1',
-    keywords: ['title', 'large', 'h1'],
-    run: (editor, range) =>
-      editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run(),
-  },
-  {
-    id: 'h2',
-    title: 'Heading 2',
-    hint: 'Medium section heading',
-    icon: 'h2',
-    keywords: ['subtitle', 'h2'],
-    run: (editor, range) =>
-      editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run(),
-  },
-  {
-    id: 'h3',
-    title: 'Heading 3',
-    hint: 'Small section heading',
-    icon: 'h3',
-    keywords: ['h3', 'minor'],
-    run: (editor, range) =>
-      editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run(),
-  },
-  {
     id: 'bullet',
     title: 'Bulleted list',
     hint: 'An unordered list',

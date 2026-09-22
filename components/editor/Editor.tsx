@@ -139,7 +139,6 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Collaboration brings its own Yjs-aware undo stack. Keeping
           // ProseMirror's would undo other devices' edits along with yours.
           undoRedo: false,
-          heading: { levels: [1, 2, 3] },
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
         }),

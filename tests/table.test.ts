@@ -28,7 +28,7 @@ import { filterSlashItems } from '@/components/editor/extensions/slash'
 const schema = getSchema([
   JottrDocument,
   Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: { levels: [1, 2, 3] } }),
+  StarterKit.configure({ document: false, undoRedo: false, heading: false }),
   TaskList,
   TaskItem.configure({ nested: true }),
   TableKit.configure({ table: false }),

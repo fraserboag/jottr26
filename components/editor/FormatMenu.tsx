@@ -28,9 +28,6 @@ export function FormatMenu({ editor }: { editor: Editor }) {
       strike: instance.isActive('strike'),
       code: instance.isActive('code'),
       link: instance.isActive('link'),
-      h1: instance.isActive('heading', { level: 1 }),
-      h2: instance.isActive('heading', { level: 2 }),
-      h3: instance.isActive('heading', { level: 3 }),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
     }),
@@ -86,10 +83,6 @@ export function FormatMenu({ editor }: { editor: Editor }) {
               setLinkOpen(true)
             }}
           />
-          <span className="mx-1 h-5 w-px bg-line" />
-          <ToolButton icon="h1" label="Heading 1" active={state.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
-          <ToolButton icon="h2" label="Heading 2" active={state.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-          <ToolButton icon="h3" label="Heading 3" active={state.h3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
           <span className="mx-1 h-5 w-px bg-line" />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
