@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
 import { QuickSearch } from './QuickSearch'
 import { TrashPanel } from './TrashPanel'
 import { useWorkspace } from './WorkspaceProvider'
@@ -223,8 +222,7 @@ export function Workspace() {
       {/* Outside the sidebar on purpose. Inside it, the six pixels of grab area
           would sit on top of the page list's own scrollbar, which is nine
           pixels wide, and anyone whose scrollbars are always visible could not
-          reach the thumb. Out here it hangs over the page's left margin, and
-          above the top bar, which is sticky at z-30. */}
+          reach the thumb. Out here it hangs over the page's left margin. */}
       {wide && showSidebar && (
         <div className="relative z-40 w-0 shrink-0">
           <div
@@ -243,17 +241,36 @@ export function Workspace() {
         </div>
       )}
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          trail={trail}
-          sidebarHidden={!showSidebar}
-          onShowSidebar={() => setSidebar(true)}
-          onOpen={openPage}
-        />
+      <main className="relative flex min-w-0 flex-1 flex-col">
+        {/* The only way back to a hidden sidebar, so it floats over the page
+            rather than scrolling away with it. */}
+        {!showSidebar && (
+          <button
+            type="button"
+            onClick={() => setSidebar(true)}
+            aria-label="Show sidebar"
+            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+          >
+            <Icon name="panel" size={16} />
+          </button>
+        )}
 
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-[46rem] px-5 pb-16 pt-8 sm:px-10">
-            {page ? <Editor pageId={page.id} /> : <EmptyState onCreate={() => void createPage().then(openPage)} />}
+          {/* Narrow screens centre nothing, so the floating button would sit on
+              the first line of the page. The extra padding drops it clear. */}
+          <div
+            className={`mx-auto w-full max-w-[46rem] px-5 pb-16 sm:px-10 ${
+              !showSidebar && !wide ? 'pt-14' : 'pt-8'
+            }`}
+          >
+            {page ? (
+              <>
+                {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
+                <Editor pageId={page.id} />
+              </>
+            ) : (
+              <EmptyState onCreate={() => void createPage().then(openPage)} />
+            )}
           </div>
         </div>
       </main>
@@ -263,6 +280,27 @@ export function Workspace() {
       )}
       {overlay === 'trash' && <TrashPanel onClose={() => setOverlay(null)} />}
     </div>
+  )
+}
+
+/** Only the ancestors: the page's own name is the title right underneath, and
+ *  most pages are top level and get no trail at all. */
+function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string | null) => void }) {
+  return (
+    <nav aria-label="Breadcrumb" className="mb-2 flex min-w-0 items-center gap-0.5 overflow-hidden">
+      {trail.map((crumb, index) => (
+        <span key={crumb.id} className="flex min-w-0 items-center gap-0.5">
+          {index > 0 && <Icon name="chevronRight" size={12} className="text-faint" />}
+          <button
+            type="button"
+            onClick={() => onOpen(crumb.id)}
+            className="truncate rounded px-1.5 py-1 text-[13px] text-muted transition-colors hover:bg-[var(--hover)]"
+          >
+            {crumb.title || 'Untitled'}
+          </button>
+        </span>
+      ))}
+    </nav>
   )
 }
 
