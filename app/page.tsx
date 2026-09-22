@@ -19,12 +19,12 @@ export default function LandingPage() {
       <main className="mx-auto max-w-5xl px-5 sm:px-8">
         <section className="py-16 sm:py-20">
           <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">
-            A notebook
+            Jottr
           </h1>
           <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-muted">
-            Pages are stored on your device and synced to your account in the background, so
-            Jottr works with or without a connection. Sign in to keep your pages across
-            devices.
+            A notebook. Pages are stored on your device and synced to your account in the
+            background, so it works with or without a connection. Sign in to keep your pages
+            across devices.
           </p>
           <div className="mt-7">
             <a
