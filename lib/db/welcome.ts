@@ -57,9 +57,9 @@ export async function ensureWelcomePage(): Promise<string | null> {
     fragment.insert(fragment.length, [
       el('paragraph', 'This page is yours — edit it, or throw it away.'),
       boldParagraph('Writing'),
-      el('paragraph', "Press / on an empty line to insert a list, a quote or a code block. Select any text to format it."),
+      el('paragraph', "Press / on an empty line to insert a list, a callout or a code block. Select any text to format it."),
       bulletList([
-        'Markdown shortcuts work: - for a bullet, > for a quote, ``` for a code block.',
+        'Markdown shortcuts work: - for a bullet, 1. for a numbered list, ``` for a code block.',
         'Cmd/Ctrl + K opens search. It looks inside your pages, not just their titles.',
         'Drag a page in the sidebar to reorder it, or drop it on another to nest it.',
       ]),
@@ -69,7 +69,7 @@ export async function ensureWelcomePage(): Promise<string | null> {
         'Everything you type is written to this device first, so the editor never waits for the network. The indicator at the bottom of the sidebar tells you where your changes are.',
       ),
       el(
-        'blockquote',
+        'paragraph',
         'Edit the same page on two devices while offline and both sets of changes survive — they are merged, not overwritten.',
       ),
     ])

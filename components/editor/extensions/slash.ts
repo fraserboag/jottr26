@@ -57,14 +57,6 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
-    id: 'quote',
-    title: 'Quote',
-    hint: 'Set text apart',
-    icon: 'quote',
-    keywords: ['blockquote', 'cite'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
-  },
-  {
     id: 'callout',
     title: 'Callout',
     hint: 'A shaded box for an aside',

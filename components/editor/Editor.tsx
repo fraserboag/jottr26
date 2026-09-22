@@ -143,6 +143,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // StarterKit brings Heading unless this is exactly false. Section
           // headings here are bold body text, not their own block.
           heading: false,
+          // Same again for Blockquote: without this, '>' and Mod-Shift-B still
+          // make quotes. A callout is the block that sets a passage apart.
+          blockquote: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
         }),

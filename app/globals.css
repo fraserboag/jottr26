@@ -219,13 +219,6 @@ body {
   text-decoration: line-through;
 }
 
-.ProseMirror blockquote {
-  border-left: 3px solid var(--line-strong);
-  padding-left: 0.95em;
-  margin: 6px 0;
-  color: var(--text-muted);
-}
-
 /* A callout: a padded box with a background, for a passage that wants setting
    apart from the page around it. It holds blocks, so the first and last of
    them give up their outer margins rather than doubling the padding. */
