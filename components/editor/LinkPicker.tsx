@@ -70,8 +70,16 @@ export function LinkPicker({
 
   return (
     <div className={`flex flex-col ${className}`}>
-      <div className="flex items-center gap-1 px-1">
-        <Icon name="link" size={14} className="shrink-0 text-faint" />
+      <div className="flex items-center gap-2.5 px-1.5">
+        {/* Drawn as the toolbar it replaces draws its icons, so opening the
+            box does not shrink the link glyph under the pointer. */}
+        <Icon
+          name="link"
+          size={19}
+          strokeWidth={1.8}
+          className="shrink-0 text-faint pointer-coarse:size-[22px]"
+        />
+
         <input
           ref={inputRef}
           value={query}
