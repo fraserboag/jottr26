@@ -274,7 +274,7 @@ export function Workspace() {
               page, and keying on it would shuffle the page up and down as the
               drawer opened and closed. */}
           <div
-            className={`mx-auto w-full max-w-[780px] px-5 pb-16 sm:px-10 ${
+            className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
               wide
                 ? 'pt-16'
                 : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+3rem)]'

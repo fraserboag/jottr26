@@ -69,6 +69,14 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       // it would only float the bar off the keys.
       bar.dataset.keyboard = String(viewport ? window.innerHeight - viewport.height > 120 : false)
       bar.style.transform = `translateY(${bottom - bar.offsetHeight}px)`
+      // The page scrolls inside a box as tall as the layout viewport, so on
+      // the last line it has already run out of scroll with the keyboard and
+      // the bar still over it. The page pads its foot by this much for as long
+      // as the bar is up, which leaves room to lift that line clear.
+      document.documentElement.style.setProperty(
+        '--toolbar-inset',
+        `${Math.max(0, window.innerHeight - bottom) + bar.offsetHeight}px`,
+      )
     }
 
     place()
@@ -80,6 +88,7 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       observer.disconnect()
       viewport?.removeEventListener('resize', place)
       viewport?.removeEventListener('scroll', place)
+      document.documentElement.style.removeProperty('--toolbar-inset')
     }
   }, [visible])
 
