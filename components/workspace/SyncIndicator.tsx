@@ -83,7 +83,7 @@ export function SyncIndicator() {
             }}
             className="flex h-[26px] w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-[5px] px-2 text-[13px] font-medium text-ink transition-colors hover:bg-[var(--hover)] pointer-coarse:h-[30px] pointer-coarse:text-[14px]"
           >
-            <Icon name="refresh" size={13} />
+            <Icon name="refresh" size={14} />
             Force sync
           </button>
         )}
