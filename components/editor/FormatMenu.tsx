@@ -58,7 +58,7 @@ export function FormatMenu({ editor }: { editor: Editor }) {
         if (instance.state.selection instanceof CellSelection) return false
         return !instance.isActive('codeBlock')
       }}
-      className="flex items-center gap-0.5 rounded-lg border border-line bg-raised p-1 shadow-[var(--shadow-pop)]"
+      className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)]"
     >
       {linkOpen ? (
         <LinkPicker
@@ -83,7 +83,7 @@ export function FormatMenu({ editor }: { editor: Editor }) {
               setLinkOpen(true)
             }}
           />
-          <span className="mx-1 h-5 w-px bg-line" />
+          <span className="mx-1 h-6 w-px bg-line" />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
         </>

@@ -195,7 +195,7 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
               setLinkOpen(true)
             }}
           />
-          <span className="mx-1 h-6 w-px shrink-0 bg-line" />
+          <span className="mx-1 h-7 w-px shrink-0 bg-line" />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
         </div>
