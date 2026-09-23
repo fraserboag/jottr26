@@ -31,7 +31,11 @@ export interface DocHandle {
   ready: boolean
 }
 
-type Listener = () => void
+/** 'text' is typing, which arrives in bursts and is worth batching.
+ *  'structure' is a page created, moved, trashed or deleted: a single act the
+ *  other devices should see straight away. */
+export type EditKind = 'text' | 'structure'
+type Listener = (kind: EditKind) => void
 
 const handles = new Map<string, DocHandle>()
 const loading = new Map<string, Promise<DocHandle>>()
@@ -42,8 +46,8 @@ export function onLocalEdit(listener: Listener) {
   return () => dirtyListeners.delete(listener)
 }
 
-function notifyLocalEdit() {
-  for (const listener of dirtyListeners) listener()
+export function notifyLocalEdit(kind: EditKind = 'text') {
+  for (const listener of dirtyListeners) listener(kind)
 }
 
 /** Build the initial shape of a new page: a title node followed by an empty

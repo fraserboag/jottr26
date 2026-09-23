@@ -10,7 +10,9 @@ const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName
 const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived } = await import(
   '@/lib/db/pages'
 )
-const { openDoc, releaseAll, readTitle, readPlainText, DOC_FIELD } = await import('@/lib/db/ydoc')
+const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, DOC_FIELD } = await import(
+  '@/lib/db/ydoc'
+)
 const { SyncEngine } = await import('@/lib/sync/engine')
 
 const server = new FakeServer()
@@ -312,6 +314,29 @@ describe('local-first sync', () => {
 
     await phone.sync()
     assert.equal(await phone.page(id), undefined, 'the phone should drop it from its trash')
+  })
+
+  it('asks for a sync at once when a page is trashed, moved or deleted, but batches typing', async () => {
+    await laptop.focus()
+    const kinds: string[] = []
+    const stop = onLocalEdit((kind) => kinds.push(kind))
+    try {
+      const parent = await createPage()
+      const id = await createPage()
+      assert.ok(kinds.includes('structure'), 'creating a page is urgent')
+
+      kinds.length = 0
+      await laptop.setTitle(id, 'Typed')
+      assert.ok(kinds.length > 0 && kinds.every((kind) => kind === 'text'), 'typing a title is not')
+
+      for (const act of [() => movePage(id, parent, 0), () => trashPage(id), () => deleteForever(id)]) {
+        kinds.length = 0
+        await act()
+        assert.deepEqual([...new Set(kinds)], ['structure'])
+      }
+    } finally {
+      stop()
+    }
   })
 
   it('drops a page purged on another device before this one saw it trashed', async () => {

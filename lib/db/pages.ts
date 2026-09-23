@@ -2,7 +2,7 @@ import { generateKeyBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
 import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
-import { DOC_FIELD, openDoc, readPlainText, readTitle } from './ydoc'
+import { DOC_FIELD, notifyLocalEdit, openDoc, readPlainText, readTitle } from './ydoc'
 import { newId } from '@/lib/util/id'
 
 function db() {
@@ -27,6 +27,9 @@ async function touch(id: string, patch: Partial<Pick<PageRow, PageField>>) {
       page.dirtyFields = already && [...new Set([...already, ...fields])]
       page.dirty = 1
     })
+  // A title follows typing and waits with it; anything else is a deliberate
+  // act on the page that should reach the other devices at once.
+  notifyLocalEdit(fields.every((field) => field === 'title') ? 'text' : 'structure')
 }
 
 export async function siblingsOf(parentId: string): Promise<PageRow[]> {
@@ -82,6 +85,7 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     }
   }
 
+  notifyLocalEdit('structure')
   return id
 }
 
@@ -168,6 +172,7 @@ export async function deleteForever(pageId: string) {
       for (const id of ids) await database.purges.put({ id, queuedAt: Date.now() })
     },
   )
+  notifyLocalEdit('structure')
 }
 
 /** Drops every trace of these pages from this device, without queueing

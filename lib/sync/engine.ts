@@ -37,6 +37,9 @@ const PAGE_SIZE = 500
 const BLOB_CHUNK = 20
 const POLL_INTERVAL_MS = 45_000
 const EDIT_DEBOUNCE_MS = 1_200
+/** Trashing, moving, creating or deleting a page. Short enough to feel
+ *  immediate, long enough to gather a whole emptied trash into one push. */
+const STRUCTURE_DEBOUNCE_MS = 150
 /** Most syncs finish in well under a second. Announcing every one of them would
  *  make a working app look unstable, so the status only changes if a sync is
  *  still running after this long. */
@@ -107,6 +110,8 @@ export class SyncEngine {
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private announceTimer: ReturnType<typeof setTimeout> | null = null
   private editTimer: ReturnType<typeof setTimeout> | null = null
+  /** The pending edit push is on the short fuse. */
+  private editUrgent = false
   private realtimeTimer: ReturnType<typeof setTimeout> | null = null
   private cleanups: Array<() => void> = []
 
@@ -149,10 +154,21 @@ export class SyncEngine {
     this.pollTimer = setInterval(() => this.request(), POLL_INTERVAL_MS)
 
     this.cleanups.push(
-      onLocalEdit(() => {
+      onLocalEdit((kind) => {
         void this.refreshPending()
+        // Typing must not push back a structural push that is about to go; it
+        // rides along with it instead.
+        if (this.editTimer && this.editUrgent) return
         if (this.editTimer) clearTimeout(this.editTimer)
-        this.editTimer = setTimeout(() => this.request(), EDIT_DEBOUNCE_MS)
+        this.editUrgent = kind === 'structure'
+        this.editTimer = setTimeout(
+          () => {
+            this.editTimer = null
+            this.editUrgent = false
+            this.request()
+          },
+          this.editUrgent ? STRUCTURE_DEBOUNCE_MS : EDIT_DEBOUNCE_MS,
+        )
       }),
     )
 
