@@ -78,18 +78,10 @@ function SignIn() {
   return (
     <main className="grid min-h-dvh place-items-center bg-sunken px-5 py-10">
       <div className="w-full max-w-[26rem]">
-        {/* A real navigation, not a client transition: these are separate
-            documents, which is what lets the service worker serve each of them
-            offline without an RSC payload. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a href="/" className="mb-3 flex items-center">
-          <span className="text-[17px] font-semibold tracking-[-0.01em] text-ink">Jottr</span>
-        </a>
-
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-soft)]">
           {stage === "email" ? (
             <form onSubmit={sendCode}>
-              <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">Sign in</h1>
+              <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">Sign into Jottr</h1>
               <p className="mt-1.5 leading-relaxed text-muted">
                 Enter your email address below to sign in, or this will create an account if you
                 don&apos;t already have one.
