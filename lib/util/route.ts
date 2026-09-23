@@ -35,10 +35,29 @@ export function useOpenPageId(): [string | null, (id: string | null, options?: {
     if (id) next.set('p', id)
     else next.delete('p')
     next.delete('new')
-    const url = next.toString() ? `${window.location.pathname}?${next}` : window.location.pathname
-    if (options?.replace) window.history.replaceState(null, '', url)
-    else window.history.pushState(null, '', url)
-    window.dispatchEvent(new Event(EVENT))
+    next.delete('trash')
+    navigate(next, options?.replace)
   }, [])
   return [params.get('p'), open]
+}
+
+/** The trash is a view of its own, in place of a page, so it lives in the
+ *  query string the same way and the back button leaves it like any page. */
+export function useTrashOpen(): [boolean, () => void] {
+  const params = useQuery()
+  const openTrash = useCallback(() => {
+    const next = new URLSearchParams(window.location.search)
+    next.delete('p')
+    next.delete('new')
+    next.set('trash', '')
+    navigate(next)
+  }, [])
+  return [params.has('trash'), openTrash]
+}
+
+function navigate(next: URLSearchParams, replace?: boolean) {
+  const url = next.toString() ? `${window.location.pathname}?${next}` : window.location.pathname
+  if (replace) window.history.replaceState(null, '', url)
+  else window.history.pushState(null, '', url)
+  window.dispatchEvent(new Event(EVENT))
 }

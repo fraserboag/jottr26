@@ -17,11 +17,13 @@ export function Sidebar({
   pages,
   openId,
   onOpen,
+  trashOpen,
   onOpenTrash,
 }: {
   pages: PageRow[]
   openId: string | null
   onOpen: (id: string | null) => void
+  trashOpen: boolean
   onOpenTrash: () => void
 }) {
   const { session, signOut, status } = useWorkspace()
@@ -142,7 +144,7 @@ export function Sidebar({
       </nav>
 
       <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-        <SidebarAction icon="trash" label="Trash" onClick={onOpenTrash} />
+        <SidebarAction icon="trash" label="Trash" current={trashOpen} onClick={onOpenTrash} />
       </footer>
     </div>
   )
@@ -177,17 +179,22 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function SidebarAction({
   icon,
   label,
+  current,
   onClick,
 }: {
   icon: IconName
   label: string
+  current: boolean
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2.5"
+      aria-current={current ? 'page' : undefined}
+      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors pointer-coarse:py-2.5 ${
+        current ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+      }`}
     >
       <Icon name={icon} size={16} className="text-faint" />
       <span className="flex-1 text-left">{label}</span>

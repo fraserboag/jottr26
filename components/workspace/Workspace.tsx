@@ -4,11 +4,11 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Sidebar } from './Sidebar'
-import { TrashPanel } from './TrashPanel'
+import { TrashPage } from './TrashPage'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { ensureWelcomePage } from '@/lib/db/welcome'
-import { useOpenPageId } from '@/lib/util/route'
+import { useOpenPageId, useTrashOpen } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 
 // The editor is the heaviest thing in the app and nobody needs it until a page
@@ -33,13 +33,13 @@ export function Workspace() {
   const { userId, status } = useWorkspace()
   const pages = useAllPages(userId)
   const [openId, open] = useOpenPageId()
+  const [trashOpen, openTrash] = useTrashOpen()
 
   const [wide, setWide] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [dragging, setDragging] = useState(false)
   const drag = useRef<{ x: number; width: number } | null>(null)
-  const [overlay, setOverlay] = useState<'trash' | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 880px)')
@@ -119,6 +119,11 @@ export function Workspace() {
     [open, wide],
   )
 
+  const showTrash = useCallback(() => {
+    openTrash()
+    if (!wide) setSidebarOpen(false)
+  }, [openTrash, wide])
+
   // Dragging the sidebar's edge works like dragging a table column: the
   // pointer is captured so the drag survives leaving the few pixels of the
   // handle, and the width is only written back once the pointer is released.
@@ -196,7 +201,8 @@ export function Workspace() {
             pages={pages}
             openId={openId}
             onOpen={openPage}
-            onOpenTrash={() => setOverlay('trash')}
+            trashOpen={trashOpen}
+            onOpenTrash={showTrash}
           />
         </div>
       </aside>
@@ -240,7 +246,7 @@ export function Workspace() {
           </button>
         )}
 
-        {page ? (
+        {page || trashOpen ? (
           <div className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             {/* 700px of text, the same column Notion sets, plus the side padding:
                 the cap is the two added together, not the column on its own. */}
@@ -252,25 +258,29 @@ export function Workspace() {
                 drawer opened and closed. */}
             {/* Keyed on the page so the slide replays on every navigation. The
                 editor underneath already remounts per page, so this costs
-                nothing more than it did. */}
+                nothing more than it did. The trash takes the same column. */}
             <div
-              key={page.id}
+              key={page?.id ?? 'trash'}
               className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
                 wide
                   ? 'pt-28'
                   : `page-enter ${entry.up ? '[--enter-side:-1] ' : ''}pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]`
               }`}
             >
-              {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
-              <Editor pageId={page.id} />
+              {page ? (
+                <>
+                  {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
+                  <Editor pageId={page.id} />
+                </>
+              ) : (
+                <TrashPage />
+              )}
             </div>
           </div>
         ) : (
           <EmptyState />
         )}
       </main>
-
-      {overlay === 'trash' && <TrashPanel onClose={() => setOverlay(null)} />}
     </div>
   )
 }

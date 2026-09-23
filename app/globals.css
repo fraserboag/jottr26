@@ -179,7 +179,9 @@ body {
   min-height: calc(var(--body-leading) * 1em);
 }
 
-.ProseMirror h1.jottr-title {
+/* The trash's heading takes the same shape, so it reads as a page too. */
+.ProseMirror h1.jottr-title,
+h1.page-title {
   font-size: clamp(2rem, 6vw, 2.5rem);
   line-height: 1.15;
   font-weight: 700;
@@ -190,6 +192,10 @@ body {
      carry too. The total outruns every block's top margin, so the gap reads
      the same whether the note opens on a paragraph, a list or a table. */
   margin: 0 0 calc(var(--body-size) * var(--body-leading) + 4px);
+}
+
+h1.page-title {
+  color: var(--text-note);
 }
 
 .ProseMirror ul,
