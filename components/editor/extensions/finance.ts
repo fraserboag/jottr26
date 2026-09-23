@@ -7,7 +7,15 @@ import {
   type Transaction,
 } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { CellSelection, TableMap, addRow, cellAround, isInTable, selectedRect } from '@tiptap/pm/tables'
+import {
+  CellSelection,
+  TableMap,
+  addRow,
+  cellAround,
+  isInTable,
+  removeRow,
+  selectedRect,
+} from '@tiptap/pm/tables'
 import type { Mark, Node, ResolvedPos } from '@tiptap/pm/model'
 import { Table } from '@tiptap/extension-table'
 import { ySyncPluginKey } from 'y-prosemirror'
@@ -286,6 +294,42 @@ export const addRowBelow: Command = (state, dispatch) => {
   return true
 }
 
+/** Backspace in a row with nothing in any of its cells: the row goes, and the
+ *  caret lands at the end of the same column in the row above — or, from the
+ *  top row, in the row that moves up to replace it. The last row stays, since
+ *  removing it would leave a table with no rows. */
+export const deleteEmptyRow: Command = (state, dispatch) => {
+  const { selection } = state
+  if (!(selection instanceof TextSelection) || !selection.empty || !isInTable(state)) return false
+  const { $from } = selection
+  const role = $from.node($from.depth - 1).type.spec.tableRole
+  if (role !== 'cell' && role !== 'header_cell') return false
+
+  const rect = selectedRect(state)
+  const { map, table } = rect
+  if (map.height === 1) return false
+  for (let col = 0; col < map.width; col++) {
+    const cell = table.nodeAt(map.map[rect.top * map.width + col])
+    if (!cell || cell.childCount !== 1 || cell.firstChild?.content.size !== 0) return false
+  }
+
+  if (dispatch) {
+    const tr = state.tr
+    removeRow(tr, rect, rect.top)
+    const next = tr.doc.nodeAt(rect.tableStart - 1) as Node
+    const row = Math.max(rect.top - 1, 0)
+    const cellPos = rect.tableStart + TableMap.get(next).positionAt(row, rect.left, next)
+    const cell = next.nodeAt(cellPos - rect.tableStart) as Node
+    tr.setSelection(
+      rect.top > 0
+        ? TextSelection.near(tr.doc.resolve(cellPos + cell.nodeSize - 1), -1)
+        : TextSelection.near(tr.doc.resolve(cellPos + 1)),
+    )
+    dispatch(tr.scrollIntoView())
+  }
+  return true
+}
+
 /** The stock table node plus the finance flag, its command and its plugin. */
 export const FinanceTable = Table.extend({
   addAttributes() {
@@ -326,8 +370,14 @@ export const FinanceTable = Table.extend({
   },
 
   addKeyboardShortcuts() {
+    const parent = this.parent?.() ?? {}
     return {
-      ...(this.parent?.() ?? {}),
+      ...parent,
+      // The stock binding still gets its turn: deleting a table whose every
+      // cell is selected.
+      Backspace: (props) =>
+        this.editor.commands.command(({ state, dispatch }) => deleteEmptyRow(state, dispatch)) ||
+        (parent.Backspace?.(props) ?? false),
       Enter: () =>
         this.editor.commands.command(({ state, dispatch }) => addRowBelow(state, dispatch)),
     }

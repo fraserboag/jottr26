@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit, createColGroup, createTable } from '@tiptap/extension-table'
 import { Callout } from '@/components/editor/extensions/callout'
-import { FinanceTable, addRowBelow } from '@/components/editor/extensions/finance'
+import { FinanceTable, addRowBelow, deleteEmptyRow } from '@/components/editor/extensions/finance'
 import {
   CellSelection,
   TableMap,
@@ -337,5 +337,35 @@ describe('table block', () => {
     const state = page(2, 2)
     const inTitle = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)))
     assert.equal(run(inTitle, addRowBelow).applied, false)
+  })
+
+  it('drops an empty row on Backspace, into the end of the cell above', () => {
+    let state = pageWithTable(3, 2, 1, 1)
+    // Text in the row above, so the caret's landing spot is checkable.
+    state = state.apply(state.tr.insertText('abc', cellAt(state, 0, 1) + 2))
+    const { state: after, applied } = run(caretIn(state, 2, 1), deleteEmptyRow)
+    assert.equal(applied, true)
+    after.doc.check()
+    assert.deepEqual(dimensions(after), { rows: 2, cols: 2 })
+    assert.equal(after.selection.$from.pos, cellAt(after, 1, 1) + 2)
+  })
+
+  it('lands in the cell above, at the end of its text', () => {
+    let state = page(3, 2)
+    state = state.apply(state.tr.insertText('abc', cellAt(state, 0, 1) + 2))
+    const { state: after } = run(caretIn(state, 1, 1), deleteEmptyRow)
+    assert.deepEqual(dimensions(after), { rows: 2, cols: 2 })
+    assert.equal(after.selection.$from.parent.textContent, 'abc')
+    assert.equal(after.selection.$from.parentOffset, 3)
+  })
+
+  it('leaves Backspace alone in a row with anything in it', () => {
+    let state = page(3, 2)
+    state = state.apply(state.tr.insertText('x', cellAt(state, 1, 0) + 2))
+    assert.equal(run(caretIn(state, 1, 1), deleteEmptyRow).applied, false)
+  })
+
+  it('keeps the last row', () => {
+    assert.equal(run(pageWithTable(1, 2, 0, 0), deleteEmptyRow).applied, false)
   })
 })
