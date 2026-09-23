@@ -298,7 +298,7 @@ h1.page-title {
 .ProseMirror div[data-type="accordion"] {
   display: grid;
   grid-template-columns: minmax(0, max-content) auto 1fr;
-  column-gap: 4px;
+  column-gap: 2px;
   align-items: start;
   margin: 2px 0 8px;
 }
@@ -311,18 +311,29 @@ h1.page-title {
   margin: 1px 0;
   min-height: calc(var(--body-leading) * 1em);
 }
+/* The shaded square on hover is kept tight round the chevron, so the chevron
+   sits close to the heading's last word; what it gives up in size it gets
+   back in the invisible hit area below. */
 .ProseMirror div[data-type="accordion"] > .accordion-toggle {
+  position: relative;
   grid-column: 2;
   grid-row: 1;
-  margin-top: calc((var(--body-leading) * 1em - 28px) / 2 + 1px);
+  margin-top: calc((var(--body-leading) * 1em - 20px) / 2 + 1px);
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   color: var(--text-muted);
   cursor: pointer;
   transition: background 120ms ease;
+}
+.ProseMirror div[data-type="accordion"] > .accordion-toggle::after {
+  content: "";
+  position: absolute;
+  /* Reaches out above, below and to the right, but only across the gap on
+     the left, so a click at the end of the heading still lands in its text. */
+  inset: -6px -8px -6px -2px;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle:hover {
   background: var(--hover);
@@ -371,7 +382,7 @@ h1.page-title {
   min-height: calc(var(--list-leading) * 1em);
 }
 .ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) > .accordion-toggle {
-  margin-top: calc((var(--list-leading) * 1em - 28px) / 2);
+  margin-top: calc((var(--list-leading) * 1em - 20px) / 2);
 }
 /* A box inside another box shares its shade, so it takes a faint rule round
    its edge to stand out from the one it sits in. Drawn as an inset shadow so
