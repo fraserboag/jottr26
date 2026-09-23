@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
-import { Logo } from '@/components/ui/Logo'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageTree } from './PageTree'
 import { SyncIndicator } from './SyncIndicator'
@@ -67,8 +66,7 @@ export function Sidebar({
               onClick={toggle}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
             >
-              <Logo className="size-[26px] pointer-coarse:size-7" />
-              <span className="min-w-0 flex-1 truncate text-left font-semibold text-ink">
+              <span className="min-w-0 flex-1 truncate text-left text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
                 Jottr
               </span>
               <Icon name="chevronDown" size={14} className="text-faint pointer-coarse:size-[15px]" strokeWidth={2} />

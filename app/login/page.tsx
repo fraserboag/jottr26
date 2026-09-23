@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { Logo } from "@/components/ui/Logo";
 import { SetupNotice } from "@/components/SetupNotice";
 import { isSupabaseConfigured, supabaseClient } from "@/lib/supabase/client";
 
@@ -83,9 +82,8 @@ function SignIn() {
             documents, which is what lets the service worker serve each of them
             offline without an RSC payload. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a href="/" className="mb-3 flex items-center gap-2.5">
-          <Logo className="size-8" />
-          <span className="text-[15px] font-semibold text-ink">Jottr</span>
+        <a href="/" className="mb-3 flex items-center">
+          <span className="text-[17px] font-semibold tracking-[-0.01em] text-ink">Jottr</span>
         </a>
 
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-soft)]">
