@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from '@/components/ui/Icon'
 
 /** Shown while a sync someone asked for is running. It closes itself when the
@@ -26,7 +27,9 @@ export function SyncOverlay({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [dismiss])
 
-  return (
+  // Portalled to the body: on mobile the sidebar that opens this is a
+  // translated drawer, and `fixed` inside it would cover only the drawer.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onPointerDown={(event) => {
@@ -68,6 +71,7 @@ export function SyncOverlay({
           {failure === null ? 'Cancel' : 'Close'}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
