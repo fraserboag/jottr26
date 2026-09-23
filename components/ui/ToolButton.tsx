@@ -29,7 +29,9 @@ export function ToolButton({
       // which on a phone drops the keyboard and the selection with it.
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] disabled:pointer-events-none disabled:opacity-35 pointer-coarse:size-10 pointer-coarse:[&_svg]:size-[18px] ${
+      // Tapping Bold on and straight off again is a double tap, which iOS
+      // would otherwise take as a request to zoom the page.
+      className={`grid size-7 shrink-0 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--hover)] disabled:pointer-events-none disabled:opacity-35 pointer-coarse:size-10 pointer-coarse:[&_svg]:size-[18px] ${
         active ? 'text-accent' : 'text-muted'
       }`}
     >
