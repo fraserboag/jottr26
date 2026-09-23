@@ -33,7 +33,8 @@ export function Popover({
   children: (close: () => void) => React.ReactNode
   align?: Align
   side?: Side
-  width?: number
+  /** Pixels, or 'auto' to fit the content up to the window's width. */
+  width?: number | 'auto'
   className?: string
   role?: 'menu' | 'dialog'
   shadow?: 'pop' | 'soft'
@@ -54,11 +55,12 @@ export function Popover({
     const place = () => {
       const rect = anchor.getBoundingClientRect()
       const height = panelRef.current?.offsetHeight ?? 240
+      const panelWidth = width === 'auto' ? (panelRef.current?.offsetWidth ?? 220) : width
       const margin = 8
 
       if (side === 'right') {
         let left = rect.right + 6
-        if (left + width > window.innerWidth - margin) left = rect.left - width - 6
+        if (left + panelWidth > window.innerWidth - margin) left = rect.left - panelWidth - 6
         setPosition({ top: rect.top + rect.height / 2 - height / 2, left: Math.max(margin, left) })
         return
       }
@@ -68,8 +70,12 @@ export function Popover({
       if (top < margin) top = Math.min(rect.bottom + 6, window.innerHeight - height - margin)
 
       let left =
-        align === 'end' ? rect.right - width : align === 'center' ? rect.left + rect.width / 2 - width / 2 : rect.left
-      left = Math.min(Math.max(margin, left), window.innerWidth - width - margin)
+        align === 'end'
+          ? rect.right - panelWidth
+          : align === 'center'
+            ? rect.left + rect.width / 2 - panelWidth / 2
+            : rect.left
+      left = Math.min(Math.max(margin, left), window.innerWidth - panelWidth - margin)
 
       setPosition({ top: Math.max(margin, top), left })
     }
@@ -113,7 +119,8 @@ export function Popover({
             style={{
               top: position?.top ?? -9999,
               left: position?.left ?? -9999,
-              width,
+              width: width === 'auto' ? 'max-content' : width,
+              maxWidth: 'calc(100vw - 16px)',
               visibility: position ? 'visible' : 'hidden',
             }}
             className={`fixed z-50 overflow-hidden rounded-xl border border-line bg-raised p-1 ${

@@ -58,7 +58,8 @@ export function Sidebar({
     <div className="flex h-full flex-col bg-sidebar">
       <header className="flex items-center gap-1 px-2 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <Popover
-          width={244}
+          width="auto"
+          className="min-w-[244px]"
           trigger={({ ref, toggle }) => (
             <button
               type="button"
@@ -75,7 +76,7 @@ export function Sidebar({
         >
           {(close) => (
             <>
-              <p className="truncate px-2.5 pb-1.5 pt-1 text-ink">
+              <p className="px-2.5 pb-1.5 pt-1 text-ink [overflow-wrap:anywhere]">
                 Signed in as {session?.user.email}
               </p>
               <MenuSeparator />
