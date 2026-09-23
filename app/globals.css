@@ -287,23 +287,34 @@ h1.page-title {
 }
 
 /* An accordion: a heading line — ordinary body text, formatted however it is
-   written — with a chevron at the end of its line, over a box like a
-   callout's that folds away. Child combinators throughout, so folding one
-   accordion never reaches into another nested in its box. */
+   written — with a chevron straight after it, over a box like a callout's
+   that folds away. Child combinators throughout, so folding one accordion
+   never reaches into another nested in its box.
+
+   A grid, with the wrapper ProseMirror writes into taken out of the layout,
+   so the heading, the chevron and the box are its cells: the heading is only
+   as wide as its words, up to the full width, the chevron sits in the next
+   column along, and the box spans the whole row beneath. */
 .ProseMirror div[data-type="accordion"] {
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) auto 1fr;
+  column-gap: 4px;
+  align-items: start;
   margin: 2px 0 8px;
 }
+.ProseMirror div[data-type="accordion"] > .accordion-content {
+  display: contents;
+}
 .ProseMirror div[data-type="accordion"] > .accordion-content > div[data-type="accordionTitle"] {
+  grid-column: 1;
+  grid-row: 1;
   margin: 1px 0;
   min-height: calc(var(--body-leading) * 1em);
-  /* Keeps a long heading from running under the chevron. */
-  padding-right: 36px;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle {
-  position: absolute;
-  top: calc((var(--body-leading) * 1em - 28px) / 2 + 1px);
-  right: 0;
+  grid-column: 2;
+  grid-row: 1;
+  margin-top: calc((var(--body-leading) * 1em - 28px) / 2 + 1px);
   display: grid;
   place-items: center;
   width: 28px;
@@ -321,6 +332,10 @@ h1.page-title {
 }
 .ProseMirror div[data-type="accordion"][data-open="false"] > .accordion-toggle svg {
   transform: rotate(-90deg);
+}
+.ProseMirror div[data-type="accordion"] > .accordion-content > div[data-type="accordionBody"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 .ProseMirror div[data-type="accordion"][data-open="false"] > .accordion-content > div[data-type="accordionBody"] {
   display: none;
@@ -356,7 +371,7 @@ h1.page-title {
   min-height: calc(var(--list-leading) * 1em);
 }
 .ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) > .accordion-toggle {
-  top: calc((var(--list-leading) * 1em - 28px) / 2);
+  margin-top: calc((var(--list-leading) * 1em - 28px) / 2);
 }
 /* A box inside another box shares its shade, so it takes a faint rule round
    its edge to stand out from the one it sits in. Drawn as an inset shadow so
