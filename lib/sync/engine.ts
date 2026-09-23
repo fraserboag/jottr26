@@ -55,6 +55,11 @@ interface ServerPage {
 
 type Listener = (status: SyncStatus) => void
 
+/** What tabs tell each other about sync. Only the leader talks to the server,
+ *  so it is the only tab that knows how the last sync went; every other tab
+ *  shows what it reports. */
+type StatusMessage = { type: 'status'; status: SyncStatus } | { type: 'ask' }
+
 export class SyncEngine {
   private readonly supabase: SupabaseClient
   private readonly userId: string
@@ -66,6 +71,9 @@ export class SyncEngine {
   private running = false
   private isLeader = false
   private lockAbort: AbortController | null = null
+  private lockAttempt = 0
+  private leaderAttempt = 0
+  private statusChannel: BroadcastChannel | null = null
   private channel: RealtimeChannel | null = null
 
   private inFlight = false
@@ -93,17 +101,24 @@ export class SyncEngine {
 
     openPeerChannel(this.userId)
 
+    this.openStatusChannel()
+
+    // Not 'syncing': this tab may never be the one that syncs, and nothing but
+    // a finished sync would move it on. A slow first sync announces itself.
     const lastSyncedAt = await readMeta<number | null>(this.db, META_LAST_SYNCED, null)
-    await this.refreshPending({ lastSyncedAt, phase: navigator.onLine ? 'syncing' : 'offline' })
+    await this.refreshPending({ lastSyncedAt, phase: navigator.onLine ? 'synced' : 'offline' })
 
     this.listen(window, 'online', () => {
+      if (!this.isLeader) return
       this.emit({ phase: 'syncing', error: null, retryAt: null })
       this.failures = 0
       this.request()
     })
     this.listen(window, 'offline', () => this.emit({ phase: 'offline' }))
     this.listen(document, 'visibilitychange', () => {
-      if (document.visibilityState === 'visible') this.request()
+      if (document.visibilityState !== 'visible') return
+      if (this.isLeader) this.request()
+      else void this.electLeader(true)
     })
 
     // A dropped socket, a sleeping laptop and a throttled background tab all
@@ -118,7 +133,7 @@ export class SyncEngine {
       }),
     )
 
-    void this.electLeader()
+    void this.electLeader(document.visibilityState === 'visible')
   }
 
   stop() {
@@ -128,6 +143,8 @@ export class SyncEngine {
     this.lockAbort = null
     if (this.channel) void this.supabase.removeChannel(this.channel)
     this.channel = null
+    this.statusChannel?.close()
+    this.statusChannel = null
     if (this.pollTimer) clearInterval(this.pollTimer)
     if (this.retryTimer) clearTimeout(this.retryTimer)
     if (this.announceTimer) clearTimeout(this.announceTimer)
@@ -179,25 +196,35 @@ export class SyncEngine {
 
   /** One tab per origin does the talking. Duplicate pushes would be harmless —
    *  the CAS makes them idempotent — but they waste bandwidth and make the
-   *  status indicator flicker between tabs for no reason. */
-  private async electLeader() {
+   *  status indicator flicker between tabs for no reason.
+   *
+   *  The tab in front takes the lock from whoever has it (`steal`). Waiting
+   *  politely is not enough: a phone freezes background tabs rather than
+   *  closing them, and a frozen tab keeps its lock, so the tab actually being
+   *  used would never get to sync. */
+  private async electLeader(steal = false) {
+    if (!this.running || this.isLeader) return
+
     if (!('locks' in navigator)) {
-      this.isLeader = true
-      this.subscribeRealtime()
-      this.request()
+      this.becomeLeader(0)
       return
     }
 
-    this.lockAbort = new AbortController()
+    // Any earlier request from this tab is still queued behind the holder.
+    this.lockAbort?.abort()
+    const attempt = ++this.lockAttempt
+    // `steal` is granted at once and cannot be combined with a signal; stop()
+    // releases a held lock by resolving the promise below either way.
+    const abort = steal ? null : new AbortController()
+    this.lockAbort = abort
+
     try {
       await navigator.locks.request(
         `jottr:sync:${this.userId}`,
-        { signal: this.lockAbort.signal },
+        steal ? { steal: true } : { signal: abort!.signal },
         async () => {
           if (!this.running) return
-          this.isLeader = true
-          this.subscribeRealtime()
-          this.request()
+          this.becomeLeader(attempt)
           // Hold the lock for as long as this tab is the leader.
           await new Promise<void>((resolve) => {
             this.cleanups.push(resolve)
@@ -205,8 +232,40 @@ export class SyncEngine {
         },
       )
     } catch {
-      // Aborted on stop(), or the lock was released. Nothing to do.
+      // Aborted before it was granted, or taken by another tab. Only the
+      // second one matters, and is handled below.
     }
+
+    if (this.running && this.isLeader && this.leaderAttempt === attempt) {
+      // Another tab came to the front and took over. Queue up behind it.
+      this.isLeader = false
+      if (this.channel) void this.supabase.removeChannel(this.channel)
+      this.channel = null
+      void this.electLeader()
+    }
+  }
+
+  private becomeLeader(attempt: number) {
+    this.isLeader = true
+    this.leaderAttempt = attempt
+    this.subscribeRealtime()
+    this.request()
+  }
+
+  private openStatusChannel() {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel(`jottr:sync-status:${this.userId}`)
+    channel.onmessage = (event: MessageEvent<StatusMessage>) => {
+      const message = event.data
+      if (message?.type === 'ask') {
+        if (this.isLeader) channel.postMessage({ type: 'status', status: this.status })
+      } else if (message?.type === 'status' && !this.isLeader) {
+        this.status = message.status
+        for (const listener of this.listeners) listener(this.status)
+      }
+    }
+    this.statusChannel = channel
+    channel.postMessage({ type: 'ask' } satisfies StatusMessage)
   }
 
   private subscribeRealtime() {
@@ -240,6 +299,9 @@ export class SyncEngine {
   private emit(patch: Partial<SyncStatus>) {
     this.status = { ...this.status, ...patch }
     for (const listener of this.listeners) listener(this.status)
+    if (this.isLeader) {
+      this.statusChannel?.postMessage({ type: 'status', status: this.status } satisfies StatusMessage)
+    }
   }
 
   private async refreshPending(patch: Partial<SyncStatus> = {}) {
