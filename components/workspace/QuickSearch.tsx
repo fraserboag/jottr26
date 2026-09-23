@@ -63,7 +63,7 @@ export function QuickSearch({
         aria-label="Search pages"
         className="relative row-[2/4] flex max-h-full w-full self-start max-w-[540px] flex-col overflow-hidden rounded-2xl border border-line bg-raised shadow-[var(--shadow-pop)]"
       >
-        <div className={`flex items-center gap-2.5 px-5 py-4 ${typing ? 'border-b border-line' : ''}`}>
+        <div className={`flex items-center gap-3.5 px-5 py-4 ${typing ? 'border-b border-line' : ''}`}>
           <Icon name="search" size={16} className="text-faint" />
           <input
             ref={inputRef}
@@ -85,10 +85,9 @@ export function QuickSearch({
               }
             }}
             placeholder="Search your pages"
-            className="w-full bg-transparent py-1 text-[length:var(--body-size)] outline-none placeholder:text-faint"
+            className="w-full bg-transparent px-1.5 py-1 text-[length:var(--body-size)] outline-none placeholder:text-faint"
             aria-label="Search pages"
           />
-          <kbd className="rounded border border-line px-1.5 py-0.5 text-[11px] text-faint pointer-coarse:hidden">esc</kbd>
         </div>
 
         {typing && (
