@@ -11,7 +11,7 @@ import { useAllPages } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import { ensureWelcomePage } from '@/lib/db/welcome'
-import { useOpenPageId, useQuery } from '@/lib/util/route'
+import { useOpenPageId } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 
 // The editor is the heaviest thing in the app and nobody needs it until a page
@@ -37,7 +37,6 @@ export function Workspace() {
   const { userId, status } = useWorkspace()
   const pages = useAllPages(userId)
   const [openId, open] = useOpenPageId()
-  const query = useQuery()
 
   const [wide, setWide] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -48,6 +47,7 @@ export function Workspace() {
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 880px)')
+    let cold = true
     const apply = () => {
       setWide(media.matches)
 
@@ -62,7 +62,10 @@ export function Workspace() {
       const parsedWidth = Number(storedWidth)
       if (Number.isFinite(parsedWidth) && parsedWidth > 0) setWidth(clampWidth(parsedWidth))
 
-      if (!media.matches) setSidebarOpen(false)
+      // A phone opening the app cold lands on the page list, since picking a
+      // page is the first thing to do there. Narrowing a window later is not
+      // a fresh start, and gets the page to itself.
+      if (!media.matches) setSidebarOpen(cold)
       else {
         let stored: string | null = null
         try {
@@ -72,6 +75,7 @@ export function Workspace() {
         }
         setSidebarOpen(stored !== 'hidden')
       }
+      cold = false
     }
     apply()
     media.addEventListener('change', apply)
@@ -112,12 +116,6 @@ export function Workspace() {
       if (id) open(id, { replace: true })
     })
   }, [userId, pages, status.lastSyncedAt, open])
-
-  // The manifest shortcut lands here asking for a blank page.
-  useEffect(() => {
-    if (query.get('new') !== '1') return
-    void createPage().then((id) => open(id, { replace: true }))
-  }, [query, open])
 
   const byId = useMemo(() => new Map((pages ?? []).map((page) => [page.id, page])), [pages])
   const page = openId ? (byId.get(openId) ?? null) : null

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
-import { createPage } from '@/lib/db/pages'
 import { searchPages } from '@/lib/db/search'
 import type { PageRow } from '@/lib/db/schema'
 
@@ -76,7 +75,6 @@ export function QuickSearch({
                 event.preventDefault()
                 const hit = hits[index]
                 if (hit) choose(hit.page.id)
-                else void createPage({ title: query.trim() }).then(choose)
               } else if (event.key === 'Escape') {
                 onClose()
               }
@@ -90,19 +88,7 @@ export function QuickSearch({
 
         <ul ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
           {hits.length === 0 && (
-            <li>
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => void createPage({ title: query.trim() }).then(choose)}
-                className="flex w-full items-center gap-2.5 rounded-lg bg-[var(--active)] px-3 py-2.5 text-left"
-              >
-                <Icon name="plus" size={15} className="text-accent" />
-                <span className="min-w-0 text-[13.5px] text-ink pointer-coarse:text-[15px]">
-                  Create <span className="font-medium">{query.trim() || 'a new page'}</span>
-                </span>
-              </button>
-            </li>
+            <li className="px-3 py-2.5 text-[13.5px] text-muted pointer-coarse:text-[15px]">No pages found</li>
           )}
 
           {hits.map((hit, i) => (
