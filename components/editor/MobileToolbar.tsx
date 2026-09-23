@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
@@ -16,8 +16,12 @@ import { TableControls, useTableState } from './TableMenu'
  *  system's own copy and paste callout draws there too — and it only appears
  *  once text is selected, which on glass means dragging handles about first.
  *  Here the bar is always in reach, so formatting works the way it does in any
- *  notes app: select and tap, or tap and then type. */
-export function MobileToolbar({ editor }: { editor: Editor }) {
+ *  notes app: select and tap, or tap and then type.
+ *
+ *  The / block menu opens on the bar too, as `blocks`. Pinned to the caret it
+ *  had a few hundred pixels between the keyboard and the top of the screen to
+ *  find room in, and usually ended up half behind the keys. */
+export function MobileToolbar({ editor, blocks }: { editor: Editor; blocks?: ReactNode }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const { userId } = useWorkspace()
@@ -46,8 +50,11 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
   })
 
   // The link field takes focus from the page while it is open, so it has to
-  // keep the bar up on its own.
-  const visible = !state.hidden && (state.focused || linkOpen)
+  // keep the bar up on its own. The block menu opens wherever '/' was typed,
+  // code blocks included, so it brings the bar up even where the formatting
+  // stays hidden.
+  const formatting = !state.hidden && (state.focused || linkOpen)
+  const visible = formatting || Boolean(blocks)
 
   // Going back to the page is the end of the link field, however it happened.
   useEffect(() => {
@@ -72,6 +79,10 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       // With the keyboard up the home indicator is behind it, and padding for
       // it would only float the bar off the keys.
       bar.dataset.keyboard = String(viewport ? window.innerHeight - viewport.height > 120 : false)
+      // The block menu takes a little under half of what is on screen, and
+      // scrolls past that. The rest is left for the line being typed on.
+      const height = viewport ? viewport.height : window.innerHeight
+      bar.style.setProperty('--blocks-height', `${Math.min(312, Math.round(height * 0.45))}px`)
       bar.style.transform = `translateY(${bottom - bar.offsetHeight}px)`
       // The page scrolls inside a box as tall as the layout viewport, so on
       // the last line it has already run out of scroll with the keyboard and
@@ -100,7 +111,8 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
   // line being typed on would otherwise slide under it at the foot of the
   // screen. It is lifted a little further than just clear, so some blank page
   // shows below the line. Only a caret just behind the bar is nudged: one
-  // that is further off was scrolled away from on purpose.
+  // that is further off was scrolled away from on purpose. The bar growing
+  // counts too, which is the block menu opening over the line.
   useEffect(() => {
     if (!visible) return
     let frame = 0
@@ -114,8 +126,9 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       } catch {
         return
       }
-      const overlap = caret.bottom - (bar.getBoundingClientRect().top - 40)
-      if (overlap <= 0 || overlap > 240) return
+      const { top, bottom } = bar.getBoundingClientRect()
+      const overlap = caret.bottom - (top - 40)
+      if (overlap <= 0 || caret.bottom > bottom + 200) return
       scrollParent(editor.view.dom)?.scrollBy({ top: overlap })
     }
 
@@ -127,8 +140,11 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
     editor.on('selectionUpdate', schedule)
     editor.on('update', schedule)
     window.visualViewport?.addEventListener('resize', schedule)
+    const observer = new ResizeObserver(schedule)
+    if (barRef.current) observer.observe(barRef.current)
     return () => {
       cancelAnimationFrame(frame)
+      observer.disconnect()
       editor.off('selectionUpdate', schedule)
       editor.off('update', schedule)
       window.visualViewport?.removeEventListener('resize', schedule)
@@ -185,7 +201,12 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       }}
       className="fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
     >
-      {linkOpen ? (
+      {blocks && (
+        <div className="border-b border-line">
+          {blocks}
+        </div>
+      )}
+      {!formatting ? null : linkOpen ? (
         <div className="flex items-start gap-1 px-2 py-1.5">
           <LinkPicker
             className="min-w-0 flex-1 pt-1.5"

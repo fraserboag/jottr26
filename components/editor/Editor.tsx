@@ -15,7 +15,7 @@ import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
-import { SlashMenu, type SlashMenuState } from './SlashMenu'
+import { SlashList, SlashMenu, type SlashMenuState } from './SlashMenu'
 import { FormatMenu } from './FormatMenu'
 import { MobileToolbar } from './MobileToolbar'
 import { TableMenu } from './TableMenu'
@@ -85,6 +85,11 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
     const next = (index + delta + items.length) % items.length
     slashRef.current.index = next
     setSlash((current) => (current ? { ...current, index: next } : current))
+  }, [])
+  const pick = useCallback((item: SlashItem) => slashRef.current.command(item), [])
+  const hover = useCallback((index: number) => {
+    slashRef.current.index = index
+    setSlash((current) => (current ? { ...current, index } : current))
   }, [])
 
   useEffect(() => {
@@ -253,22 +258,25 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           where the system's own copy and paste callout does, so touch screens
           get a bar on top of the keyboard instead. */}
       {coarse ? (
-        <MobileToolbar editor={editor} />
+        <MobileToolbar
+          editor={editor}
+          blocks={
+            slash && (
+              <SlashList
+                state={slash}
+                onSelect={pick}
+                onHover={hover}
+                className="max-h-[var(--blocks-height,312px)] p-1.5"
+              />
+            )
+          }
+        />
       ) : (
         <>
           <FormatMenu editor={editor} />
           <TableMenu editor={editor} />
+          {slash && <SlashMenu state={slash} onSelect={pick} onHover={hover} />}
         </>
-      )}
-      {slash && (
-        <SlashMenu
-          state={slash}
-          onSelect={(item) => slashRef.current.command(item)}
-          onHover={(index) => {
-            slashRef.current.index = index
-            setSlash((current) => (current ? { ...current, index } : current))
-          }}
-        />
       )}
     </>
   )
