@@ -46,8 +46,9 @@ export function QuickSearch({
   }
 
   // The middle row is the height of the search bar (a --body-size line plus
-  // 2rem of padding) and four plain results (1lh + 1rem each), so that block sits dead centre and the bar stays put
-  // however many results come back; longer lists grow down into the last row.
+  // 2rem of padding) and four plain results (1lh + 1rem each), so that block
+  // sits dead centre and the bar stays put however many results come back;
+  // longer lists grow down into the last row.
   return (
     <div
       className="fixed inset-0 z-50 grid grid-rows-[1fr_calc(4lh_+_var(--body-size)_*_1.6_+_6.75rem_+_3px)_1fr] justify-items-center px-4 py-4"
