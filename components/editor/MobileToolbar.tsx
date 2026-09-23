@@ -40,6 +40,8 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       link: instance.isActive('link'),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
+      canUndo: instance.can().undo(),
+      canRedo: instance.can().redo(),
     }),
   })
 
@@ -151,6 +153,22 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
     editor.chain().focus().unsetLink().run()
   }
 
+  // A phone keyboard keeps '/' a layer or two down, so the bar types it for
+  // you. The slash menu only opens after a space or at the start of a line,
+  // so a caret straight after a word gets a space first. Typing it over a
+  // selection would delete the text, so the caret moves to its end instead.
+  const openBlocks = () => {
+    const { to } = editor.state.selection
+    const $to = editor.state.doc.resolve(to)
+    const before = $to.parent.textBetween(Math.max(0, $to.parentOffset - 1), $to.parentOffset, undefined, '\0')
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(to)
+      .insertContent(/^[ \n\0]?$/.test(before) ? '/' : ' /')
+      .run()
+  }
+
   if (!visible) return null
 
   return (
@@ -193,26 +211,35 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
               <TableControls editor={editor} state={table} />
             </div>
           )}
-          <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 [scrollbar-width:none]">
-            <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-            <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-            <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
-            <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
-            <ToolButton
-              icon="link"
-              label="Link"
-              active={state.link}
-              // A link needs some text to sit on: either a selection, or the
-              // link the caret is already inside.
-              disabled={!state.selected && !state.link}
-              onClick={() => {
-                setLinkValue(editor.getAttributes('link').href ?? '')
-                setLinkOpen(true)
-              }}
-            />
+          <div className="flex items-center gap-1 px-2 py-1">
+            <ToolButton icon="slash" label="Insert block" onClick={openBlocks} />
             <span className="mx-1 h-7 w-px shrink-0 bg-line" />
-            <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-            <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+            {/* Only the formatting scrolls; the block and undo buttons stay
+                pinned at either end so they are always in reach. */}
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+              <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+              <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+              <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
+              <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
+              <ToolButton
+                icon="link"
+                label="Link"
+                active={state.link}
+                // A link needs some text to sit on: either a selection, or the
+                // link the caret is already inside.
+                disabled={!state.selected && !state.link}
+                onClick={() => {
+                  setLinkValue(editor.getAttributes('link').href ?? '')
+                  setLinkOpen(true)
+                }}
+              />
+              <span className="mx-1 h-7 w-px shrink-0 bg-line" />
+              <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+              <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+            </div>
+            <span className="mx-1 h-7 w-px shrink-0 bg-line" />
+            <ToolButton icon="undo" label="Undo" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />
+            <ToolButton icon="redo" label="Redo" disabled={!state.canRedo} onClick={() => editor.chain().focus().redo().run()} />
           </div>
         </>
       )}
