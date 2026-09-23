@@ -69,7 +69,7 @@ export function SlashMenu({
       style={{ top: position.top, left: position.left, width: position.width }}
     >
       {state.items.length === 0 ? (
-        <p className="px-3.5 py-3 text-[13px] text-faint pointer-coarse:text-[15px]">No blocks match that.</p>
+        <p className="px-3.5 py-3 text-faint">No blocks match that.</p>
       ) : (
         <div ref={listRef} className="scroll-thin max-h-[312px] overflow-y-auto p-1.5">
           {state.items.map((item, index) => {
@@ -95,7 +95,7 @@ export function SlashMenu({
                   <Icon name={item.icon} size={14} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-medium text-ink pointer-coarse:text-[15px]">{item.title}</span>
+                  <span className="block truncate font-medium text-ink">{item.title}</span>
                   <span className="block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">{item.hint}</span>
                 </span>
               </button>

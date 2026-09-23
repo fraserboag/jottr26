@@ -87,12 +87,12 @@ export function SyncIndicator() {
     >
       {(close) => (
         <div className="p-3">
-          <div className={`flex items-center gap-2 text-[13px] font-semibold ${visual.tone}`}>
+          <div className={`flex items-center gap-2 font-semibold ${visual.tone}`}>
             <Icon name={visual.icon} size={15} />
             {status.phase === "syncing" ? "Saving to your account" : visual.label}
           </div>
 
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted pointer-coarse:text-[14px]">{detail}</p>
+          <p className="mt-1.5 leading-relaxed text-muted">{detail}</p>
 
           {/* The one thing worth repeating in every state: nothing is at risk. */}
           <p className="mt-2.5 border-t border-line pt-2.5 text-[12px] leading-relaxed text-faint">
@@ -111,7 +111,7 @@ export function SyncIndicator() {
                 else syncNow();
                 close();
               }}
-              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[var(--hover)]"
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 font-medium transition-colors hover:bg-[var(--hover)]"
             >
               <Icon name="refresh" size={14} />
               {status.phase === "error" ? "Try again now" : "Sync now"}

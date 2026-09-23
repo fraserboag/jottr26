@@ -309,7 +309,7 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
           <button
             type="button"
             onClick={() => onOpen(crumb.id)}
-            className="truncate text-[13px] text-muted underline-offset-2 hover:underline pointer-coarse:text-[14.5px]"
+            className="truncate text-muted underline-offset-2 hover:underline"
           >
             {crumb.title || 'Untitled'}
           </button>
@@ -325,7 +325,7 @@ function EmptyState() {
       <div className="grid size-11 place-items-center rounded-xl border border-line bg-sunken text-faint">
         <Icon name="file" size={20} />
       </div>
-      <p className="text-[13.5px] text-faint pointer-coarse:text-[15px]">No page selected</p>
+      <p className="text-faint">No page selected</p>
     </div>
   )
 }
@@ -335,7 +335,7 @@ function Splash() {
     <div className="grid h-dvh place-items-center bg-surface">
       <div className="flex items-center gap-2.5 text-muted">
         <Icon name="refresh" size={16} className="animate-spin" />
-        <span className="text-[13.5px]">Opening your notes…</span>
+        <span>Opening your notes…</span>
       </div>
     </div>
   )

@@ -80,7 +80,7 @@ export function QuickSearch({
               }
             }}
             placeholder="Search your pages"
-            className="w-full bg-transparent text-[15px] outline-none placeholder:text-faint pointer-coarse:text-[16px]"
+            className="w-full bg-transparent outline-none placeholder:text-faint"
             aria-label="Search pages"
           />
           <kbd className="rounded border border-line px-1.5 py-0.5 text-[11px] text-faint pointer-coarse:hidden">esc</kbd>
@@ -88,7 +88,7 @@ export function QuickSearch({
 
         <ul ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
           {hits.length === 0 && (
-            <li className="px-3 py-2.5 text-[13.5px] text-muted pointer-coarse:text-[15px]">No pages found</li>
+            <li className="px-3 py-2.5 text-muted">No pages found</li>
           )}
 
           {hits.map((hit, i) => (
@@ -107,7 +107,7 @@ export function QuickSearch({
                   <Icon name="file" size={14} className="text-faint" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-ink pointer-coarse:text-[15px]">
+                  <span className="block truncate text-ink">
                     {hit.page.title || 'Untitled'}
                   </span>
                   {hit.snippet && (

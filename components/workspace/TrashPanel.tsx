@@ -28,7 +28,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
           <Icon name="trash" size={16} className="text-faint" />
-          <h2 className="flex-1 text-[14px] font-semibold text-ink pointer-coarse:text-[16px]">Trash</h2>
+          <h2 className="flex-1 font-semibold text-ink">Trash</h2>
           {pages.length > 0 && (
             <button
               type="button"
@@ -37,7 +37,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                   void emptyTrash()
                 }
               }}
-              className="rounded-md px-2 py-1 text-[12.5px] font-medium text-danger transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2 pointer-coarse:text-[14px]"
+              className="rounded-md px-2 py-1 font-medium text-danger transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2"
             >
               Empty trash
             </button>
@@ -53,7 +53,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {pages.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-faint pointer-coarse:text-[15px]">
+          <p className="px-4 py-10 text-center text-faint">
             Nothing in the trash.
           </p>
         ) : (
@@ -67,7 +67,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                   <Icon name="file" size={14} className="text-faint" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-ink pointer-coarse:text-[15px]">
+                  <span className="block truncate text-ink">
                     {page.title || 'Untitled'}
                   </span>
                   <span className="block text-[11.5px] text-faint pointer-coarse:text-[13px]">
@@ -77,7 +77,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={() => void restorePage(page.id)}
-                  className="rounded-md px-2 py-1 text-[12.5px] font-medium text-accent opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100 pointer-coarse:py-2 pointer-coarse:text-[14px] pointer-coarse:opacity-100"
+                  className="rounded-md px-2 py-1 font-medium text-accent opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100 pointer-coarse:py-2 pointer-coarse:opacity-100"
                 >
                   Restore
                 </button>

@@ -37,7 +37,7 @@ function Gate() {
       <div className="grid h-dvh place-items-center bg-surface">
         <div className="flex items-center gap-2.5 text-muted">
           <Icon name="refresh" size={16} className="animate-spin" />
-          <span className="text-[13.5px]">{ready ? 'Taking you to sign in…' : 'Opening Jottr…'}</span>
+          <span>{ready ? 'Taking you to sign in…' : 'Opening Jottr…'}</span>
         </div>
       </div>
     )

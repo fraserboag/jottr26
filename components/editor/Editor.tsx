@@ -53,7 +53,7 @@ function Loader({ pageId }: { pageId: string }) {
   if (!ready) {
     return (
       <div className="px-2 py-16 text-center">
-        <p className="text-[13.5px] text-muted pointer-coarse:text-[15px]">Fetching this page…</p>
+        <p className="text-muted">Fetching this page…</p>
         <p className="mt-1 text-[12.5px] text-faint pointer-coarse:text-[13.5px]">
           It was written on another device and hasn&rsquo;t reached this one yet.
         </p>

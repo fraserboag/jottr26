@@ -75,7 +75,10 @@ body {
   background: var(--surface);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 15px;
+  /* The base size for all UI text. Sidebar rows, menus, panels and messages
+     inherit it rather than setting their own; only captions and hints under
+     a title step down from it. */
+  font-size: 14.5px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

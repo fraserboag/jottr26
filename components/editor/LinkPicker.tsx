@@ -101,7 +101,7 @@ export function LinkPicker({
           placeholder="Paste a link, or search your pages"
           // Under 16px, iOS zooms the page in on focus and leaves it there.
           aria-label="Link address or page search"
-          className="w-full bg-transparent py-1 text-[13px] outline-none placeholder:text-faint pointer-coarse:text-[16px]"
+          className="w-full bg-transparent py-1 outline-none placeholder:text-faint"
         />
       </div>
 
@@ -134,7 +134,7 @@ export function LinkPicker({
                 <span className="min-w-0 flex-1">
                   {row.kind === 'page' ? (
                     <>
-                      <span className="block truncate text-[13px] text-ink pointer-coarse:text-[15px]">{row.title}</span>
+                      <span className="block truncate text-ink">{row.title}</span>
                       {row.snippet && (
                         <span className="mt-0.5 block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">
                           {row.snippet}
@@ -142,7 +142,7 @@ export function LinkPicker({
                       )}
                     </>
                   ) : (
-                    <span className="block truncate text-[13px] text-muted pointer-coarse:text-[15px]">
+                    <span className="block truncate text-muted">
                       Link to <span className="text-ink">{row.href}</span>
                     </span>
                   )}
