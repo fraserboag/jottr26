@@ -105,7 +105,7 @@ export function QuickSearch({
                   onMouseEnter={() => setIndex(i)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => choose(hit.page.id)}
-                  className={`flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ${
+                  className={`flex w-full items-start gap-1.5 rounded-lg px-3 py-2 text-left transition-colors ${
                     i === index ? 'bg-[var(--active)]' : ''
                   }`}
                 >

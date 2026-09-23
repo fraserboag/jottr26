@@ -310,7 +310,7 @@ function EmptyState() {
 function Splash() {
   return (
     <div className="grid h-dvh place-items-center bg-surface">
-      <div className="flex items-center gap-2.5 text-muted">
+      <div className="flex items-center gap-1.5 text-muted">
         <Icon name="refresh" size={16} className="animate-spin" />
         <span>Opening your notes…</span>
       </div>

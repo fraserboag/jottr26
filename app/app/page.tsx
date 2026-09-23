@@ -35,7 +35,7 @@ function Gate() {
   if (!ready || !session) {
     return (
       <div className="grid h-dvh place-items-center bg-surface">
-        <div className="flex items-center gap-2.5 text-muted">
+        <div className="flex items-center gap-1.5 text-muted">
           <Icon name="refresh" size={16} className="animate-spin" />
           <span>{ready ? 'Taking you to sign in…' : 'Opening Jottr…'}</span>
         </div>

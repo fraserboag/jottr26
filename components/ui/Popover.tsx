@@ -151,7 +151,7 @@ export function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left transition-colors pointer-coarse:py-2.5 hover:bg-[var(--hover)] ${
+      className={`flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left transition-colors pointer-coarse:py-2.5 hover:bg-[var(--hover)] ${
         tone === 'danger' ? 'text-danger' : 'text-ink'
       }`}
     >

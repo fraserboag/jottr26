@@ -192,7 +192,7 @@ function SidebarAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2.5"
+      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2.5"
     >
       <Icon name={icon} size={16} className="text-faint" />
       <span className="flex-1 text-left">{label}</span>
