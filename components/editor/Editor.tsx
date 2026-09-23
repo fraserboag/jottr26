@@ -10,6 +10,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { Callout } from './extensions/callout'
 import { FinanceTable } from './extensions/finance'
+import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
@@ -164,8 +165,10 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Dragging writes a colwidth onto one column only, so the rest stay
           // unsized and the table keeps filling the page. It pins to an exact
           // width just once every column has been dragged, which by then is
-          // what was asked for.
+          // what was asked for. This is the floor a drag stops at; the columns
+          // nobody dragged stop shrinking sooner, and the table scrolls.
           cellMinWidth: 40,
+          View: ScrollingTableView,
           // Only reaches serialised HTML: while the editor is editable the
           // resizing plugin renders the table through TableView, which brings
           // the wrapper the sideways scroll hangs off.
