@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
   },
   formatDetection: { telephone: false },
+  // Next emits only the unprefixed `mobile-web-app-capable` for `capable`, and
+  // iOS ignores the status bar style above without Apple's own tag.
+  other: { 'apple-mobile-web-app-capable': 'yes' },
 }
 
 export const viewport: Viewport = {
