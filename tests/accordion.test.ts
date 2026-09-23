@@ -11,6 +11,7 @@ import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-
 import {
   AccordionKit,
   backspaceAccordion,
+  backspaceIntoHeading,
   enterAccordionBody,
   leaveAccordion,
   makeAccordion,
@@ -186,6 +187,39 @@ describe('accordion block', () => {
     const start = page(accordion('Details'))
     const at = caretAt(start, inside(start, 'accordionTitle', 2))
     assert.equal(run(at, backspaceAccordion()).applied, false)
+  })
+
+  it('jumps up to the end of the heading on Backspace at the start of the box', () => {
+    const start = page(accordion('Details', [paragraph('text'), paragraph('more')]))
+    const at = caretAt(start, inside(start, 'accordionBody', 1))
+    const { state, applied } = run(at, backspaceIntoHeading())
+    assert.equal(applied, true)
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+    assert.equal(state.selection.$from.parentOffset, 'Details'.length)
+    // Nothing is deleted or merged: the line stays in the box.
+    assert.deepEqual(state.doc.child(1).child(1).children.map((node) => node.textContent), ['text', 'more'])
+  })
+
+  it('takes an empty first line of the box with it, unless it is the only one', () => {
+    const start = page(accordion('Details', [paragraph(), paragraph('more')]))
+    const { state } = run(caretAt(start, inside(start, 'accordionBody', 1)), backspaceIntoHeading())
+    assert.deepEqual(state.doc.child(1).child(1).children.map((node) => node.textContent), ['more'])
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+
+    const only = page(accordion('Details'))
+    const left = run(caretAt(only, inside(only, 'accordionBody', 1)), backspaceIntoHeading())
+    assert.equal(left.applied, true)
+    left.state.doc.check()
+    assert.equal(left.state.doc.child(1).child(1).childCount, 1)
+  })
+
+  it('leaves Backspace alone part-way through a line, or on a later line of the box', () => {
+    const start = page(accordion('Details', [paragraph('text'), paragraph('more')]))
+    const mid = caretAt(start, inside(start, 'accordionBody', 3))
+    assert.equal(run(mid, backspaceIntoHeading()).applied, false)
+    const second = caretAt(start, inside(start, 'accordionBody', 1 + 'text'.length + 2))
+    assert.equal(second.selection.$from.parent.textContent, 'more')
+    assert.equal(run(second, backspaceIntoHeading()).applied, false)
   })
 
   it('folds without an undo step, lifting a caret out of the box', () => {

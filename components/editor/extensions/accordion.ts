@@ -154,6 +154,32 @@ export function backspaceAccordion(): Command {
   }
 }
 
+/** Backspace, at the very start of the box: up to the end of the heading, so
+ *  the next press carries on deleting there, the way it would if the heading
+ *  were the line above.
+ *
+ *  The line you were on stays in the box, since pulling it into the heading
+ *  would make body text into heading text. An empty one goes, unless it is
+ *  the box's only line, which has to stay. */
+export function backspaceIntoHeading(): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.parentOffset > 0 || $from.depth < 3 || $from.parent.type.name !== 'paragraph') return false
+    const body = $from.node(-1)
+    if (body.type.name !== ACCORDION_BODY || $from.index(-1) !== 0) return false
+
+    if (dispatch) {
+      // The body starts straight after the heading closes.
+      const titleEnd = $from.before(-1) - 1
+      const tr = state.tr
+      if ($from.parent.content.size === 0 && body.childCount > 1) tr.delete($from.before(), $from.after())
+      tr.setSelection(TextSelection.create(tr.doc, titleEnd))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
 /** Open or fold the accordion at a position. Folding one with the caret inside
  *  its box brings the caret up to the end of the heading, rather than leaving
  *  it somewhere nobody can see. */
@@ -374,9 +400,11 @@ export const Accordion = Node.create({
       this.editor.commands.command(({ state, dispatch }) => command(state, dispatch))
     const enter = enterAccordionBody()
     const leave = leaveAccordion()
+    const unwrap = backspaceAccordion()
+    const intoHeading = backspaceIntoHeading()
     return {
       Enter: run((state, dispatch) => enter(state, dispatch) || leave(state, dispatch)),
-      Backspace: run(backspaceAccordion()),
+      Backspace: run((state, dispatch) => unwrap(state, dispatch) || intoHeading(state, dispatch)),
     }
   },
 
