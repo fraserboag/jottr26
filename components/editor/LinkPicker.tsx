@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { searchPages } from '@/lib/db/search'
 import type { PageRow } from '@/lib/db/schema'
-import { looksLikeUrl, normalizeHref, pageHref } from '@/lib/util/links'
+import { looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
 
 /** One suggestion under the link field. The URL row is always present once
  *  something has been typed, so a page you meant to find is never the only way
@@ -58,7 +58,12 @@ export function LinkPicker({
   }, [pages, query])
 
   const choose = (row: Row) => {
-    onApply(row.kind === 'page' ? pageHref(row.pageId) : row.href)
+    if (row.kind === 'page') return onApply(pageHref(row.pageId))
+    // A pasted address of one of your own pages is stored relative, so the
+    // link works wherever the workspace is opened rather than only where it
+    // was copied from.
+    const target = resolveLink(row.href, window.location.href)
+    onApply(target?.kind === 'page' ? pageHref(target.pageId) : row.href)
   }
 
   return (

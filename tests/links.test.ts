@@ -25,8 +25,8 @@ describe('resolveLink', () => {
   })
 
   it('treats the same path on another origin as outbound', () => {
-    // Someone else's Jottr, or the deployed app opened from a dev server. It
-    // is a different workspace, and this one cannot render its pages.
+    // Someone else's Jottr. It is a different workspace, and this one cannot
+    // render its pages.
     assert.deepEqual(resolveLink('https://notes.example.com/app?p=abc123', HERE), {
       kind: 'external',
       href: 'https://notes.example.com/app?p=abc123',
@@ -64,16 +64,28 @@ describe('resolveLink', () => {
     assert.equal(resolveLink('not a url', 'also not a url'), null)
   })
 
+  it('follows a page link copied from a dev server in place', () => {
+    // Stored before page links went relative, or pasted from the address bar.
+    assert.deepEqual(resolveLink('http://localhost:3000/app?p=abc123', HERE), {
+      kind: 'page',
+      pageId: 'abc123',
+    })
+    assert.deepEqual(resolveLink('http://127.0.0.1:3000/app?p=abc123', HERE), {
+      kind: 'page',
+      pageId: 'abc123',
+    })
+    // Only page links: anything else on a dev server is still somewhere else.
+    assert.deepEqual(resolveLink('http://localhost:3000/login', HERE), {
+      kind: 'external',
+      href: 'http://localhost:3000/login',
+    })
+  })
+
   it('works on a dev server, where the origin has a port', () => {
     const local = 'http://localhost:3000/app?p=home'
     assert.deepEqual(resolveLink('http://localhost:3000/app?p=abc123', local), {
       kind: 'page',
       pageId: 'abc123',
-    })
-    // Same host, different port is a different origin.
-    assert.deepEqual(resolveLink('http://localhost:3001/app?p=abc123', local), {
-      kind: 'external',
-      href: 'http://localhost:3001/app?p=abc123',
     })
   })
 })

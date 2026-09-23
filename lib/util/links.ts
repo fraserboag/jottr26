@@ -12,6 +12,15 @@ export type LinkTarget =
  *  `javascript:` must never reach `window.open`. */
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 
+/** A dev server is this same workspace under another origin, so a page link
+ *  copied from one — or written before page links went relative — still
+ *  names one of your own pages, not someone else's. */
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+function isLoopback(url: URL): boolean {
+  return LOOPBACK_HOSTS.has(url.hostname) || url.hostname.endsWith('.localhost')
+}
+
 /** `base` is the URL the link was clicked on — in the app, `location.href`.
  *  Taking it as an argument rather than reading `window` keeps this a pure
  *  function, which is what makes it testable under Node. */
@@ -30,7 +39,8 @@ export function resolveLink(href: string, base: string): LinkTarget | null {
   }
 
   const pageId = url.searchParams.get('p')
-  if (pageId && url.origin === here.origin && url.pathname === '/app') {
+  const ours = url.origin === here.origin || isLoopback(url)
+  if (pageId && ours && url.pathname === '/app') {
     return { kind: 'page', pageId }
   }
 
