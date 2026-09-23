@@ -9,7 +9,7 @@ import { lift, wrapIn } from '@tiptap/pm/commands'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
-import { Callout, leaveCallout, newLineInCallout } from '@/components/editor/extensions/callout'
+import { Callout, leaveCallout } from '@/components/editor/extensions/callout'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -50,9 +50,8 @@ function caretAt(state: EditorState, pos: number) {
   return state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)))
 }
 
-/** The two keys the callout binds, as the extension binds them. */
+/** The key the callout binds, as the extension binds it. */
 const enter = leaveCallout('callout')
-const shiftEnter = newLineInCallout('callout')
 
 /** Run a ProseMirror command the way the editor's chain does. */
 function run(state: EditorState, command: Command) {
@@ -105,30 +104,20 @@ describe('callout block', () => {
     )
   })
 
-  it('leaves the box on Enter, and opens a line under it', () => {
-    // The way out. A callout is allowed to be the last block on a page, so
-    // without this there is no way back down past one sitting at the foot of
-    // the page.
+  it('leaves Enter on a line with words to the default: a new line in the box', () => {
+    // Enter carries on inside, as it does in an accordion and a list. Only a
+    // blank last line is the way out, which needs no Shift on a phone.
     const start = page(callout.create(null, paragraph('Watch out')))
-    const { state, applied } = run(start, enter)
-    assert.equal(applied, true)
-    assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
-    assert.equal(state.doc.child(1).textContent, 'Watch out', 'the text stays in the box')
-    // The caret is on the new line, directly in the page rather than the box.
-    assert.equal(state.selection.$from.parent.type.name, 'paragraph')
-    assert.equal(state.selection.$from.depth, 1)
-    assert.equal(state.selection.$from.parent.content.size, 0)
+    assert.equal(run(start, enter).applied, false)
+    const middle = caretAt(start, start.selection.from - 4)
+    assert.equal(run(middle, enter).applied, false)
   })
 
-  it('leaves the line it was on alone, wherever the caret was', () => {
-    // Enter part-way through a line does not split it: the box keeps the words
-    // it had, and the new line opens after the box.
-    const start = page(callout.create(null, paragraph('Watch out')))
-    const middle = caretAt(start, start.selection.from - 4)
-    const { state, applied } = run(middle, enter)
-    assert.equal(applied, true)
-    assert.deepEqual(outline(state), ['title', 'callout', 'paragraph'])
-    assert.equal(state.doc.child(1).textContent, 'Watch out')
+  it('leaves Enter alone on an empty line that is not the last in the box', () => {
+    const start = page(callout.create(null, [paragraph(), paragraph('Watch out')]))
+    const first = caretAt(start, start.doc.child(0).nodeSize + 2)
+    assert.equal(first.selection.$from.parent.content.size, 0)
+    assert.equal(run(first, enter).applied, false)
   })
 
   it('takes an empty last line with it rather than leaving a blank row', () => {
@@ -159,19 +148,6 @@ describe('callout block', () => {
 
   it('leaves Enter alone outside a callout', () => {
     assert.equal(run(page(paragraph('Watch out')), enter).applied, false)
-  })
-
-  it('opens a line inside the box on Shift-Enter', () => {
-    const start = page(callout.create(null, paragraph('Watch out')))
-    const { state, applied } = run(start, shiftEnter)
-    assert.equal(applied, true)
-    assert.deepEqual(outline(state), ['title', 'callout'], 'the new line stays in the box')
-    assert.equal((state.doc.lastChild as Node).childCount, 2)
-    assert.equal(state.selection.$from.depth, 2)
-  })
-
-  it('leaves Shift-Enter alone outside a callout, where it is a line break', () => {
-    assert.equal(run(page(paragraph('Watch out')), shiftEnter).applied, false)
   })
 
   it('carries its text into the Yjs document that sync and search read', async () => {
