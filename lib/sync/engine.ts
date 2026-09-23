@@ -83,6 +83,8 @@ export class SyncEngine {
   private current: Promise<void> | null = null
   /** Aborts the requests of the sync in progress. */
   private runAbort: AbortController | null = null
+  /** Cancels a manual sync that is still waiting its turn. */
+  private manualAbort: AbortController | null = null
   /** Manual syncs waiting for this tab to become the leader. */
   private leaderWaiters: Array<() => void> = []
 
@@ -189,6 +191,8 @@ export class SyncEngine {
    *  one already in flight may have begun before the edit that prompted it. */
   async syncNow(): Promise<SyncStatus> {
     if (!this.running) return this.status
+    const manual = new AbortController()
+    this.manualAbort = manual
 
     // Only the leader talks to the server, and the tab someone is clicking in
     // is the one that should.
@@ -202,6 +206,9 @@ export class SyncEngine {
     // A sync that starts in the gap makes run() defer to it, so wait again.
     do {
       while (this.current) await this.current
+      // Cancelled while queued: starting now would be the very request the
+      // person just gave up on.
+      if (manual.signal.aborted) return this.status
     } while (!(await this.run()))
     return this.status
   }
@@ -218,6 +225,7 @@ export class SyncEngine {
   /** Abandons the sync in progress. A request that never answers would
    *  otherwise hold every later sync behind it. */
   cancelSync() {
+    this.manualAbort?.abort()
     this.requeue = false
     this.runAbort?.abort()
   }

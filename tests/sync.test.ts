@@ -400,4 +400,26 @@ describe('local-first sync', () => {
     assert.equal((await laptop.engine.syncNow()).phase, 'synced', 'the cancelled sync must not block the next')
     assert.equal(server.pages.get(id)?.title, 'Stuck in a tunnel')
   })
+
+  it('does not start a cancelled manual sync that was queued behind another', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Still in the tunnel')
+
+    server.stalled = true
+    laptop.engine.request()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const manual = laptop.engine.syncNow()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    laptop.engine.cancelSync()
+    await manual
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    const internals = laptop.engine as unknown as { inFlight: boolean }
+    assert.equal(internals.inFlight, false, 'cancel must not leave a fresh sync hanging on the network')
+
+    server.stalled = false
+    assert.equal((await laptop.engine.syncNow()).phase, 'synced')
+    assert.equal(server.pages.get(id)?.title, 'Still in the tunnel')
+  })
 })
