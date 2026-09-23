@@ -142,7 +142,7 @@ function Row({
             <Icon name="file" size={15} className="text-faint" />
           </span>
           <span
-            className={`truncate ${isOpen ? 'font-medium text-ink' : 'text-muted'}`}
+            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-muted'}`}
           >
             {page.title || 'Untitled'}
           </span>

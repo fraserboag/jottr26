@@ -100,12 +100,17 @@ body {
      so the space between items is what separates one from the next. */
   --body-leading: 1.8;
   --list-leading: 1.6;
+  /* A hair heavier than regular: antialiased system type at 400 reads thin.
+     Page titles in the sidebar share it, so the two read as the same text. */
+  --body-weight: 450;
 }
 
-/* The size Apple Notes sets its body in. */
+/* The size Apple Notes sets its body in. A phone's denser screen draws the
+   same weight heavier, so the weight steps back halfway to regular. */
 @media (pointer: coarse) {
   :root {
     --body-size: 17px;
+    --body-weight: 425;
   }
 }
 
@@ -158,19 +163,10 @@ body {
   outline: none;
   color: var(--text);
   font-size: var(--body-size);
-  /* A hair heavier than regular: antialiased system type at 400 reads thin. */
-  font-weight: 450;
+  font-weight: var(--body-weight);
   line-height: var(--body-leading);
   padding-bottom: 40vh; /* Room to keep the caret away from the bottom edge. */
   word-break: break-word;
-}
-
-/* A phone's denser screen draws the same weight heavier, so it steps back
-   halfway to regular. */
-@media (pointer: coarse) {
-  .ProseMirror {
-    font-weight: 425;
-  }
 }
 
 .ProseMirror > * + * {
