@@ -7,7 +7,7 @@ import { Sidebar } from './Sidebar'
 import { TrashPage } from './TrashPage'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
-import { ensureWelcomePage } from '@/lib/db/welcome'
+import { ensureFirstPage } from '@/lib/db/welcome'
 import { useOpenPageId, useTrashOpen } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 
@@ -74,9 +74,9 @@ export function Workspace() {
   useEffect(() => {
     if (!userId || !pages || pages.length > 0) return
     // Only once the server has confirmed the account really is empty. A device
-    // that first opens offline would otherwise write a second welcome page.
+    // that first opens offline would otherwise write a duplicate page.
     if (status.lastSyncedAt === null) return
-    void ensureWelcomePage().then((id) => {
+    void ensureFirstPage().then((id) => {
       if (id) open(id, { replace: true })
     })
   }, [userId, pages, status.lastSyncedAt, open])
