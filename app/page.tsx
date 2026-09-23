@@ -17,7 +17,11 @@ export default function LandingPage() {
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           This is a project by{" "}
-          <a href="https://www.boag.online" target="_blank">
+          <a
+            href="https://www.boag.online"
+            target="_blank"
+            className="font-medium text-accent underline decoration-accent/30 underline-offset-[3px] transition-colors hover:decoration-accent"
+          >
             Fraser Boag
           </a>
           , a software developer living in Glasgow, Scotland. As a frequent Notion user for many
