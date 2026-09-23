@@ -94,7 +94,7 @@ export function Workspace() {
     return out
   }, [page, byId])
 
-  // Which way the page slides in on a phone: from the left when it is an
+  // Which way the page slides in: from the left when it is an
   // ancestor of the one being left, since that is going back up the tree.
   // Worked out while rendering, from the last page seen, so the new page
   // mounts already facing the right way.
@@ -261,10 +261,10 @@ export function Workspace() {
                 nothing more than it did. The trash takes the same column. */}
             <div
               key={page?.id ?? 'trash'}
-              className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
+              className={`page-enter mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${entry.up ? '[--enter-side:-1] ' : ''}${
                 wide
                   ? 'pt-28'
-                  : `page-enter ${entry.up ? '[--enter-side:-1] ' : ''}pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]`
+                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
               }`}
             >
               {page ? (

@@ -541,8 +541,8 @@ h1.page-title {
   background: none;
 }
 
-/* A phone shows one page at a time, so a new one slides in from the right to
-   say the screen changed rather than just swapping the text in place. */
+/* A new page slides in from the right to say the screen changed rather than
+   just swapping the text in place. */
 @keyframes page-enter {
   from {
     opacity: 0;
