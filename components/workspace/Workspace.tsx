@@ -94,6 +94,21 @@ export function Workspace() {
     return out
   }, [page, byId])
 
+  // Which way the page slides in on a phone: from the left when it is an
+  // ancestor of the one being left, since that is going back up the tree.
+  // Worked out while rendering, from the last page seen, so the new page
+  // mounts already facing the right way.
+  const [entry, setEntry] = useState<{ id: string | null; up: boolean }>({ id: openId, up: false })
+  if (entry.id !== openId) {
+    let up = false
+    let current = entry.id ? byId.get(entry.id) : undefined
+    for (let depth = 0; current?.parentId && depth < 24; depth += 1) {
+      if (current.parentId === openId) up = true
+      current = byId.get(current.parentId)
+    }
+    setEntry({ id: openId, up })
+  }
+
   const openPage = useCallback(
     (id: string | null) => {
       open(id)
@@ -243,7 +258,7 @@ export function Workspace() {
               className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
                 wide
                   ? 'pt-28'
-                  : 'page-enter pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
+                  : `page-enter ${entry.up ? '[--enter-from:-24px] ' : ''}pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]`
               }`}
             >
               {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
