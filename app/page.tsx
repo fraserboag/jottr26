@@ -1,11 +1,11 @@
+import { Logo } from '@/components/ui/Logo'
+
 export default function LandingPage() {
   return (
     <div className="min-h-dvh bg-surface">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-7 place-items-center rounded-lg bg-[#1a1a19] text-[12px] font-bold text-white">
-            J
-          </span>
+          <Logo className="size-7" />
           <span className="text-[15px] font-semibold text-ink">Jottr</span>
         </div>
         <a

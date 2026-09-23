@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
+import { Logo } from '@/components/ui/Logo'
 import { SetupNotice } from '@/components/SetupNotice'
 import { isSupabaseConfigured, supabaseClient } from '@/lib/supabase/client'
 
@@ -83,9 +84,7 @@ function SignIn() {
             offline without an RSC payload. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className="mb-7 flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg bg-[#1a1a19] text-[13px] font-bold text-white">
-            J
-          </span>
+          <Logo className="size-8" />
           <span className="text-[15px] font-semibold text-ink">Jottr</span>
         </a>
 

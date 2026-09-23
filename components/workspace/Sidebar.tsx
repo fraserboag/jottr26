@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
+import { Logo } from '@/components/ui/Logo'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageTree } from './PageTree'
 import { SyncIndicator } from './SyncIndicator'
@@ -67,9 +68,7 @@ export function Sidebar({
               onClick={toggle}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
             >
-              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#1a1a19] text-[11px] font-bold text-white pointer-coarse:size-7 pointer-coarse:text-[13px]">
-                J
-              </span>
+              <Logo className="size-6 pointer-coarse:size-7" />
               <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink pointer-coarse:text-[15px]">
                 Jottr
               </span>
