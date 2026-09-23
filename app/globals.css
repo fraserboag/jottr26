@@ -295,7 +295,9 @@ body {
   /* Keeps a long heading from running under the chevron. */
   padding-right: 36px;
 }
-.ProseMirror div[data-type="accordionTitle"] a {
+/* The heading is bold already, and a section heading turned into one with '>'
+   brings its bold mark along: left alone, that would step up to 900. */
+.ProseMirror div[data-type="accordionTitle"] :is(strong, a) {
   font-weight: inherit;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle {
