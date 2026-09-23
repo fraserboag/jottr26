@@ -48,7 +48,7 @@ export function ServiceWorkerManager() {
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 px-4">
-      <div className="flex items-center gap-3 rounded-full border border-line bg-raised py-2 pl-4 pr-2 shadow-[var(--shadow-pop)]">
+      <div className="pop-in flex items-center gap-3 rounded-full border border-line bg-raised py-2 pl-4 pr-2 shadow-[var(--shadow-pop)]">
         <span className="text-ink">A new version of Jottr is ready.</span>
         <button
           type="button"

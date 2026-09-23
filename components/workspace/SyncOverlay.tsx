@@ -41,7 +41,7 @@ export function SyncOverlay({
         aria-modal="true"
         aria-label={failure === null ? 'Syncing' : "Couldn't sync"}
         aria-busy={failure === null}
-        className="relative flex w-full max-w-[320px] flex-col items-center rounded-2xl border border-line bg-raised px-5 pt-6 pb-4 text-center shadow-[var(--shadow-pop)]"
+        className="pop-in relative flex w-full max-w-[320px] flex-col items-center rounded-2xl border border-line bg-raised px-5 pt-6 pb-4 text-center shadow-[var(--shadow-pop)]"
       >
         {failure === null ? (
           <>
