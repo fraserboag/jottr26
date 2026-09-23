@@ -35,14 +35,9 @@ export function TrashPage() {
       {pages.length === 0 ? (
         <p className="text-[length:var(--body-size)] text-faint">Nothing in the trash.</p>
       ) : (
-        // Pulled out by the rows' own padding, so each page's icon starts
-        // exactly where the title does and only the hover spills past it.
-        <ul className="-mx-3">
+        <ul>
           {pages.map((page) => (
-            <li
-              key={page.id}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--hover)]"
-            >
+            <li key={page.id} className="flex items-center gap-2 py-2">
               <span className="flex h-[1lh] w-4 shrink-0 items-center justify-center self-start text-[length:var(--body-size)]">
                 <Icon name="file" size={15} className="text-faint" />
               </span>
