@@ -8,8 +8,6 @@ import { QuickSearch } from './QuickSearch'
 import { TrashPanel } from './TrashPanel'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
-import { createPage } from '@/lib/db/pages'
-import { raiseKeyboard } from '@/lib/util/keyboard'
 import { ensureWelcomePage } from '@/lib/db/welcome'
 import { useOpenPageId } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
@@ -263,37 +261,30 @@ export function Workspace() {
           </button>
         )}
 
-        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
-          {/* 700px of text, the same column Notion sets, plus the side padding:
-              the cap is the two added together, not the column on its own. */}
-          {/* Narrow screens centre nothing, so the floating button would sit on
-              the first line of the page. The extra padding drops it clear, and
-              follows the notch the button is offset by. It does not depend on
-              the sidebar being hidden: there the sidebar is a drawer over the
-              page, and keying on it would shuffle the page up and down as the
-              drawer opened and closed. */}
-          <div
-            className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
-              wide
-                ? 'pt-16'
-                : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+3rem)]'
-            }`}
-          >
-            {page ? (
-              <>
-                {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
-                <Editor pageId={page.id} />
-              </>
-            ) : (
-              <EmptyState
-                onCreate={() => {
-                  raiseKeyboard()
-                  void createPage().then(openPage)
-                }}
-              />
-            )}
+        {page ? (
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+            {/* 700px of text, the same column Notion sets, plus the side padding:
+                the cap is the two added together, not the column on its own. */}
+            {/* Narrow screens centre nothing, so the floating button would sit on
+                the first line of the page. The extra padding drops it clear, and
+                follows the notch the button is offset by. It does not depend on
+                the sidebar being hidden: there the sidebar is a drawer over the
+                page, and keying on it would shuffle the page up and down as the
+                drawer opened and closed. */}
+            <div
+              className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
+                wide
+                  ? 'pt-16'
+                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+3rem)]'
+              }`}
+            >
+              {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
+              <Editor pageId={page.id} />
+            </div>
           </div>
-        </div>
+        ) : (
+          <EmptyState />
+        )}
       </main>
 
       {overlay === 'search' && (
@@ -328,24 +319,13 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
   )
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="grid size-12 place-items-center rounded-xl border border-line bg-sunken text-faint">
-        <Icon name="file" size={22} />
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 text-center">
+      <div className="grid size-11 place-items-center rounded-xl border border-line bg-sunken text-faint">
+        <Icon name="file" size={20} />
       </div>
-      <h2 className="mt-4 text-[16.5px] font-semibold text-ink pointer-coarse:text-[17.5px]">No page open</h2>
-      <p className="mt-1 max-w-[30ch] text-[14.5px] leading-relaxed text-muted pointer-coarse:text-[16px]">
-        Pick something from the sidebar, or start a new page.
-      </p>
-      <button
-        type="button"
-        onClick={onCreate}
-        className="mt-5 flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[14.5px] font-medium text-accent-contrast transition-opacity hover:opacity-90 pointer-coarse:py-2.5 pointer-coarse:text-[16px]"
-      >
-        <Icon name="plus" size={16} strokeWidth={2.2} />
-        New page
-      </button>
+      <p className="text-[13.5px] text-faint pointer-coarse:text-[15px]">No page selected</p>
     </div>
   )
 }
