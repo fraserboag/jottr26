@@ -93,11 +93,11 @@ function SignIn() {
           {stage === 'email' ? (
             <form onSubmit={sendCode}>
               <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">Sign in</h1>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted pointer-coarse:text-[15px]">
                 We&rsquo;ll email you a six-digit code. No password to forget.
               </p>
 
-              <label htmlFor="email" className="mt-5 block text-[12.5px] font-medium text-muted">
+              <label htmlFor="email" className="mt-5 block text-[12.5px] font-medium text-muted pointer-coarse:text-[14px]">
                 Email address
               </label>
               <input
@@ -110,7 +110,7 @@ function SignIn() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
-                className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-[14.5px] outline-none transition-colors placeholder:text-faint focus:border-[var(--accent)]"
+                className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-[14.5px] outline-none pointer-coarse:text-[16px] transition-colors placeholder:text-faint focus:border-[var(--accent)]"
               />
 
               <Submit busy={busy} label="Email me a code" icon="mail" />
@@ -119,11 +119,11 @@ function SignIn() {
           ) : (
             <form onSubmit={verify}>
               <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">Check your email</h1>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted pointer-coarse:text-[15px]">
                 We sent a code to <span className="font-medium text-ink">{email}</span>.
               </p>
 
-              <label htmlFor="code" className="mt-5 block text-[12.5px] font-medium text-muted">
+              <label htmlFor="code" className="mt-5 block text-[12.5px] font-medium text-muted pointer-coarse:text-[14px]">
                 Six-digit code
               </label>
               <input

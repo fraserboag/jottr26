@@ -124,7 +124,7 @@ function Row({
             event.stopPropagation()
             if (hasChildren) onToggleExpand(page.id)
           }}
-          className={`grid size-5 shrink-0 place-items-center rounded text-faint transition-colors ${
+          className={`grid size-5 shrink-0 place-items-center rounded text-faint transition-colors pointer-coarse:size-7 ${
             hasChildren ? 'hover:bg-[var(--active)] hover:text-muted' : 'invisible'
           }`}
           tabIndex={hasChildren ? 0 : -1}
@@ -135,19 +135,20 @@ function Row({
         <button
           type="button"
           onClick={() => onOpen(page.id)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left"
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
         >
           <span className="w-4 shrink-0 text-center text-[13px] leading-none">
             <Icon name="file" size={14} className="text-faint" />
           </span>
           <span
-            className={`truncate text-[13.5px] ${isOpen ? 'font-medium text-ink' : 'text-muted'}`}
+            className={`truncate text-[13.5px] pointer-coarse:text-[15px] ${isOpen ? 'font-medium text-ink' : 'text-muted'}`}
           >
             {page.title || 'Untitled'}
           </span>
         </button>
 
-        <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        {/* Shown on hover, which a touch screen never has, so there they stay. */}
+        <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           <Popover
             width={208}
             trigger={({ toggle, ref }) => (
@@ -159,7 +160,7 @@ function Row({
                   event.stopPropagation()
                   toggle()
                 }}
-                className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted"
+                className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
               >
                 <Icon name="more" size={14} strokeWidth={2.4} />
               </button>
@@ -191,7 +192,7 @@ function Row({
                 onOpen(id)
               })
             }}
-            className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted"
+            className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
           >
             <Icon name="plus" size={14} strokeWidth={2.2} />
           </button>

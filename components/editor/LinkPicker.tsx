@@ -21,12 +21,14 @@ export function LinkPicker({
   onApply,
   onUnset,
   onClose,
+  className = 'w-[19rem]',
 }: {
   initialHref: string
   pages: PageRow[]
   onApply: (href: string) => void
   onUnset: () => void
   onClose: () => void
+  className?: string
 }) {
   const [query, setQuery] = useState(initialHref)
   const [index, setIndex] = useState(0)
@@ -67,7 +69,7 @@ export function LinkPicker({
   }
 
   return (
-    <div className="flex w-[19rem] flex-col">
+    <div className={`flex flex-col ${className}`}>
       <div className="flex items-center gap-1 px-1">
         <Icon name="link" size={14} className="shrink-0 text-faint" />
         <input
@@ -97,8 +99,9 @@ export function LinkPicker({
             }
           }}
           placeholder="Paste a link, or search your pages"
+          // Under 16px, iOS zooms the page in on focus and leaves it there.
           aria-label="Link address or page search"
-          className="w-full bg-transparent py-1 text-[13px] outline-none placeholder:text-faint"
+          className="w-full bg-transparent py-1 text-[13px] outline-none placeholder:text-faint pointer-coarse:text-[16px]"
         />
       </div>
 
@@ -117,7 +120,7 @@ export function LinkPicker({
                 // bubble menu hides, and the click never lands.
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(row)}
-                className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors ${
+                className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left pointer-coarse:py-2.5 transition-colors ${
                   i === index ? 'bg-[var(--active)]' : ''
                 }`}
               >
@@ -131,15 +134,15 @@ export function LinkPicker({
                 <span className="min-w-0 flex-1">
                   {row.kind === 'page' ? (
                     <>
-                      <span className="block truncate text-[13px] text-ink">{row.title}</span>
+                      <span className="block truncate text-[13px] text-ink pointer-coarse:text-[15px]">{row.title}</span>
                       {row.snippet && (
-                        <span className="mt-0.5 block truncate text-[11.5px] text-faint">
+                        <span className="mt-0.5 block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">
                           {row.snippet}
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="block truncate text-[13px] text-muted">
+                    <span className="block truncate text-[13px] text-muted pointer-coarse:text-[15px]">
                       Link to <span className="text-ink">{row.href}</span>
                     </span>
                   )}

@@ -74,17 +74,19 @@ export function TableMenu({ editor }: { editor: Editor }) {
       // flashing in the gap.
       className={
         state
-          ? 'flex items-center gap-0.5 rounded-lg border border-line bg-raised p-1 shadow-[var(--shadow-pop)]'
+          ? // Wider than a phone once its buttons are finger sized, so there it
+            // scrolls sideways rather than running off the screen.
+            'flex items-center gap-0.5 rounded-lg border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pointer-coarse:max-w-[calc(100vw-1rem)] pointer-coarse:overflow-x-auto pointer-coarse:[scrollbar-width:none]'
           : ''
       }
     >
       {state && (
         <>
-          <span className="px-1.5 text-[11.5px] tabular-nums text-faint">
+          <span className="px-1.5 text-[11.5px] tabular-nums text-faint pointer-coarse:text-[13px] shrink-0 whitespace-nowrap">
             {state.rows} × {state.cols}
           </span>
-          <span className="mx-0.5 h-5 w-px bg-line" />
-          <span className="pl-0.5 text-[11.5px] text-muted">Rows</span>
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-line" />
+          <span className="pl-0.5 text-[11.5px] text-muted pointer-coarse:text-[13px]">Rows</span>
           <ToolButton
             icon="minus"
             label="Delete this row"
@@ -96,8 +98,8 @@ export function TableMenu({ editor }: { editor: Editor }) {
             label="Add a row below"
             onClick={() => editor.chain().focus().addRowAfter().run()}
           />
-          <span className="mx-0.5 h-5 w-px bg-line" />
-          <span className="pl-0.5 text-[11.5px] text-muted">Cols</span>
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-line" />
+          <span className="pl-0.5 text-[11.5px] text-muted pointer-coarse:text-[13px]">Cols</span>
           <ToolButton
             icon="minus"
             label="Delete this column"
@@ -109,7 +111,7 @@ export function TableMenu({ editor }: { editor: Editor }) {
             label="Add a column to the right"
             onClick={() => editor.chain().focus().addColumnAfter().run()}
           />
-          <span className="mx-0.5 h-5 w-px bg-line" />
+          <span className="mx-0.5 h-5 w-px shrink-0 bg-line" />
           <ToolButton
             icon="pound"
             label="Finance mode: format as money and total each column"

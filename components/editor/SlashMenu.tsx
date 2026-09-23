@@ -12,6 +12,10 @@ export interface SlashMenuState {
 
 const ROW = 42
 const MAX_HEIGHT = 312
+// Rows grow on touch screens along with their type.
+const TOUCH_ROW = 60
+const WIDTH = 268
+const TOUCH_WIDTH = 300
 
 export function SlashMenu({
   state,
@@ -31,16 +35,22 @@ export function SlashMenu({
     const rect = state.rect
     if (!rect) return null
 
-    const height = Math.min(MAX_HEIGHT, state.items.length * ROW + 10)
-    const width = 268
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    const height = Math.min(MAX_HEIGHT, state.items.length * (touch ? TOUCH_ROW : ROW) + 10)
+    const width = touch ? TOUCH_WIDTH : WIDTH
     const margin = 8
+    // The visible part of the page, which on iOS stops at the top of the
+    // keyboard while the window itself carries on underneath it.
+    const viewport = window.visualViewport
+    const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight
 
     const below = rect.bottom + 8
-    const flip = below + height > window.innerHeight - margin && rect.top > height + margin
+    const flip = below + height > bottom - margin && rect.top > height + margin
 
     return {
       top: flip ? rect.top - height - 8 : below,
       left: Math.min(Math.max(margin, rect.left), window.innerWidth - width - margin),
+      width,
     }
   }, [state.rect, state.items.length])
 
@@ -55,11 +65,11 @@ export function SlashMenu({
     <div
       role="listbox"
       aria-label="Insert block"
-      className="fixed z-50 w-[268px] overflow-hidden rounded-xl border border-line bg-raised shadow-[var(--shadow-pop)]"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-50 overflow-hidden rounded-xl border border-line bg-raised shadow-[var(--shadow-pop)]"
+      style={{ top: position.top, left: position.left, width: position.width }}
     >
       {state.items.length === 0 ? (
-        <p className="px-3.5 py-3 text-[13px] text-faint">No blocks match that.</p>
+        <p className="px-3.5 py-3 text-[13px] text-faint pointer-coarse:text-[15px]">No blocks match that.</p>
       ) : (
         <div ref={listRef} className="scroll-thin max-h-[312px] overflow-y-auto p-1.5">
           {state.items.map((item, index) => {
@@ -85,8 +95,8 @@ export function SlashMenu({
                   <Icon name={item.icon} size={14} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-medium text-ink">{item.title}</span>
-                  <span className="block truncate text-[11.5px] text-faint">{item.hint}</span>
+                  <span className="block truncate text-[13px] font-medium text-ink pointer-coarse:text-[15px]">{item.title}</span>
+                  <span className="block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">{item.hint}</span>
                 </span>
               </button>
             )

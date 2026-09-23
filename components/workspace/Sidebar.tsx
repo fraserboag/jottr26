@@ -70,7 +70,7 @@ export function Sidebar({
               <span className="grid size-6 shrink-0 place-items-center rounded-md bg-[#1a1a19] text-[11px] font-bold text-white">
                 J
               </span>
-              <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink">
+              <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-semibold text-ink pointer-coarse:text-[15px]">
                 Jottr
               </span>
               <Icon name="chevronDown" size={13} className="text-faint" strokeWidth={2} />
@@ -79,7 +79,7 @@ export function Sidebar({
         >
           {(close) => (
             <>
-              <p className="truncate px-2.5 pb-1.5 pt-1 text-[12px] text-faint">
+              <p className="truncate px-2.5 pb-1.5 pt-1 text-[12px] text-faint pointer-coarse:text-[13px]">
                 {session?.user.email}
               </p>
               <MenuSeparator />
@@ -113,7 +113,7 @@ export function Sidebar({
           type="button"
           onClick={onCollapse}
           aria-label="Hide sidebar"
-          className="grid size-7 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+          className="grid size-7 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9"
         >
           <Icon name="panel" size={16} />
         </button>
@@ -135,7 +135,7 @@ export function Sidebar({
       >
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
-          <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint">
+          <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint pointer-coarse:text-[14px]">
             No pages yet. Create one to get started.
           </p>
         ) : (
@@ -164,9 +164,9 @@ function AddPage({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       // Lines up with the page titles above it: past the chevron column, with
-      // the plus sitting where each page's icon sits.
-      style={{ paddingLeft: 28 }}
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pr-1 text-[13px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+      // the plus sitting where each page's icon sits. The chevron is wider on
+      // a touch screen, and the offset follows it.
+      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-7 pr-1 pointer-coarse:pl-9 text-[13px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2 pointer-coarse:text-[15px]"
     >
       <span className="w-4 shrink-0">
         <Icon name="plus" size={14} strokeWidth={2} />
@@ -178,7 +178,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
+    <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-faint pointer-coarse:text-[12px]">
       {children}
     </p>
   )
@@ -199,11 +199,11 @@ function SidebarAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13.5px] text-muted transition-colors hover:bg-[var(--hover)]"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13.5px] text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2.5 pointer-coarse:text-[15px]"
     >
       <Icon name={icon} size={15} className="text-faint" />
       <span className="flex-1 text-left">{label}</span>
-      {shortcut && <span className="text-[11.5px] text-faint">{shortcut}</span>}
+      {shortcut && <span className="text-[11.5px] text-faint pointer-coarse:hidden">{shortcut}</span>}
     </button>
   )
 }

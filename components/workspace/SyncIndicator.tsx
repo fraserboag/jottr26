@@ -75,7 +75,7 @@ export function SyncIndicator() {
           title={summary}
           aria-expanded={open}
           aria-label={`Sync status: ${visual.label}`}
-          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] ${visual.tone}`}
+          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9 ${visual.tone}`}
         >
           <Icon name={visual.icon} size={15} className={saving ? "animate-spin" : ""} />
         </button>
@@ -88,7 +88,7 @@ export function SyncIndicator() {
             {status.phase === "syncing" ? "Saving to your account" : visual.label}
           </div>
 
-          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">{detail}</p>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted pointer-coarse:text-[14px]">{detail}</p>
 
           {/* The one thing worth repeating in every state: nothing is at risk. */}
           <p className="mt-2.5 border-t border-line pt-2.5 text-[12px] leading-relaxed text-faint">

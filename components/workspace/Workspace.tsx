@@ -256,7 +256,7 @@ export function Workspace() {
             type="button"
             onClick={() => setSidebar(true)}
             aria-label="Show sidebar"
-            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted"
+            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center pointer-coarse:size-9 rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted"
           >
             <Icon name="panel" size={16} />
           </button>
@@ -310,7 +310,7 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
           <button
             type="button"
             onClick={() => onOpen(crumb.id)}
-            className="truncate text-[13px] text-muted underline-offset-2 hover:underline"
+            className="truncate text-[13px] text-muted underline-offset-2 hover:underline pointer-coarse:text-[14.5px]"
           >
             {crumb.title || 'Untitled'}
           </button>
@@ -327,7 +327,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         <Icon name="file" size={20} />
       </div>
       <h2 className="mt-4 text-[15px] font-semibold text-ink">No page open</h2>
-      <p className="mt-1 max-w-[30ch] text-[13.5px] leading-relaxed text-muted">
+      <p className="mt-1 max-w-[30ch] text-[13.5px] leading-relaxed text-muted pointer-coarse:text-[15px]">
         Pick something from the sidebar, or start a new page.
       </p>
       <button

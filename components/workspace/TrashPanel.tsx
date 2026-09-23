@@ -18,7 +18,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className="absolute inset-0 bg-[var(--overlay)]" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-0 bg-[var(--overlay)]" aria-hidden="true" />
 
       <div
         role="dialog"
@@ -28,7 +28,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
           <Icon name="trash" size={16} className="text-faint" />
-          <h2 className="flex-1 text-[14px] font-semibold text-ink">Trash</h2>
+          <h2 className="flex-1 text-[14px] font-semibold text-ink pointer-coarse:text-[16px]">Trash</h2>
           {pages.length > 0 && (
             <button
               type="button"
@@ -37,7 +37,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                   void emptyTrash()
                 }
               }}
-              className="rounded-md px-2 py-1 text-[12.5px] font-medium text-danger transition-colors hover:bg-[var(--hover)]"
+              className="rounded-md px-2 py-1 text-[12.5px] font-medium text-danger transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2 pointer-coarse:text-[14px]"
             >
               Empty trash
             </button>
@@ -46,14 +46,14 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)]"
+            className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9"
           >
             <Icon name="x" size={15} />
           </button>
         </div>
 
         {pages.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-faint">
+          <p className="px-4 py-10 text-center text-[13px] text-faint pointer-coarse:text-[15px]">
             Nothing in the trash.
           </p>
         ) : (
@@ -67,17 +67,17 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                   <Icon name="file" size={14} className="text-faint" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-ink">
+                  <span className="block truncate text-[13.5px] text-ink pointer-coarse:text-[15px]">
                     {page.title || 'Untitled'}
                   </span>
-                  <span className="block text-[11.5px] text-faint">
+                  <span className="block text-[11.5px] text-faint pointer-coarse:text-[13px]">
                     Deleted {when.format(page.deletedAt)}
                   </span>
                 </span>
                 <button
                   type="button"
                   onClick={() => void restorePage(page.id)}
-                  className="rounded-md px-2 py-1 text-[12.5px] font-medium text-accent opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                  className="rounded-md px-2 py-1 text-[12.5px] font-medium text-accent opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100 pointer-coarse:py-2 pointer-coarse:text-[14px] pointer-coarse:opacity-100"
                 >
                   Restore
                 </button>
@@ -89,7 +89,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                       void deleteForever(page.id)
                     }
                   }}
-                  className="grid size-7 place-items-center rounded-md text-faint opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100"
+                  className="grid size-7 place-items-center rounded-md text-faint opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100 pointer-coarse:size-9 pointer-coarse:opacity-100"
                 >
                   <Icon name="trash" size={14} />
                 </button>

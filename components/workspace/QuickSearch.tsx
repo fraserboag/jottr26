@@ -51,7 +51,7 @@ export function QuickSearch({
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className="absolute inset-0 bg-[var(--overlay)]" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-0 bg-[var(--overlay)]" aria-hidden="true" />
 
       <div
         role="dialog"
@@ -82,10 +82,10 @@ export function QuickSearch({
               }
             }}
             placeholder="Search your pages"
-            className="w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
+            className="w-full bg-transparent text-[15px] outline-none placeholder:text-faint pointer-coarse:text-[16px]"
             aria-label="Search pages"
           />
-          <kbd className="rounded border border-line px-1.5 py-0.5 text-[11px] text-faint">esc</kbd>
+          <kbd className="rounded border border-line px-1.5 py-0.5 text-[11px] text-faint pointer-coarse:hidden">esc</kbd>
         </div>
 
         <ul ref={listRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
@@ -98,7 +98,7 @@ export function QuickSearch({
                 className="flex w-full items-center gap-2.5 rounded-lg bg-[var(--active)] px-3 py-2.5 text-left"
               >
                 <Icon name="plus" size={15} className="text-accent" />
-                <span className="min-w-0 text-[13.5px] text-ink">
+                <span className="min-w-0 text-[13.5px] text-ink pointer-coarse:text-[15px]">
                   Create <span className="font-medium">{query.trim() || 'a new page'}</span>
                 </span>
               </button>
@@ -121,11 +121,11 @@ export function QuickSearch({
                   <Icon name="file" size={14} className="text-faint" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] text-ink">
+                  <span className="block truncate text-[13.5px] text-ink pointer-coarse:text-[15px]">
                     {hit.page.title || 'Untitled'}
                   </span>
                   {hit.snippet && (
-                    <span className="mt-0.5 block truncate text-[12px] text-faint">
+                    <span className="mt-0.5 block truncate text-[12px] text-faint pointer-coarse:text-[13px]">
                       {hit.snippet}
                     </span>
                   )}

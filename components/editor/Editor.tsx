@@ -15,6 +15,7 @@ import { createSlashExtension, type SlashHandlers, type SlashItem } from './exte
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
 import { SlashMenu, type SlashMenuState } from './SlashMenu'
 import { FormatMenu } from './FormatMenu'
+import { MobileToolbar } from './MobileToolbar'
 import { TableMenu } from './TableMenu'
 import { openDoc, type DocHandle } from '@/lib/db/ydoc'
 import { useDocReady } from '@/lib/db/hooks'
@@ -22,6 +23,7 @@ import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
 import { resolveLink } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
+import { useCoarsePointer } from '@/lib/util/pointer'
 
 export function Editor({ pageId }: { pageId: string }) {
   // Keyed, so switching pages remounts with fresh state instead of clearing the
@@ -51,8 +53,8 @@ function Loader({ pageId }: { pageId: string }) {
   if (!ready) {
     return (
       <div className="px-2 py-16 text-center">
-        <p className="text-[13.5px] text-muted">Fetching this page…</p>
-        <p className="mt-1 text-[12.5px] text-faint">
+        <p className="text-[13.5px] text-muted pointer-coarse:text-[15px]">Fetching this page…</p>
+        <p className="mt-1 text-[12.5px] text-faint pointer-coarse:text-[13.5px]">
           It was written on another device and hasn&rsquo;t reached this one yet.
         </p>
       </div>
@@ -68,6 +70,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
   // Stable across renders, so the click handler below can be captured once
   // when the editor is built without going stale.
   const [, openPage] = useOpenPageId()
+  const coarse = useCoarsePointer()
   const [slash, setSlash] = useState<SlashMenuState | null>(null)
   const slashRef = useRef<{ items: SlashItem[]; index: number; command: (item: SlashItem) => void }>({
     items: [],
@@ -234,7 +237,10 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
   return (
     <>
       <EditorContent editor={editor} />
-      <FormatMenu editor={editor} />
+      {/* A floating bubble is the desktop's way to format; on a phone it sits
+          where the system's own copy and paste callout does, so touch screens
+          get a bar on top of the keyboard instead. */}
+      {coarse ? <MobileToolbar editor={editor} /> : <FormatMenu editor={editor} />}
       <TableMenu editor={editor} />
       {slash && (
         <SlashMenu
