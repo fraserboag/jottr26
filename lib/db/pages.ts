@@ -25,12 +25,14 @@ export async function siblingsOf(parentId: string): Promise<PageRow[]> {
 export const bySortKey = (a: PageRow, b: PageRow) =>
   a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : a.id < b.id ? -1 : 1
 
-export async function createPage(options: { parentId?: string; title?: string } = {}) {
+/** `id` is for callers that have to point at the page before it exists, like a
+ *  link written into the open document before this write has finished. */
+export async function createPage(options: { id?: string; parentId?: string; title?: string } = {}) {
   const parentId = options.parentId ?? ''
   const siblings = await siblingsOf(parentId)
   const last = siblings.at(-1)
   const now = Date.now()
-  const id = newId()
+  const id = options.id ?? newId()
 
   const page: PageRow = {
     id,

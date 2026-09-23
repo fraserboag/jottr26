@@ -8,6 +8,7 @@ import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { LinkPicker } from './LinkPicker'
 import { TableControls, useTableState } from './TableMenu'
+import { linkToNewSubpage } from './subpageLink'
 
 /** The format menu for touch screens: the same actions as the bubble, on a bar
  *  that sits on top of the keyboard for as long as the page is being edited.
@@ -21,7 +22,15 @@ import { TableControls, useTableState } from './TableMenu'
  *  The / block menu opens on the bar too, as `blocks`. Pinned to the caret it
  *  had a few hundred pixels between the keyboard and the top of the screen to
  *  find room in, and usually ended up half behind the keys. */
-export function MobileToolbar({ editor, blocks }: { editor: Editor; blocks?: ReactNode }) {
+export function MobileToolbar({
+  editor,
+  pageId,
+  blocks,
+}: {
+  editor: Editor
+  pageId: string
+  blocks?: ReactNode
+}) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const { userId } = useWorkspace()
@@ -253,6 +262,14 @@ export function MobileToolbar({ editor, blocks }: { editor: Editor; blocks?: Rea
                   setLinkValue(editor.getAttributes('link').href ?? '')
                   setLinkOpen(true)
                 }}
+              />
+              <ToolButton
+                icon="filePlus"
+                label="Link to a new subpage"
+                // The new page takes its title from the selection, so there has
+                // to be one.
+                disabled={!state.selected}
+                onClick={() => linkToNewSubpage(editor, pageId)}
               />
               <span className="mx-1 h-7 w-px shrink-0 bg-line" />
               <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />

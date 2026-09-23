@@ -9,8 +9,9 @@ import { ToolButton } from '@/components/ui/ToolButton'
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { LinkPicker } from './LinkPicker'
+import { linkToNewSubpage } from './subpageLink'
 
-export function FormatMenu({ editor }: { editor: Editor }) {
+export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   // The picker searches the same local page list the sidebar reads, so
@@ -83,6 +84,7 @@ export function FormatMenu({ editor }: { editor: Editor }) {
               setLinkOpen(true)
             }}
           />
+          <ToolButton icon="filePlus" label="Link to a new subpage" onClick={() => linkToNewSubpage(editor, pageId)} />
           <span className="mx-1 h-6 w-px bg-line" />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />

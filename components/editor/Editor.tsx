@@ -268,6 +268,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
       {coarse ? (
         <MobileToolbar
           editor={editor}
+          pageId={pageId}
           blocks={
             slash && (
               <SlashList
@@ -281,7 +282,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         />
       ) : (
         <>
-          <FormatMenu editor={editor} />
+          <FormatMenu editor={editor} pageId={pageId} />
           <TableMenu editor={editor} />
           {slash && <SlashMenu state={slash} onSelect={pick} onHover={hover} />}
         </>
