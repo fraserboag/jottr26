@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 import { Popover } from "@/components/ui/Popover";
 import { useWorkspace } from "./WorkspaceProvider";
 import { SyncOverlay } from "./SyncOverlay";
@@ -54,7 +55,7 @@ export function SyncIndicator() {
     <>
       <Popover
         side="right"
-        width={104}
+        width={122}
         role="dialog"
         shadow="soft"
         className="rounded-md! p-0.5!"
@@ -80,8 +81,9 @@ export function SyncIndicator() {
               close();
               void startSync(status.phase === "error");
             }}
-            className="flex h-[26px] w-full items-center justify-center whitespace-nowrap rounded-[5px] px-2 text-[13px] font-medium text-ink transition-colors hover:bg-[var(--hover)] pointer-coarse:h-[30px] pointer-coarse:text-[14px]"
+            className="flex h-[26px] w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-[5px] px-2 text-[13px] font-medium text-ink transition-colors hover:bg-[var(--hover)] pointer-coarse:h-[30px] pointer-coarse:text-[14px]"
           >
+            <Icon name="refresh" size={13} />
             Force sync
           </button>
         )}
