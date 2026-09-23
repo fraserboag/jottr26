@@ -92,6 +92,19 @@ body {
   }
 }
 
+/* Body text in the editor, and the size you type in anywhere else, such as
+   the search bar. It is also the unit the gap under the title is measured in. */
+:root {
+  --body-size: 16px;
+}
+
+/* The size Apple Notes sets its body in. */
+@media (pointer: coarse) {
+  :root {
+    --body-size: 17px;
+  }
+}
+
 ::selection {
   background: var(--accent-soft);
 }
@@ -138,21 +151,12 @@ body {
    Editor
    --------------------------------------------------------------------------- */
 .ProseMirror {
-  /* Body text, and the unit the gap under the title is measured in. */
-  --body-size: 16px;
   outline: none;
   color: var(--text);
   font-size: var(--body-size);
   line-height: 1.7;
   padding-bottom: 40vh; /* Room to keep the caret away from the bottom edge. */
   word-break: break-word;
-}
-
-/* The size Apple Notes sets its body in. */
-@media (pointer: coarse) {
-  .ProseMirror {
-    --body-size: 17px;
-  }
 }
 
 .ProseMirror > * + * {

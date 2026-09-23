@@ -45,12 +45,12 @@ export function QuickSearch({
     onClose()
   }
 
-  // The middle row is the height of the search bar plus four plain results
-  // (1lh + 1rem each), so that block sits dead centre and the bar stays put
+  // The middle row is the height of the search bar (a --body-size line plus
+  // 2.5rem of padding) and four plain results (1lh + 1rem each), so that block sits dead centre and the bar stays put
   // however many results come back; longer lists grow down into the last row.
   return (
     <div
-      className="fixed inset-0 z-50 grid grid-rows-[1fr_calc(5lh_+_6.25rem_+_3px)_1fr] justify-items-center px-4 py-4"
+      className="fixed inset-0 z-50 grid grid-rows-[1fr_calc(4lh_+_var(--body-size)_*_1.6_+_7.25rem_+_3px)_1fr] justify-items-center px-4 py-4"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -63,7 +63,7 @@ export function QuickSearch({
         aria-label="Search pages"
         className="relative row-[2/4] flex max-h-full w-full self-start max-w-[540px] flex-col overflow-hidden rounded-2xl border border-line bg-raised shadow-[var(--shadow-pop)]"
       >
-        <div className={`flex items-center gap-2.5 px-4 py-3 ${typing ? 'border-b border-line' : ''}`}>
+        <div className={`flex items-center gap-2.5 px-5 py-4 ${typing ? 'border-b border-line' : ''}`}>
           <Icon name="search" size={16} className="text-faint" />
           <input
             ref={inputRef}
@@ -85,7 +85,7 @@ export function QuickSearch({
               }
             }}
             placeholder="Search your pages"
-            className="w-full bg-transparent outline-none placeholder:text-faint"
+            className="w-full bg-transparent py-1 text-[length:var(--body-size)] outline-none placeholder:text-faint"
             aria-label="Search pages"
           />
           <kbd className="rounded border border-line px-1.5 py-0.5 text-[11px] text-faint pointer-coarse:hidden">esc</kbd>
