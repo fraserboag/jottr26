@@ -407,11 +407,10 @@ body {
    typed in, selected or deleted, and it never reaches the CRDT. */
 .ProseMirror tr.finance-total > td {
   background: var(--surface-sunken);
-  /* Stacked against the bottom border of the row above, which separate borders
-     no longer merge with, this reads as the 2px rule it used to be. */
-  border-top: 1px solid var(--line-strong);
+  /* The row above keeps its bottom border, so that single line is the rule.
+     A summary of the rows, so a step quieter than them. */
   font-weight: 620;
-  color: var(--text);
+  color: var(--text-muted);
   user-select: none;
 }
 
