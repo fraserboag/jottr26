@@ -75,8 +75,8 @@ export function Sidebar({
         >
           {(close) => (
             <>
-              <p className="truncate px-2.5 pb-1.5 pt-1 text-[13px] text-faint pointer-coarse:text-[14px]">
-                {session?.user.email}
+              <p className="truncate px-2.5 pb-1.5 pt-1 text-ink">
+                Signed in as {session?.user.email}
               </p>
               <MenuSeparator />
               <MenuItem
