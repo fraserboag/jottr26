@@ -94,8 +94,9 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
 
   // The browser keeps the caret above the keyboard, not above the bar, so the
   // line being typed on would otherwise slide under it at the foot of the
-  // screen. Only a caret just behind the bar is nudged: one that is further
-  // off was scrolled away from on purpose.
+  // screen. It is lifted a little further than just clear, so some blank page
+  // shows below the line. Only a caret just behind the bar is nudged: one
+  // that is further off was scrolled away from on purpose.
   useEffect(() => {
     if (!visible) return
     let frame = 0
@@ -109,7 +110,7 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
       } catch {
         return
       }
-      const overlap = caret.bottom - (bar.getBoundingClientRect().top - 12)
+      const overlap = caret.bottom - (bar.getBoundingClientRect().top - 40)
       if (overlap <= 0 || overlap > 240) return
       scrollParent(editor.view.dom)?.scrollBy({ top: overlap })
     }
