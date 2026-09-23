@@ -76,7 +76,7 @@ export function Sidebar({
         >
           {(close) => (
             <>
-              <p className="px-2.5 pb-1.5 pt-1 text-ink [overflow-wrap:anywhere]">
+              <p className="px-2.5 py-1.5 text-ink [overflow-wrap:anywhere] pointer-coarse:py-2.5">
                 Signed in as {session?.user.email}
               </p>
               <MenuSeparator />
