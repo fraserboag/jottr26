@@ -4,7 +4,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-surface px-5 py-16">
       <SignedInRedirect />
-      <main className="w-full max-w-[34rem] text-center">
+      <main className="w-full max-w-[34rem]">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           A notes app with the quality of life features of Notion, and none of the bloat. Jottr is
