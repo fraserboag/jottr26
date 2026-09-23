@@ -45,9 +45,12 @@ export function QuickSearch({
     onClose()
   }
 
+  // The middle row is the height of the search bar plus four plain results
+  // (1lh + 1rem each), so that block sits dead centre and the bar stays put
+  // however many results come back; longer lists grow down into the last row.
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 grid grid-rows-[1fr_calc(5lh_+_6.25rem_+_3px)_1fr] justify-items-center px-4 py-4"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -58,7 +61,7 @@ export function QuickSearch({
         role="dialog"
         aria-modal="true"
         aria-label="Search pages"
-        className="relative flex max-h-[68vh] w-full max-w-[540px] flex-col overflow-hidden rounded-2xl border border-line bg-raised shadow-[var(--shadow-pop)]"
+        className="relative row-[2/4] flex max-h-full w-full self-start max-w-[540px] flex-col overflow-hidden rounded-2xl border border-line bg-raised shadow-[var(--shadow-pop)]"
       >
         <div className={`flex items-center gap-2.5 px-4 py-3 ${typing ? 'border-b border-line' : ''}`}>
           <Icon name="search" size={16} className="text-faint" />
