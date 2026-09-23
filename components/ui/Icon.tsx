@@ -8,7 +8,6 @@ const paths = {
   plus: 'M12 5v14M5 12h14',
   chevronRight: 'm9 6 6 6-6 6',
   chevronDown: 'm6 9 6 6 6-6',
-  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35',
   trash: 'M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   check: 'm5 13 4 4L19 7',

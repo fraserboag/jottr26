@@ -17,13 +17,11 @@ export function Sidebar({
   pages,
   openId,
   onOpen,
-  onOpenSearch,
   onOpenTrash,
 }: {
   pages: PageRow[]
   openId: string | null
   onOpen: (id: string | null) => void
-  onOpenSearch: () => void
   onOpenTrash: () => void
 }) {
   const { session, signOut, status } = useWorkspace()
@@ -144,7 +142,6 @@ export function Sidebar({
       </nav>
 
       <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-        <SidebarAction icon="search" label="Search" shortcut="⌘K" onClick={onOpenSearch} />
         <SidebarAction icon="trash" label="Trash" onClick={onOpenTrash} />
       </footer>
     </div>
@@ -180,12 +177,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function SidebarAction({
   icon,
   label,
-  shortcut,
   onClick,
 }: {
   icon: IconName
   label: string
-  shortcut?: string
   onClick: () => void
 }) {
   return (
@@ -196,7 +191,6 @@ function SidebarAction({
     >
       <Icon name={icon} size={16} className="text-faint" />
       <span className="flex-1 text-left">{label}</span>
-      {shortcut && <span className="text-[12px] text-faint pointer-coarse:hidden">{shortcut}</span>}
     </button>
   )
 }

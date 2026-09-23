@@ -13,8 +13,8 @@ import { LinkPicker } from './LinkPicker'
 export function FormatMenu({ editor }: { editor: Editor }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
-  // The picker searches the same local page list the sidebar and quick search
-  // read, so linking to a note works offline like everything else here.
+  // The picker searches the same local page list the sidebar reads, so
+  // linking to a note works offline like everything else here.
   const { userId } = useWorkspace()
   const pages = useAllPages(userId)
 

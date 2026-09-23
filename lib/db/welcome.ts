@@ -60,7 +60,6 @@ export async function ensureWelcomePage(): Promise<string | null> {
       el('paragraph', "Press / on an empty line to insert a list, a callout or a code block. Select any text to format it."),
       bulletList([
         'Markdown shortcuts work: - for a bullet, 1. for a numbered list, ``` for a code block.',
-        'Cmd/Ctrl + K opens search. It looks inside your pages, not just their titles.',
         'Drag a page in the sidebar to reorder it, or drop it on another to nest it.',
       ]),
       boldParagraph('Syncing'),

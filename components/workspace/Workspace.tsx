@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Sidebar } from './Sidebar'
-import { QuickSearch } from './QuickSearch'
 import { TrashPanel } from './TrashPanel'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
@@ -40,7 +39,7 @@ export function Workspace() {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [dragging, setDragging] = useState(false)
   const drag = useRef<{ x: number; width: number } | null>(null)
-  const [overlay, setOverlay] = useState<'search' | 'trash' | null>(null)
+  const [overlay, setOverlay] = useState<'trash' | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 880px)')
@@ -69,17 +68,6 @@ export function Workspace() {
     apply()
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
-  }, [])
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        setOverlay((current) => (current === 'search' ? null : 'search'))
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   // A brand new account gets one page to land on rather than an empty screen.
@@ -193,7 +181,6 @@ export function Workspace() {
             pages={pages}
             openId={openId}
             onOpen={openPage}
-            onOpenSearch={() => setOverlay('search')}
             onOpenTrash={() => setOverlay('trash')}
           />
         </div>
@@ -268,9 +255,6 @@ export function Workspace() {
         )}
       </main>
 
-      {overlay === 'search' && (
-        <QuickSearch pages={pages} onOpen={openPage} onClose={() => setOverlay(null)} />
-      )}
       {overlay === 'trash' && <TrashPanel onClose={() => setOverlay(null)} />}
     </div>
   )

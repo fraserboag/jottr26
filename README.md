@@ -165,8 +165,6 @@ Deliberate, and worth stating plainly.
   offline devices move the same page, the one that syncs second wins. Titles are
   exempt; they live in the CRDT and merge. In practice this needs two devices to
   reorganise the same page while both are offline.
-- **Search covers pages this device has opened.** The searchable text is derived
-  locally from documents that have been loaded or pulled; it is never uploaded.
 - **No images or file attachments**, no tables, no databases, no templates.
 - **Trash is manual.** Deleted pages stay until you empty the trash.
 
@@ -181,7 +179,7 @@ app/                      Routes. All static; the workspace is client-rendered.
   manifest.ts             PWA manifest
 components/
   editor/                 Tiptap: title node, slash menu, format bubble
-  workspace/              Sidebar, page tree, search, trash, sync indicator
+  workspace/              Sidebar, page tree, trash, sync indicator
 lib/
   db/                     Dexie schema, Y.Doc registry, page mutations
   sync/                   The sync engine

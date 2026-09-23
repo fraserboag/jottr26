@@ -94,7 +94,7 @@ body {
 }
 
 /* Body text in the editor, and the size you type in anywhere else, such as
-   the search bar. It is also the unit the gap under the title is measured in. */
+   the link field. It is also the unit the gap under the title is measured in. */
 :root {
   --body-size: 16px;
   /* Lines within a list item sit a touch closer than lines of a paragraph,
