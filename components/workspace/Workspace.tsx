@@ -251,8 +251,8 @@ export function Workspace() {
             <div
               className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
                 wide
-                  ? 'pt-16'
-                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+3rem)]'
+                  ? 'pt-28'
+                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
               }`}
             >
               {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
