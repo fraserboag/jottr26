@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     'A fast, private notebook. Your pages are stored on your device and synced to your account, so writing never waits for the network.',
   applicationName: 'Jottr',
-  appleWebApp: { capable: true, title: 'Jottr', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Jottr', statusBarStyle: 'black-translucent' },
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
@@ -19,6 +19,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: '#ffffff',
+  colorScheme: 'light',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

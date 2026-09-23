@@ -5,7 +5,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-dvh bg-surface">
       <SignedInRedirect />
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
+      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8">
         <div className="flex items-center gap-2.5">
           <Logo className="size-7" />
           <span className="text-[15px] font-semibold text-ink">Jottr</span>
