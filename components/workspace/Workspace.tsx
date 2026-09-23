@@ -248,11 +248,15 @@ export function Workspace() {
                 the sidebar being hidden: there the sidebar is a drawer over the
                 page, and keying on it would shuffle the page up and down as the
                 drawer opened and closed. */}
+            {/* Keyed on the page so the slide replays on every navigation. The
+                editor underneath already remounts per page, so this costs
+                nothing more than it did. */}
             <div
+              key={page.id}
               className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
                 wide
                   ? 'pt-28'
-                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
+                  : 'page-enter pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
               }`}
             >
               {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}

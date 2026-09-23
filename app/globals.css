@@ -535,6 +535,19 @@ body {
   background: none;
 }
 
+/* A phone shows one page at a time, so a new one slides in from the right to
+   say the screen changed rather than just swapping the text in place. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    translate: 24px 0;
+  }
+}
+
+.page-enter {
+  animation: page-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
