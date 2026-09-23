@@ -152,7 +152,8 @@ function Row({
         <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           <Popover
             width={208}
-            trigger={({ toggle, ref }) => (
+            align="end"
+            trigger={({ open, toggle, ref }) => (
               <button
                 type="button"
                 ref={ref}
@@ -161,7 +162,9 @@ function Row({
                   event.stopPropagation()
                   toggle()
                 }}
-                className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
+                className={`grid size-6 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:[&_svg]:size-5 ${
+                  open ? 'bg-[var(--active)] text-muted' : 'text-faint pointer-coarse:text-muted'
+                }`}
               >
                 <Icon name="more" size={16} strokeWidth={2.4} />
               </button>
