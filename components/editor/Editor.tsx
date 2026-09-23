@@ -243,8 +243,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
       {/* A floating bubble is the desktop's way to format; on a phone it sits
           where the system's own copy and paste callout does, so touch screens
           get a bar on top of the keyboard instead. */}
-      {coarse ? <MobileToolbar editor={editor} /> : <FormatMenu editor={editor} />}
-      <TableMenu editor={editor} />
+      {coarse ? (
+        <MobileToolbar editor={editor} />
+      ) : (
+        <>
+          <FormatMenu editor={editor} />
+          <TableMenu editor={editor} />
+        </>
+      )}
       {slash && (
         <SlashMenu
           state={slash}

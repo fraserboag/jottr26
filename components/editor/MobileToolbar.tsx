@@ -7,6 +7,7 @@ import { ToolButton } from '@/components/ui/ToolButton'
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { LinkPicker } from './LinkPicker'
+import { TableControls, useTableState } from './TableMenu'
 
 /** The format menu for touch screens: the same actions as the bubble, on a bar
  *  that sits on top of the keyboard for as long as the page is being edited.
@@ -22,6 +23,7 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
   const { userId } = useWorkspace()
   const pages = useAllPages(userId)
   const barRef = useRef<HTMLDivElement>(null)
+  const table = useTableState(editor)
 
   const state = useEditorState({
     editor,
@@ -178,27 +180,41 @@ export function MobileToolbar({ editor }: { editor: Editor }) {
           <ToolButton icon="x" label="Close" onClick={closeLink} />
         </div>
       ) : (
-        <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 [scrollbar-width:none]">
-          <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-          <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-          <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
-          <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
-          <ToolButton
-            icon="link"
-            label="Link"
-            active={state.link}
-            // A link needs some text to sit on: either a selection, or the
-            // link the caret is already inside.
-            disabled={!state.selected && !state.link}
-            onClick={() => {
-              setLinkValue(editor.getAttributes('link').href ?? '')
-              setLinkOpen(true)
-            }}
-          />
-          <span className="mx-1 h-7 w-px shrink-0 bg-line" />
-          <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-          <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-        </div>
+        <>
+          {/* Inside a table its controls get a row of their own above the
+              formatting, rather than a bubble over the grid that the keyboard,
+              the system callout and the caret all compete with. */}
+          {table && (
+            <div
+              role="group"
+              aria-label="Table"
+              className="flex items-center gap-1 overflow-x-auto border-b border-line px-2 py-1 [scrollbar-width:none]"
+            >
+              <TableControls editor={editor} state={table} />
+            </div>
+          )}
+          <div className="flex items-center gap-1 overflow-x-auto px-2 py-1 [scrollbar-width:none]">
+            <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+            <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+            <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
+            <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
+            <ToolButton
+              icon="link"
+              label="Link"
+              active={state.link}
+              // A link needs some text to sit on: either a selection, or the
+              // link the caret is already inside.
+              disabled={!state.selected && !state.link}
+              onClick={() => {
+                setLinkValue(editor.getAttributes('link').href ?? '')
+                setLinkOpen(true)
+              }}
+            />
+            <span className="mx-1 h-7 w-px shrink-0 bg-line" />
+            <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+            <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+          </div>
+        </>
       )}
     </div>
   )

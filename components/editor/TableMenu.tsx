@@ -25,9 +25,7 @@ function tableElement(editor: Editor): HTMLElement | null {
   return null
 }
 
-/** A toolbar for resizing a table while the caret is inside it. The `+` buttons
- *  insert after the row or column the caret is in — which, in the last one, is
- *  the same as appending — and `−` removes it.
+/** What the table controls show, or null while the caret is outside a table.
  *
  *  `editor.can().deleteRow()` cannot drive the disabled state: prosemirror-tables
  *  puts its "would this empty the table?" guard behind the dispatch, so the dry
@@ -37,8 +35,8 @@ function tableElement(editor: Editor): HTMLElement | null {
  *  The header toggle is read off the top row for the same reason: it always
  *  acts on row 0 whatever cell the caret is in, so `isActive('tableHeader')`
  *  would light the button only while you happened to be standing in a header. */
-export function TableMenu({ editor }: { editor: Editor }) {
-  const state = useEditorState({
+export function useTableState(editor: Editor) {
+  return useEditorState({
     editor,
     selector: ({ editor: instance }) => {
       if (!instance.isActive('table') || !isInTable(instance.state)) return null
@@ -55,6 +53,72 @@ export function TableMenu({ editor }: { editor: Editor }) {
       }
     },
   })
+}
+
+type TableState = NonNullable<ReturnType<typeof useTableState>>
+
+/** The buttons for resizing a table while the caret is inside it. The `+`
+ *  buttons insert after the row or column the caret is in — which, in the last
+ *  one, is the same as appending — and `−` removes it. Shared by the bubble on
+ *  desktop and the keyboard bar on touch screens. */
+export function TableControls({ editor, state }: { editor: Editor; state: TableState }) {
+  return (
+    <>
+      <span className="px-1.5 text-[13px] tabular-nums text-faint pointer-coarse:text-[14px] shrink-0 whitespace-nowrap">
+        {state.rows} × {state.cols}
+      </span>
+      <span className="mx-1 h-6 w-px shrink-0 bg-line" />
+      <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Rows</span>
+      <ToolButton
+        icon="minus"
+        label="Delete this row"
+        disabled={!state.canDeleteRow}
+        onClick={() => editor.chain().focus().deleteRow().run()}
+      />
+      <ToolButton
+        icon="plus"
+        label="Add a row below"
+        onClick={() => editor.chain().focus().addRowAfter().run()}
+      />
+      <span className="mx-1 h-6 w-px shrink-0 bg-line" />
+      <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Cols</span>
+      <ToolButton
+        icon="minus"
+        label="Delete this column"
+        disabled={!state.canDeleteColumn}
+        onClick={() => editor.chain().focus().deleteColumn().run()}
+      />
+      <ToolButton
+        icon="plus"
+        label="Add a column to the right"
+        onClick={() => editor.chain().focus().addColumnAfter().run()}
+      />
+      <span className="mx-1 h-6 w-px shrink-0 bg-line" />
+      <ToolButton
+        icon="pound"
+        label="Finance mode: format as money and total each column"
+        active={state.finance}
+        onClick={() => editor.chain().focus().toggleFinance().run()}
+      />
+      <ToolButton
+        icon="tableHeader"
+        label="Header row"
+        active={state.headerRow}
+        onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+      />
+      <ToolButton
+        icon="trash"
+        label="Delete table"
+        onClick={() => editor.chain().focus().deleteTable().run()}
+      />
+    </>
+  )
+}
+
+/** The table controls as a bubble over the table, for desktop. Touch screens
+ *  put the same controls on the keyboard bar instead. */
+export function TableMenu({ editor }: { editor: Editor }) {
+  const state = useTableState(editor)
 
   return (
     <BubbleMenu
@@ -72,65 +136,9 @@ export function TableMenu({ editor }: { editor: Editor }) {
       // `shouldShow` runs on the transaction; the selector below lands a render
       // later, so the chrome is tied to the contents to keep an empty pill from
       // flashing in the gap.
-      className={
-        state
-          ? // Wider than a phone once its buttons are finger sized, so there it
-            // scrolls sideways rather than running off the screen.
-            'flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pointer-coarse:max-w-[calc(100vw-1rem)] pointer-coarse:overflow-x-auto pointer-coarse:[scrollbar-width:none]'
-          : ''
-      }
+      className={state ? 'flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)]' : ''}
     >
-      {state && (
-        <>
-          <span className="px-1.5 text-[13px] tabular-nums text-faint pointer-coarse:text-[14px] shrink-0 whitespace-nowrap">
-            {state.rows} × {state.cols}
-          </span>
-          <span className="mx-1 h-6 w-px shrink-0 bg-line" />
-          <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Rows</span>
-          <ToolButton
-            icon="minus"
-            label="Delete this row"
-            disabled={!state.canDeleteRow}
-            onClick={() => editor.chain().focus().deleteRow().run()}
-          />
-          <ToolButton
-            icon="plus"
-            label="Add a row below"
-            onClick={() => editor.chain().focus().addRowAfter().run()}
-          />
-          <span className="mx-1 h-6 w-px shrink-0 bg-line" />
-          <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Cols</span>
-          <ToolButton
-            icon="minus"
-            label="Delete this column"
-            disabled={!state.canDeleteColumn}
-            onClick={() => editor.chain().focus().deleteColumn().run()}
-          />
-          <ToolButton
-            icon="plus"
-            label="Add a column to the right"
-            onClick={() => editor.chain().focus().addColumnAfter().run()}
-          />
-          <span className="mx-1 h-6 w-px shrink-0 bg-line" />
-          <ToolButton
-            icon="pound"
-            label="Finance mode: format as money and total each column"
-            active={state.finance}
-            onClick={() => editor.chain().focus().toggleFinance().run()}
-          />
-          <ToolButton
-            icon="tableHeader"
-            label="Header row"
-            active={state.headerRow}
-            onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-          />
-          <ToolButton
-            icon="trash"
-            label="Delete table"
-            onClick={() => editor.chain().focus().deleteTable().run()}
-          />
-        </>
-      )}
+      {state && <TableControls editor={editor} state={state} />}
     </BubbleMenu>
   )
 }
