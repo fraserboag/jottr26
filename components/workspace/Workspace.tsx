@@ -257,9 +257,9 @@ export function Workspace() {
             type="button"
             onClick={() => setSidebar(true)}
             aria-label="Show sidebar"
-            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
+            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-8 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
           >
-            <Icon name="panel" size={16} className="pointer-coarse:size-[18px]" />
+            <Icon name="panel" size={18} />
           </button>
         )}
 
@@ -331,19 +331,19 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="grid size-11 place-items-center rounded-xl border border-line bg-sunken text-faint">
-        <Icon name="file" size={20} />
+      <div className="grid size-12 place-items-center rounded-xl border border-line bg-sunken text-faint">
+        <Icon name="file" size={22} />
       </div>
-      <h2 className="mt-4 text-[15px] font-semibold text-ink">No page open</h2>
-      <p className="mt-1 max-w-[30ch] text-[13.5px] leading-relaxed text-muted pointer-coarse:text-[15px]">
+      <h2 className="mt-4 text-[16.5px] font-semibold text-ink pointer-coarse:text-[17.5px]">No page open</h2>
+      <p className="mt-1 max-w-[30ch] text-[14.5px] leading-relaxed text-muted pointer-coarse:text-[16px]">
         Pick something from the sidebar, or start a new page.
       </p>
       <button
         type="button"
         onClick={onCreate}
-        className="mt-5 flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13.5px] font-medium text-accent-contrast transition-opacity hover:opacity-90"
+        className="mt-5 flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[14.5px] font-medium text-accent-contrast transition-opacity hover:opacity-90 pointer-coarse:py-2.5 pointer-coarse:text-[16px]"
       >
-        <Icon name="plus" size={15} strokeWidth={2.2} />
+        <Icon name="plus" size={16} strokeWidth={2.2} />
         New page
       </button>
     </div>

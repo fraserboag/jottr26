@@ -75,11 +75,11 @@ export function SyncIndicator() {
           title={summary}
           aria-expanded={open}
           aria-label={`Sync status: ${visual.label}`}
-          className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9 ${visual.tone}`}
+          className={`grid size-8 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9 ${visual.tone}`}
         >
           <Icon
             name={visual.icon}
-            size={15}
+            size={17}
             className={`pointer-coarse:size-[19px] ${saving ? "animate-spin" : ""}`}
           />
         </button>

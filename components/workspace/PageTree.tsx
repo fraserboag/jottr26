@@ -130,7 +130,7 @@ function Row({
           }`}
           tabIndex={hasChildren ? 0 : -1}
         >
-          <Icon name={isExpanded ? 'chevronDown' : 'chevronRight'} size={13} strokeWidth={2} />
+          <Icon name={isExpanded ? 'chevronDown' : 'chevronRight'} size={14} strokeWidth={2} />
         </button>
 
         <button
@@ -139,7 +139,7 @@ function Row({
           className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
         >
           <span className="w-4 shrink-0 text-center text-[13px] leading-none">
-            <Icon name="file" size={14} className="text-faint" />
+            <Icon name="file" size={15} className="text-faint" />
           </span>
           <span
             className={`truncate text-[14.5px] pointer-coarse:text-[16px] ${isOpen ? 'font-medium text-ink' : 'text-muted'}`}
@@ -163,7 +163,7 @@ function Row({
                 }}
                 className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
               >
-                <Icon name="more" size={14} strokeWidth={2.4} />
+                <Icon name="more" size={15} strokeWidth={2.4} />
               </button>
             )}
           >
@@ -196,7 +196,7 @@ function Row({
             }}
             className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
           >
-            <Icon name="plus" size={14} strokeWidth={2.2} />
+            <Icon name="plus" size={15} strokeWidth={2.2} />
           </button>
         </div>
       </div>

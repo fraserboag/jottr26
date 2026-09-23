@@ -69,11 +69,11 @@ export function Sidebar({
               onClick={toggle}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
             >
-              <Logo className="size-6 pointer-coarse:size-7" />
+              <Logo className="size-[26px] pointer-coarse:size-7" />
               <span className="min-w-0 flex-1 truncate text-left text-[14.5px] font-semibold text-ink pointer-coarse:text-[16px]">
                 Jottr
               </span>
-              <Icon name="chevronDown" size={13} className="text-faint pointer-coarse:size-[15px]" strokeWidth={2} />
+              <Icon name="chevronDown" size={14} className="text-faint pointer-coarse:size-[15px]" strokeWidth={2} />
             </button>
           )}
         >
@@ -113,9 +113,9 @@ export function Sidebar({
           type="button"
           onClick={onCollapse}
           aria-label="Hide sidebar"
-          className="grid size-7 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9"
+          className="grid size-8 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9"
         >
-          <Icon name="panel" size={16} className="pointer-coarse:size-5" />
+          <Icon name="panel" size={18} className="pointer-coarse:size-5" />
         </button>
       </header>
 
@@ -174,7 +174,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
       className="flex w-full items-center gap-1.5 rounded-md py-1 pl-7 pr-1 pointer-coarse:pl-9 text-[14px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2 pointer-coarse:text-[16px]"
     >
       <span className="w-4 shrink-0">
-        <Icon name="plus" size={14} strokeWidth={2} />
+        <Icon name="plus" size={15} strokeWidth={2} />
       </span>
       <span className="flex-1 text-left">Add new</span>
     </button>
@@ -206,7 +206,7 @@ function SidebarAction({
       onClick={onClick}
       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[14.5px] text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2.5 pointer-coarse:text-[16px]"
     >
-      <Icon name={icon} size={15} className="text-faint" />
+      <Icon name={icon} size={16} className="text-faint" />
       <span className="flex-1 text-left">{label}</span>
       {shortcut && <span className="text-[12px] text-faint pointer-coarse:hidden">{shortcut}</span>}
     </button>
