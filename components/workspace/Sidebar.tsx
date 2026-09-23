@@ -9,6 +9,7 @@ import { SyncIndicator } from './SyncIndicator'
 import { useWorkspace } from './WorkspaceProvider'
 import { buildTree, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
+import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { PageRow } from '@/lib/db/schema'
 
 const EXPANDED_KEY = 'jottr.expanded'
@@ -146,7 +147,12 @@ export function Sidebar({
             onToggleExpand={toggleExpand}
           />
         )}
-        <AddPage onClick={() => void createPage().then(onOpen)} />
+        <AddPage
+          onClick={() => {
+            raiseKeyboard()
+            void createPage().then(onOpen)
+          }}
+        />
       </nav>
 
       <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">

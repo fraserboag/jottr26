@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { MenuItem, Popover } from '@/components/ui/Popover'
 import { createPage, dropRelative, trashPage, type DropZone } from '@/lib/db/pages'
+import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { TreeNode } from '@/lib/db/hooks'
 
 interface TreeProps {
@@ -187,6 +188,7 @@ function Row({
             aria-label="Add a subpage"
             onClick={(event) => {
               event.stopPropagation()
+              raiseKeyboard()
               void createPage({ parentId: page.id }).then((id) => {
                 if (!isExpanded) onToggleExpand(page.id)
                 onOpen(id)

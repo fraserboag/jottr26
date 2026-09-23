@@ -9,6 +9,7 @@ import { TrashPanel } from './TrashPanel'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
+import { raiseKeyboard } from '@/lib/util/keyboard'
 import { ensureWelcomePage } from '@/lib/db/welcome'
 import { useOpenPageId, useQuery } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
@@ -286,7 +287,12 @@ export function Workspace() {
                 <Editor pageId={page.id} />
               </>
             ) : (
-              <EmptyState onCreate={() => void createPage().then(openPage)} />
+              <EmptyState
+                onCreate={() => {
+                  raiseKeyboard()
+                  void createPage().then(openPage)
+                }}
+              />
             )}
           </div>
         </div>
