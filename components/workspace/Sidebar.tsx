@@ -58,20 +58,22 @@ export function Sidebar({
   return (
     <div className="flex h-full flex-col bg-sidebar">
       <header className="flex items-center gap-1 px-2 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <span className="mr-auto min-w-0 truncate px-1.5 py-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
+          Jottr
+        </span>
         <Popover
           width="auto"
+          align="end"
           className="min-w-[244px]"
           trigger={({ ref, toggle }) => (
             <button
               type="button"
               ref={ref}
               onClick={toggle}
-              className="mr-auto flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
+              aria-label="Settings"
+              className="grid size-8 place-items-center rounded-md text-muted transition-colors hover:bg-[var(--hover)] hover:text-ink pointer-coarse:size-9"
             >
-              <span className="min-w-0 truncate text-left text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
-                Jottr
-              </span>
-              <Icon name="chevronDown" size={14} className="text-faint pointer-coarse:size-[15px]" strokeWidth={2} />
+              <Icon name="settings" size={18} className="pointer-coarse:size-5" strokeWidth={1.8} />
             </button>
           )}
         >
