@@ -259,7 +259,7 @@ body {
 .ProseMirror div[data-type="callout"] {
   background: var(--surface-sunken);
   border-radius: 8px;
-  padding: 16px 18px;
+  padding: 20px 22px;
   margin: 8px 0;
 }
 .ProseMirror div[data-type="callout"] > :first-child {
