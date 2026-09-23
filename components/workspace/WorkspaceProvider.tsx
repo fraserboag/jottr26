@@ -15,8 +15,12 @@ interface WorkspaceValue {
    *  database is open. Everything downstream can assume storage is ready. */
   ready: boolean
   status: SyncStatus
-  retrySync: () => void
-  syncNow: () => void
+  /** Both resolve once the sync they start has finished, with how it went —
+   *  or null when there is no engine to ask. */
+  retrySync: () => Promise<SyncStatus | null>
+  syncNow: () => Promise<SyncStatus | null>
+  /** Abandons the sync in progress, for a network that never answers. */
+  cancelSync: () => void
   signOut: () => Promise<void>
   /** Unsynced pages, for the confirmation shown before signing out. */
   pendingCount: number
@@ -124,8 +128,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       ready: ready && (!userId || activeDatabase() !== null),
       status,
       pendingCount: status.pending,
-      retrySync: () => engineRef.current?.retryNow(),
-      syncNow: () => engineRef.current?.request(),
+      retrySync: async () => (await engineRef.current?.retryNow()) ?? null,
+      syncNow: async () => (await engineRef.current?.syncNow()) ?? null,
+      cancelSync: () => engineRef.current?.cancelSync(),
       signOut,
     }),
     [session, userId, ready, status, signOut],

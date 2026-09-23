@@ -79,6 +79,12 @@ export class SyncEngine {
   private inFlight = false
   private requeue = false
   private failures = 0
+  /** The sync in progress, so a manual sync can wait for it to finish. */
+  private current: Promise<void> | null = null
+  /** Aborts the requests of the sync in progress. */
+  private runAbort: AbortController | null = null
+  /** Manual syncs waiting for this tab to become the leader. */
+  private leaderWaiters: Array<() => void> = []
 
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -141,6 +147,8 @@ export class SyncEngine {
     this.isLeader = false
     this.lockAbort?.abort()
     this.lockAbort = null
+    this.runAbort?.abort()
+    for (const resolve of this.leaderWaiters.splice(0)) resolve()
     if (this.channel) void this.supabase.removeChannel(this.channel)
     this.channel = null
     this.statusChannel?.close()
@@ -176,13 +184,42 @@ export class SyncEngine {
     await this.run()
   }
 
+  /** The status menu's sync button. Unlike request(), this resolves only once
+   *  a sync that started after the click has finished, and with how it went —
+   *  one already in flight may have begun before the edit that prompted it. */
+  async syncNow(): Promise<SyncStatus> {
+    if (!this.running) return this.status
+
+    // Only the leader talks to the server, and the tab someone is clicking in
+    // is the one that should.
+    if (!this.isLeader) {
+      await new Promise<void>((resolve) => {
+        this.leaderWaiters.push(resolve)
+        void this.electLeader(true)
+      })
+    }
+
+    // A sync that starts in the gap makes run() defer to it, so wait again.
+    do {
+      while (this.current) await this.current
+    } while (!(await this.run()))
+    return this.status
+  }
+
   /** Used by the retry affordance in the status menu. */
   retryNow() {
     this.failures = 0
     if (this.retryTimer) clearTimeout(this.retryTimer)
     this.retryTimer = null
     this.emit({ error: null, retryAt: null })
-    this.request()
+    return this.syncNow()
+  }
+
+  /** Abandons the sync in progress. A request that never answers would
+   *  otherwise hold every later sync behind it. */
+  cancelSync() {
+    this.requeue = false
+    this.runAbort?.abort()
   }
 
   private listen<K extends string>(
@@ -250,6 +287,7 @@ export class SyncEngine {
     this.leaderAttempt = attempt
     this.subscribeRealtime()
     this.request()
+    for (const resolve of this.leaderWaiters.splice(0)) resolve()
   }
 
   private openStatusChannel() {
@@ -323,29 +361,44 @@ export class SyncEngine {
 
   // --- the loop -----------------------------------------------------------
 
+  /** False only when a sync was already in flight and this one was queued
+   *  behind it rather than run. */
   private async run() {
-    if (!this.running || !this.isLeader) return
-    if (!activeDatabase()) return
+    if (!this.running || !this.isLeader) return true
+    if (!activeDatabase()) return true
 
     if (!navigator.onLine) {
       await this.refreshPending({ phase: 'offline' })
-      return
+      return true
     }
 
     if (this.inFlight) {
       this.requeue = true
-      return
+      return false
     }
 
     this.inFlight = true
+    const job = this.cycle()
+    this.current = job
+    try {
+      await job
+    } finally {
+      if (this.current === job) this.current = null
+    }
+    return true
+  }
+
+  private async cycle() {
+    const abort = new AbortController()
+    this.runAbort = abort
     if (this.announceTimer) clearTimeout(this.announceTimer)
     this.announceTimer = setTimeout(() => {
       if (this.inFlight) this.emit({ phase: 'syncing' })
     }, SAVING_ANNOUNCE_MS)
 
     try {
-      await this.pull()
-      await this.push()
+      await this.pull(abort.signal)
+      await this.push(abort.signal)
 
       const now = Date.now()
       await writeMeta(this.db, META_LAST_SYNCED, now)
@@ -357,6 +410,13 @@ export class SyncEngine {
         retryAt: null,
       })
     } catch (error) {
+      if (abort.signal.aborted) {
+        // Cancelled, not failed: no backoff, and whatever did not reach the
+        // server is still marked dirty for the next attempt.
+        await this.refreshPending({ phase: 'synced', error: null, retryAt: null })
+        return
+      }
+
       this.failures += 1
       const message = error instanceof Error ? error.message : 'Sync failed'
 
@@ -373,6 +433,7 @@ export class SyncEngine {
         })
       }
     } finally {
+      if (this.runAbort === abort) this.runAbort = null
       this.inFlight = false
       if (this.announceTimer) clearTimeout(this.announceTimer)
       this.announceTimer = null
@@ -385,12 +446,12 @@ export class SyncEngine {
 
   // --- pull ---------------------------------------------------------------
 
-  private async pull() {
-    await this.pullPages()
-    await this.pullDocs()
+  private async pull(signal: AbortSignal) {
+    await this.pullPages(signal)
+    await this.pullDocs(signal)
   }
 
-  private async pullPages() {
+  private async pullPages(signal: AbortSignal) {
     const cursor = await readMeta<number>(this.db, META_PAGES_CURSOR, 0)
     const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
     let offset = 0
@@ -404,6 +465,7 @@ export class SyncEngine {
         .order('updated_at', { ascending: true })
         .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
+        .abortSignal(signal)
 
       if (error) throw new Error(error.message)
       const rows = (data ?? []) as ServerPage[]
@@ -446,7 +508,7 @@ export class SyncEngine {
     if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
   }
 
-  private async pullDocs() {
+  private async pullDocs(signal: AbortSignal) {
     const cursor = await readMeta<number>(this.db, META_DOCS_CURSOR, 0)
     const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
     let offset = 0
@@ -464,6 +526,7 @@ export class SyncEngine {
         .order('updated_at', { ascending: true })
         .order('page_id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
+        .abortSignal(signal)
 
       if (error) throw new Error(error.message)
       const rows = (data ?? []) as Array<{ page_id: string; version: number; updated_at: string }>
@@ -485,6 +548,7 @@ export class SyncEngine {
         .from('page_docs')
         .select('page_id, ydoc, version')
         .in('page_id', chunk)
+        .abortSignal(signal)
 
       if (error) throw new Error(error.message)
 
@@ -528,28 +592,28 @@ export class SyncEngine {
 
   // --- push ---------------------------------------------------------------
 
-  private async push() {
-    await this.pushPurges()
-    await this.pushPages()
-    await this.pushDocs()
+  private async push(signal: AbortSignal) {
+    await this.pushPurges(signal)
+    await this.pushPages(signal)
+    await this.pushDocs(signal)
   }
 
   /** Permanent deletes queued while offline. Done before anything else so a
    *  purged page is never resurrected by a metadata push that follows it. */
-  private async pushPurges() {
+  private async pushPurges(signal: AbortSignal) {
     const queued = await this.db.purges.toArray()
     if (queued.length === 0) return
 
     for (let i = 0; i < queued.length; i += 100) {
       const batch = queued.slice(i, i + 100)
       const ids = batch.map((row) => row.id)
-      const { error } = await this.supabase.from('pages').delete().in('id', ids)
+      const { error } = await this.supabase.from('pages').delete().in('id', ids).abortSignal(signal)
       if (error) throw new Error(error.message)
       await this.db.purges.bulkDelete(ids)
     }
   }
 
-  private async pushPages() {
+  private async pushPages(signal: AbortSignal) {
     const dirty = await this.db.pages.where('dirty').equals(1).toArray()
     if (dirty.length === 0) return
 
@@ -569,6 +633,7 @@ export class SyncEngine {
         .from('pages')
         .upsert(payload, { onConflict: 'id' })
         .select('id, updated_at')
+        .abortSignal(signal)
 
       if (error) throw new Error(error.message)
 
@@ -593,7 +658,7 @@ export class SyncEngine {
     }
   }
 
-  private async pushDocs() {
+  private async pushDocs(signal: AbortSignal) {
     const dirty = await this.db.docStates.where('dirty').equals(1).toArray()
 
     for (const state of dirty) {
@@ -603,11 +668,13 @@ export class SyncEngine {
         const before = stateVector(state.pageId)
         const bytes = await encodeState(state.pageId)
 
-        const { data, error } = await this.supabase.rpc('push_page_doc', {
-          p_page_id: state.pageId,
-          p_ydoc: bytesToBase64(bytes),
-          p_base_version: base,
-        })
+        const { data, error } = await this.supabase
+          .rpc('push_page_doc', {
+            p_page_id: state.pageId,
+            p_ydoc: bytesToBase64(bytes),
+            p_base_version: base,
+          })
+          .abortSignal(signal)
 
         if (error) throw new Error(error.message)
 

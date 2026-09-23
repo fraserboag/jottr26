@@ -60,6 +60,8 @@ export class FakeServer {
   /** Monotonic, so ordering never depends on how fast the test runs. */
   private clock = Date.parse('2026-01-01T00:00:00.000Z')
   counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0, delete: 0, blobFetch: 0 }
+  /** A network that never answers: queries hang until their signal aborts. */
+  stalled = false
 
   private stamp() {
     this.clock += 1
@@ -75,6 +77,7 @@ export class FakeServer {
       let sinceIso: string | null = null
       let inList: string[] | null = null
       let range: [number, number] | null = null
+      let signal: AbortSignal | null = null
       const orders: string[] = []
 
       const run = () => {
@@ -129,13 +132,22 @@ export class FakeServer {
         in: (_column: string, values: string[]) => ((inList = values), builder),
         upsert: (value: PageRecord[]) => ((mode = 'upsert'), (payload = value), builder),
         delete: () => ((mode = 'delete'), builder),
-        then: (resolve: (value: unknown) => void) => resolve(run()),
+        abortSignal: (value: AbortSignal) => ((signal = value), builder),
+        then: (resolve: (value: unknown) => void) => {
+          if (!this.stalled) return resolve(run())
+          signal?.addEventListener('abort', () =>
+            resolve({ data: null, error: { message: 'AbortError: signal is aborted' } }),
+          )
+        },
       })
 
       return builder
     }
 
-    const rpc = (_name: string, params: { p_page_id: string; p_ydoc: string; p_base_version: number }) => {
+    const rpc = (name: string, params: { p_page_id: string; p_ydoc: string; p_base_version: number }) =>
+      Object.assign(settle(name, params), { abortSignal() { return this } })
+
+    const settle = (_name: string, params: { p_page_id: string; p_ydoc: string; p_base_version: number }) => {
       this.counts.rpc += 1
       const existing = this.docs.get(params.p_page_id)
 

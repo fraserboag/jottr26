@@ -68,7 +68,9 @@ class Device {
    *  compare-and-swap is ever rejected in practice. */
   async pushWithoutPulling() {
     await this.focus()
-    await (this.engine as unknown as { push: () => Promise<void> }).push()
+    await (this.engine as unknown as { push: (signal: AbortSignal) => Promise<void> }).push(
+      new AbortController().signal,
+    )
   }
 
   async type(pageId: string, text: string) {
@@ -367,5 +369,35 @@ describe('local-first sync', () => {
 
     await phone.sync()
     assert.equal(await phone.title(id), 'Written on a plane')
+  })
+
+  it('resolves a manual sync once it has finished, with the result', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Synced by hand')
+
+    const status = await laptop.engine.syncNow()
+
+    assert.equal(status.phase, 'synced')
+    assert.equal(server.pages.get(id)?.title, 'Synced by hand')
+  })
+
+  it('can cancel a sync the network never answers, and sync again after', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Stuck in a tunnel')
+
+    server.stalled = true
+    const pending = laptop.engine.syncNow()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    laptop.engine.cancelSync()
+    const status = await pending
+    server.stalled = false
+
+    assert.notEqual(status.phase, 'error', 'a cancel is not a failure, and schedules no backoff')
+    assert.equal(status.pending, 1, 'the page should still be waiting to upload')
+
+    assert.equal((await laptop.engine.syncNow()).phase, 'synced', 'the cancelled sync must not block the next')
+    assert.equal(server.pages.get(id)?.title, 'Stuck in a tunnel')
   })
 })
