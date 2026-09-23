@@ -249,9 +249,8 @@ body {
    them give up their outer margins rather than doubling the padding. */
 .ProseMirror div[data-type="callout"] {
   background: var(--surface-sunken);
-  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 12px 14px;
+  padding: 16px 18px;
   margin: 8px 0;
 }
 .ProseMirror div[data-type="callout"] > :first-child {
