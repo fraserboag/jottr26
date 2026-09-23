@@ -1,66 +1,66 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Icon, type IconName } from '@/components/ui/Icon'
-import { Popover } from '@/components/ui/Popover'
-import { useWorkspace } from './WorkspaceProvider'
-import type { SyncPhase } from '@/lib/sync/types'
+import { useEffect, useState } from "react";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { Popover } from "@/components/ui/Popover";
+import { useWorkspace } from "./WorkspaceProvider";
+import type { SyncPhase } from "@/lib/sync/types";
 
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 function timeAgo(timestamp: number | null) {
-  if (!timestamp) return 'not yet'
-  const seconds = Math.round((timestamp - Date.now()) / 1000)
-  if (seconds > -45) return 'just now'
-  if (seconds > -3600) return relative.format(Math.round(seconds / 60), 'minute')
-  if (seconds > -86400) return relative.format(Math.round(seconds / 3600), 'hour')
-  return relative.format(Math.round(seconds / 86400), 'day')
+  if (!timestamp) return "not yet";
+  const seconds = Math.round((timestamp - Date.now()) / 1000);
+  if (seconds > -45) return "just now";
+  if (seconds > -3600) return relative.format(Math.round(seconds / 60), "minute");
+  if (seconds > -86400) return relative.format(Math.round(seconds / 3600), "hour");
+  return relative.format(Math.round(seconds / 86400), "day");
 }
 
 const look: Record<SyncPhase, { icon: IconName; tone: string; label: string }> = {
-  pending: { icon: 'cloud', tone: 'text-muted', label: 'Not synced yet' },
-  synced: { icon: 'cloudCheck', tone: 'text-muted', label: 'Synced' },
-  syncing: { icon: 'refresh', tone: 'text-muted', label: 'Saving' },
-  offline: { icon: 'cloudOff', tone: 'text-warn', label: 'Offline' },
-  error: { icon: 'alert', tone: 'text-danger', label: "Can't sync" },
-  signedOut: { icon: 'cloudOff', tone: 'text-faint', label: 'Signed out' },
-}
+  pending: { icon: "cloud", tone: "text-muted", label: "Not synced yet" },
+  synced: { icon: "cloudCheck", tone: "text-muted", label: "Synced" },
+  syncing: { icon: "refresh", tone: "text-muted", label: "Saving" },
+  offline: { icon: "cloudOff", tone: "text-warn", label: "Offline" },
+  error: { icon: "alert", tone: "text-danger", label: "Can't sync" },
+  signedOut: { icon: "cloudOff", tone: "text-faint", label: "Signed out" },
+};
 
 export function SyncIndicator() {
-  const { status, retrySync, syncNow } = useWorkspace()
-  const [, forceTick] = useState(0)
+  const { status, retrySync, syncNow } = useWorkspace();
+  const [, forceTick] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => forceTick((n) => n + 1), 30_000)
-    return () => clearInterval(timer)
-  }, [])
+    const timer = setInterval(() => forceTick((n) => n + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // The engine only reports 'syncing' once a round trip is slow enough to be
   // worth mentioning, so there is no timing logic left to do here.
-  const visual = look[status.phase]
-  const saving = status.phase === 'syncing'
+  const visual = look[status.phase];
+  const saving = status.phase === "syncing";
   const waiting =
     status.pending > 0
-      ? `${status.pending} ${status.pending === 1 ? 'page' : 'pages'} waiting to upload.`
-      : null
+      ? `${status.pending} ${status.pending === 1 ? "page" : "pages"} waiting to upload.`
+      : null;
 
   const detail =
-    status.phase === 'error'
-      ? (status.error ?? 'Something went wrong.')
-      : status.phase === 'offline'
-        ? (waiting ?? 'Everything here was uploaded before you went offline.')
-        : status.phase === 'syncing'
-          ? 'Uploading your latest changes…'
-          : status.phase === 'pending'
-            ? (waiting ?? 'Waiting to upload.')
-            : `Last synced ${timeAgo(status.lastSyncedAt)}.`
+    status.phase === "error"
+      ? (status.error ?? "Something went wrong.")
+      : status.phase === "offline"
+        ? (waiting ?? "Everything here was uploaded before you went offline.")
+        : status.phase === "syncing"
+          ? "Uploading your latest changes…"
+          : status.phase === "pending"
+            ? (waiting ?? "Waiting to upload.")
+            : `Last synced ${timeAgo(status.lastSyncedAt)}.`;
 
   // Only the icon shows, so anything the old row carried in a badge — the
   // count of pages still waiting — has to reach the tooltip instead.
-  const repeatsWaiting = status.phase === 'offline' || status.phase === 'pending'
-  const summary = [saving ? 'Saving…' : visual.label, detail, repeatsWaiting ? null : waiting]
+  const repeatsWaiting = status.phase === "offline" || status.phase === "pending";
+  const summary = [saving ? "Saving…" : visual.label, detail, repeatsWaiting ? null : waiting]
     .filter(Boolean)
-    .join(' — ')
+    .join(" — ");
 
   return (
     <Popover
@@ -77,7 +77,7 @@ export function SyncIndicator() {
           aria-label={`Sync status: ${visual.label}`}
           className={`grid size-7 shrink-0 place-items-center rounded-md transition-colors hover:bg-[var(--hover)] ${visual.tone}`}
         >
-          <Icon name={visual.icon} size={15} className={saving ? 'animate-spin' : ''} />
+          <Icon name={visual.icon} size={15} className={saving ? "animate-spin" : ""} />
         </button>
       )}
     >
@@ -85,36 +85,36 @@ export function SyncIndicator() {
         <div className="p-3">
           <div className={`flex items-center gap-2 text-[13px] font-semibold ${visual.tone}`}>
             <Icon name={visual.icon} size={15} />
-            {status.phase === 'syncing' ? 'Saving to your account' : visual.label}
+            {status.phase === "syncing" ? "Saving to your account" : visual.label}
           </div>
 
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">{detail}</p>
 
           {/* The one thing worth repeating in every state: nothing is at risk. */}
           <p className="mt-2.5 border-t border-line pt-2.5 text-[12px] leading-relaxed text-faint">
-            Every keystroke is written to this device as you type. Sync is only about
-            getting those changes onto your other devices.
+            Every keystroke is stored locally as you type. The synced state means it has been stored
+            online and will be available on other devices.
           </p>
 
-          {(status.phase === 'error' ||
-            status.phase === 'offline' ||
-            status.phase === 'pending' ||
-            status.phase === 'synced') && (
+          {(status.phase === "error" ||
+            status.phase === "offline" ||
+            status.phase === "pending" ||
+            status.phase === "synced") && (
             <button
               type="button"
               onClick={() => {
-                if (status.phase === 'error') retrySync()
-                else syncNow()
-                close()
+                if (status.phase === "error") retrySync();
+                else syncNow();
+                close();
               }}
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[var(--hover)]"
             >
               <Icon name="refresh" size={14} />
-              {status.phase === 'error' ? 'Try again now' : 'Sync now'}
+              {status.phase === "error" ? "Try again now" : "Sync now"}
             </button>
           )}
         </div>
       )}
     </Popover>
-  )
+  );
 }
