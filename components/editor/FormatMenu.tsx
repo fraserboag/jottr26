@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { CellSelection } from '@tiptap/pm/tables'
@@ -36,6 +36,16 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
       task: instance.isActive('taskList'),
     }),
   })
+
+  // Going back to the page is the end of the link field, however it happened,
+  // so the next selection brings up the formatting buttons again.
+  useEffect(() => {
+    const onFocus = () => setLinkOpen(false)
+    editor.on('focus', onFocus)
+    return () => {
+      editor.off('focus', onFocus)
+    }
+  }, [editor])
 
   const applyLink = (href: string) => {
     setLinkOpen(false)
