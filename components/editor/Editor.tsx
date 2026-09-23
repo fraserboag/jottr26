@@ -10,6 +10,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
+import { FormattingMarks } from './extensions/marks'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
@@ -157,9 +158,16 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // make quotes. A callout is the block that sets a passage apart, and
           // '>' opens an accordion instead.
           blockquote: false,
+          // Added below instead, as versions a new line doesn't carry over.
+          bold: false,
+          italic: false,
+          underline: false,
+          strike: false,
+          code: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
         }),
+        ...FormattingMarks,
         TaskList,
         TaskItem.configure({ nested: true }),
         Callout,
