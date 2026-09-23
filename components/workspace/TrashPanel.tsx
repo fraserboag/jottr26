@@ -27,7 +27,6 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
         className="relative flex max-h-[68vh] w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-line bg-raised shadow-[var(--shadow-pop)]"
       >
         <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
-          <Icon name="trash" size={16} className="text-faint" />
           <h2 className="flex-1 font-semibold text-ink">Trash</h2>
           {pages.length > 0 && (
             <button
