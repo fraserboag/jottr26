@@ -35,8 +35,11 @@ export function LinkPicker({
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
 
+  // The field opens where it is already in view — in the bubble at the
+  // selection, or in the bar over the keyboard — and a plain focus would have
+  // the phone scroll the page to show it anyway.
   useEffect(() => {
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
     inputRef.current?.select()
   }, [])
 

@@ -219,7 +219,11 @@ export function MobileToolbar({
         </div>
       )}
       {!formatting ? null : linkOpen ? (
-        <div className="flex items-start gap-1 px-2 py-1.5">
+        <div
+          // Padded as the formatting row is, so the bar keeps its height and
+          // nothing under it moves when the field opens.
+          className="flex items-start gap-1 px-2 py-1"
+        >
           <LinkPicker
             className="min-w-0 flex-1 pt-1.5"
             initialHref={linkValue}
