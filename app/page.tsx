@@ -1,4 +1,4 @@
-import { SignedInRedirect } from '@/components/SignedInRedirect'
+import { SignedInRedirect } from "@/components/SignedInRedirect";
 
 export default function LandingPage() {
   return (
@@ -8,19 +8,23 @@ export default function LandingPage() {
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           A notes app with the quality of life features of Notion, and none of the bloat. Jottr is
-          focused on providing a super streamlined feature set, lighting fast performance and
-          reliable syncing with offline support.
+          focused on providing a streamlined feature set, fast performance and reliable syncing with
+          offline support.
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
-          Jottr is a PWA, so even though it only exists as a website it can be installed and
-          functions like an app on your computer or mobile devices.
+          Jottr is a PWA, so even though it is only deployed as a web app it can be installed and
+          function like a native app on your computer or mobile device.
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
-          Jottr was created by Fraser Boag, a software developer living in Glasgow, Scotland. As a
-          frequent Notion user for many years I created this for one simple reason - Notion has
-          become a sluggish, bloated mess and I knew I could do better. I created this entirely
-          for personal use, but it&apos;s set up with secure authentication so if anyone comes
-          across this and wants to give it a go themselves - be my guest.
+          This is a project by{" "}
+          <a href="https://www.boag.online" target="_blank">
+            Fraser Boag
+          </a>
+          , a software developer living in Glasgow, Scotland. As a frequent Notion user for many
+          years I created this for one simple reason - Notion has become a sluggish, bloated mess
+          and I knew I could do better. I created this entirely for personal use, but it&apos;s
+          secure and production ready so if anyone comes across this and wants to give it a go
+          themselves - be my guest.
         </p>
         <div className="mt-7">
           <a
