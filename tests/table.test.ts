@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit, createColGroup, createTable } from '@tiptap/extension-table'
 import { Callout } from '@/components/editor/extensions/callout'
-import { FinanceTable } from '@/components/editor/extensions/finance'
+import { FinanceTable, addRowBelow } from '@/components/editor/extensions/finance'
 import {
   CellSelection,
   TableMap,
@@ -303,5 +303,39 @@ describe('table block', () => {
       filterSlashItems('', inside).some((item) => item.id === 'bullet'),
       true,
     )
+  })
+  it('adds a row under the caret on Enter, with the caret in it', () => {
+    const start = pageWithTable(3, 3, 1, 2)
+    const { state, applied } = run(start, addRowBelow)
+    assert.equal(applied, true)
+    state.doc.check()
+    assert.deepEqual(dimensions(state), { rows: 4, cols: 3 })
+    // Below the caret's row, not at the foot of the table.
+    assert.equal(state.selection.$from.pos, cellAt(state, 2, 2) + 2)
+    assert.equal(state.selection.empty, true)
+  })
+
+  it('adds a body row, not a second header, on Enter in the header', () => {
+    const { state } = run(pageWithTable(3, 3, 0, 0), addRowBelow)
+    assert.equal((state.doc.lastChild as Node).child(1).firstChild?.type.name, 'tableCell')
+    assert.equal(state.selection.$from.pos, cellAt(state, 1, 0) + 2)
+  })
+
+  it('leaves Enter alone inside a list in a cell, where it means next item', () => {
+    let state = page(2, 2)
+    const inner = cellAt(state, 1, 0)
+    const list = schema.node('bulletList', null, [
+      schema.node('listItem', null, [schema.node('paragraph', null, schema.text('one'))]),
+    ])
+    state = state.apply(state.tr.replaceWith(inner + 1, inner + 3, list))
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, inner + 5)))
+    assert.equal(state.selection.$from.parent.textContent, 'one')
+    assert.equal(run(state, addRowBelow).applied, false)
+  })
+
+  it('leaves Enter alone outside a table', () => {
+    const state = page(2, 2)
+    const inTitle = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)))
+    assert.equal(run(inTitle, addRowBelow).applied, false)
   })
 })

@@ -1,6 +1,13 @@
-import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  type Command,
+  type EditorState,
+  type Transaction,
+} from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { CellSelection, TableMap, cellAround, isInTable, selectedRect } from '@tiptap/pm/tables'
+import { CellSelection, TableMap, addRow, cellAround, isInTable, selectedRect } from '@tiptap/pm/tables'
 import type { Mark, Node, ResolvedPos } from '@tiptap/pm/model'
 import { Table } from '@tiptap/extension-table'
 import { ySyncPluginKey } from 'y-prosemirror'
@@ -256,6 +263,29 @@ declare module '@tiptap/core' {
   }
 }
 
+/** Enter in a table cell: a new row under the caret's row, with the caret in
+ *  it, in the same column. Shift-Enter is still a new line inside the cell.
+ *
+ *  Only a line sitting straight in the cell counts. A list or code block
+ *  inside one keeps Enter for itself, where it means next item or new line. */
+export const addRowBelow: Command = (state, dispatch) => {
+  const { selection } = state
+  if (!(selection instanceof TextSelection) || !isInTable(state)) return false
+  const { $from } = selection
+  const role = $from.node($from.depth - 1).type.spec.tableRole
+  if (role !== 'cell' && role !== 'header_cell') return false
+
+  if (dispatch) {
+    const rect = selectedRect(state)
+    const tr = addRow(state.tr, rect, rect.bottom)
+    const table = tr.doc.nodeAt(rect.tableStart - 1) as Node
+    const cell = rect.tableStart + TableMap.get(table).positionAt(rect.bottom, rect.left, table)
+    tr.setSelection(TextSelection.near(tr.doc.resolve(cell + 1)))
+    dispatch(tr.scrollIntoView())
+  }
+  return true
+}
+
 /** The stock table node plus the finance flag, its command and its plugin. */
 export const FinanceTable = Table.extend({
   addAttributes() {
@@ -292,6 +322,14 @@ export const FinanceTable = Table.extend({
           }
           return true
         },
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      ...(this.parent?.() ?? {}),
+      Enter: () =>
+        this.editor.commands.command(({ state, dispatch }) => addRowBelow(state, dispatch)),
     }
   },
 
