@@ -27,13 +27,13 @@ export function TrashPage() {
             }}
             className="shrink-0 font-medium text-danger hover:underline pointer-coarse:py-2"
           >
-            Empty trash
+            Empty
           </button>
         )}
       </div>
 
       {pages.length === 0 ? (
-        <p className="text-[length:var(--body-size)] text-faint">Nothing in the trash.</p>
+        <p className="text-[length:var(--body-size)] text-faint">Empty.</p>
       ) : (
         <ul>
           {pages.map((page) => (
@@ -66,7 +66,7 @@ export function TrashPage() {
                 }}
                 className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:text-danger pointer-coarse:size-9"
               >
-                <Icon name="trash" size={14} />
+                <Icon name="trash" size={18} className="pointer-coarse:size-5" strokeWidth={1.8} />
               </button>
             </li>
           ))}
