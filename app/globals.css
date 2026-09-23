@@ -255,8 +255,11 @@ body {
 
 /* A callout: a padded box with a background, for a passage that wants setting
    apart from the page around it. It holds blocks, so the first and last of
-   them give up their outer margins rather than doubling the padding. */
+   them give up their outer margins rather than doubling the padding. Its
+   lines sit at the list leading: the page's looser leading reads too airy in
+   a shaded box, and its half-leading pads the box a second time. */
 .ProseMirror div[data-type="callout"] {
+  line-height: var(--list-leading);
   background: var(--surface-sunken);
   border-radius: 8px;
   padding: 20px 22px;
@@ -267,6 +270,9 @@ body {
 }
 .ProseMirror div[data-type="callout"] > :last-child {
   margin-bottom: 0;
+}
+.ProseMirror div[data-type="callout"] p {
+  min-height: calc(var(--list-leading) * 1em);
 }
 
 .ProseMirror code {
