@@ -31,8 +31,9 @@ re-running it later to pick up changes is safe.
 
 That file creates two tables (`pages` for metadata, `page_docs` for the CRDT
 blob), turns on row level security with `auth.uid() = user_id` on every policy,
-adds the `push_page_doc` compare-and-swap function, and puts both tables in the
-realtime publication.
+adds the `push_page_doc` compare-and-swap function and the `purge_pages`
+function that turns a permanent delete into a tombstone other devices can pull,
+and puts both tables in the realtime publication.
 
 ### 3. Put the six-digit code in your sign-in email
 

@@ -20,6 +20,11 @@ create table if not exists public.pages (
   updated_at  timestamptz not null default now()
 );
 
+-- Set when a page is deleted for good. The row stays behind as a tombstone:
+-- devices pull by updated_at, and a row that no longer existed could never
+-- tell them to drop their copy. See purge_pages below.
+alter table public.pages add column if not exists purged_at timestamptz;
+
 -- ---------------------------------------------------------------------------
 -- page_docs: the Yjs document, base64 of Y.encodeStateAsUpdate(doc).
 -- `version` is a compare-and-swap token, not a clock. See push_page_doc below.
@@ -50,6 +55,25 @@ drop trigger if exists pages_touch_updated_at on public.pages;
 create trigger pages_touch_updated_at
   before update on public.pages
   for each row execute function public.touch_updated_at();
+
+-- A tombstone is final. A device that has not heard about the purge yet may
+-- still push its old copy of the row; skipping the update keeps the page dead
+-- and never errors, so that device's sync carries on and pulls the tombstone.
+-- Named to sort before pages_touch_updated_at, so the skip wins.
+create or replace function public.keep_purged()
+returns trigger language plpgsql as $$
+begin
+  if old.purged_at is not null then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists pages_keep_purged on public.pages;
+create trigger pages_keep_purged
+  before update on public.pages
+  for each row execute function public.keep_purged();
 
 drop trigger if exists page_docs_touch_updated_at on public.page_docs;
 create trigger page_docs_touch_updated_at
@@ -105,6 +129,16 @@ declare
   v_ydoc    text;
   v_version bigint;
 begin
+  -- Deleted for good, or never here: there is nothing to write the document
+  -- into. Version 0 with applied = true tells the client to drop its copy.
+  if not exists (
+    select 1 from public.pages as p
+     where p.id = p_page_id and p.purged_at is null
+  ) then
+    return query select ''::text, 0::bigint, true;
+    return;
+  end if;
+
   if p_base_version <= 0 then
     insert into public.page_docs as d (page_id, ydoc, version)
     values (p_page_id, p_ydoc, 1)
@@ -140,6 +174,34 @@ end;
 $$;
 
 grant execute on function public.push_page_doc(uuid, text, bigint) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- purge_pages: delete pages for good, leaving a tombstone for other devices.
+--
+-- The document and title go; the row keeps only its id and purged_at, and the
+-- update stamps a fresh updated_at so every device's next pull sees it. Ids
+-- the server never had get a tombstone too, in case another device is still
+-- holding the page and has not pushed it yet.
+-- ---------------------------------------------------------------------------
+create or replace function public.purge_pages(p_ids uuid[])
+returns void
+language plpgsql
+security invoker
+as $$
+begin
+  delete from public.page_docs where page_id = any (p_ids);
+
+  update public.pages
+     set purged_at = now(), deleted_at = coalesce(deleted_at, now()), title = ''
+   where id = any (p_ids) and purged_at is null;
+
+  insert into public.pages (id, purged_at, deleted_at)
+  select id, now(), now() from unnest(p_ids) as id
+  on conflict (id) do nothing;
+end;
+$$;
+
+grant execute on function public.purge_pages(uuid[]) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Realtime. Clients treat these events purely as a hint to go and pull; the

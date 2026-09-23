@@ -10,8 +10,10 @@ import {
   META_DOCS_CURSOR,
   META_LAST_SYNCED,
   META_PAGES_CURSOR,
+  PAGE_FIELDS,
   type PageRow,
 } from '@/lib/db/schema'
+import { forgetPages } from '@/lib/db/pages'
 import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
   applyRemoteUpdate,
@@ -42,6 +44,15 @@ const SAVING_ANNOUNCE_MS = 300
 const REALTIME_DEBOUNCE_MS = 400
 const MAX_CAS_ATTEMPTS = 6
 const MAX_BACKOFF_MS = 30_000
+/** A request can hang without ever failing — a phone suspends the app mid
+ *  fetch and the socket never answers. Without a deadline that one request
+ *  would hold every later sync behind it. Progress is kept per page, so a slow
+ *  first sync that hits this just carries on from where it stopped. */
+const CYCLE_TIMEOUT_MS = 90_000
+/** How often the full list of ids is checked against the server. Tombstones
+ *  carry deletes on their own; this is the backstop for anything they miss,
+ *  like pages deleted before tombstones existed. */
+const RECONCILE_INTERVAL_MS = 10 * 60_000
 
 interface ServerPage {
   id: string
@@ -49,6 +60,7 @@ interface ServerPage {
   parent_id: string | null
   sort_key: string
   deleted_at: string | null
+  purged_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -79,6 +91,9 @@ export class SyncEngine {
   private inFlight = false
   private requeue = false
   private failures = 0
+  private cycleTimeoutMs = CYCLE_TIMEOUT_MS
+  /** 0 until the first check, so every session starts with one. */
+  private reconciledAt = 0
   /** The sync in progress, so a manual sync can wait for it to finish. */
   private current: Promise<void> | null = null
   /** Aborts the requests of the sync in progress. */
@@ -403,9 +418,15 @@ export class SyncEngine {
     this.announceTimer = setTimeout(() => {
       if (this.inFlight) this.emit({ phase: 'syncing' })
     }, SAVING_ANNOUNCE_MS)
+    let timedOut = false
+    const deadline = setTimeout(() => {
+      timedOut = true
+      abort.abort()
+    }, this.cycleTimeoutMs)
 
     try {
       await this.pull(abort.signal)
+      await this.reconcile(abort.signal)
       await this.push(abort.signal)
 
       const now = Date.now()
@@ -418,7 +439,7 @@ export class SyncEngine {
         retryAt: null,
       })
     } catch (error) {
-      if (abort.signal.aborted) {
+      if (abort.signal.aborted && !timedOut) {
         // Cancelled, not failed: no backoff, and whatever did not reach the
         // server is still marked dirty for the next attempt.
         await this.refreshPending({ phase: 'synced', error: null, retryAt: null })
@@ -426,7 +447,11 @@ export class SyncEngine {
       }
 
       this.failures += 1
-      const message = error instanceof Error ? error.message : 'Sync failed'
+      const message = timedOut
+        ? 'The server took too long to answer'
+        : error instanceof Error
+          ? error.message
+          : 'Sync failed'
 
       if (!navigator.onLine) {
         await this.refreshPending({ phase: 'offline', error: null, retryAt: null })
@@ -436,11 +461,12 @@ export class SyncEngine {
         this.retryTimer = setTimeout(() => this.request(), delay)
         await this.refreshPending({
           phase: 'error',
-            error: message,
+          error: message,
           retryAt: Date.now() + delay,
         })
       }
     } finally {
+      clearTimeout(deadline)
       if (this.runAbort === abort) this.runAbort = null
       this.inFlight = false
       if (this.announceTimer) clearTimeout(this.announceTimer)
@@ -479,26 +505,44 @@ export class SyncEngine {
       const rows = (data ?? []) as ServerPage[]
       if (rows.length === 0) break
 
+      const purged: string[] = []
+
       await this.db.transaction('rw', this.db.pages, async () => {
         for (const row of rows) {
           const serverUpdatedAt = Date.parse(row.updated_at)
           newest = Math.max(newest, serverUpdatedAt)
 
-          const local = await this.db.pages.get(row.id)
+          // Deleted for good somewhere. That beats anything this device still
+          // has waiting to push: the person emptied it from the trash.
+          if (row.purged_at) {
+            purged.push(row.id)
+            continue
+          }
 
-          // A locally dirty row keeps its own metadata and wins the push that
-          // follows. Titles self-heal regardless: they live inside the CRDT.
+          const local = await this.db.pages.get(row.id)
+          const server = {
+            title: row.title,
+            parentId: row.parent_id ?? '',
+            sortKey: row.sort_key,
+            deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
+          }
+
+          // A locally dirty row keeps the fields its own edit changed, which
+          // the push that follows sends back, and takes the server's value for
+          // the rest. Titles self-heal regardless: they live inside the CRDT.
           if (local?.dirty) {
-            await this.db.pages.update(row.id, { serverUpdatedAt })
+            const mine = new Set(local.dirtyFields ?? PAGE_FIELDS)
+            const patch: Partial<PageRow> = { serverUpdatedAt }
+            for (const field of PAGE_FIELDS) {
+              if (!mine.has(field)) Object.assign(patch, { [field]: server[field] })
+            }
+            await this.db.pages.update(row.id, patch)
             continue
           }
 
           await this.db.pages.put({
             id: row.id,
-            title: row.title,
-            parentId: row.parent_id ?? '',
-            sortKey: row.sort_key,
-            deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
+            ...server,
             searchText: local?.searchText ?? '',
             createdAt: Date.parse(row.created_at),
             updatedAt: serverUpdatedAt,
@@ -508,6 +552,8 @@ export class SyncEngine {
           })
         }
       })
+
+      await forgetPages(this.db, purged)
 
       if (rows.length < PAGE_SIZE) break
       offset += PAGE_SIZE
@@ -598,6 +644,45 @@ export class SyncEngine {
     await this.db.pages.update(pageId, { title, searchText })
   }
 
+  // --- reconcile ----------------------------------------------------------
+
+  /** Drops pages this device has from the server but the server no longer
+   *  has. A pull only sees rows that changed, so a row that vanished outright
+   *  — deleted before tombstones existed, or by hand in the dashboard — would
+   *  otherwise live on here forever. */
+  private async reconcile(signal: AbortSignal) {
+    if (Date.now() - this.reconciledAt < RECONCILE_INTERVAL_MS) return
+
+    // Keyset paging by id: unlike offsets, a row created or deleted by another
+    // device mid-scan cannot shift a live id out of the pages being read, and
+    // a missed id here would mean deleting a page that still exists.
+    const live = new Set<string>()
+    let after = ''
+    for (;;) {
+      let query = this.supabase.from('pages').select('id, purged_at').order('id', { ascending: true })
+      if (after) query = query.gt('id', after)
+      const { data, error } = await query.limit(PAGE_SIZE).abortSignal(signal)
+
+      if (error) throw new Error(error.message)
+      const rows = (data ?? []) as Array<{ id: string; purged_at: string | null }>
+      if (rows.length === 0) break
+      for (const row of rows) if (!row.purged_at) live.add(row.id)
+      after = rows[rows.length - 1].id
+    }
+
+    // Only rows the server has acknowledged. One it has never seen is new on
+    // this device and is about to be pushed.
+    const gone: string[] = []
+    await this.db.pages
+      .filter((page) => page.serverUpdatedAt > 0 && !live.has(page.id))
+      .each((page) => {
+        gone.push(page.id)
+      })
+    await forgetPages(this.db, gone)
+
+    this.reconciledAt = Date.now()
+  }
+
   // --- push ---------------------------------------------------------------
 
   private async push(signal: AbortSignal) {
@@ -607,7 +692,9 @@ export class SyncEngine {
   }
 
   /** Permanent deletes queued while offline. Done before anything else so a
-   *  purged page is never resurrected by a metadata push that follows it. */
+   *  purged page is never resurrected by a metadata push that follows it.
+   *  The server keeps a tombstone rather than deleting the row, which is how
+   *  every other device finds out. */
   private async pushPurges(signal: AbortSignal) {
     const queued = await this.db.purges.toArray()
     if (queued.length === 0) return
@@ -615,7 +702,7 @@ export class SyncEngine {
     for (let i = 0; i < queued.length; i += 100) {
       const batch = queued.slice(i, i + 100)
       const ids = batch.map((row) => row.id)
-      const { error } = await this.supabase.from('pages').delete().in('id', ids).abortSignal(signal)
+      const { error } = await this.supabase.rpc('purge_pages', { p_ids: ids }).abortSignal(signal)
       if (error) throw new Error(error.message)
       await this.db.purges.bulkDelete(ids)
     }
@@ -659,6 +746,7 @@ export class SyncEngine {
           if (!current || current.updatedAt !== page.updatedAt) continue
           await this.db.pages.update(page.id, {
             dirty: 0,
+            dirtyFields: [],
             serverUpdatedAt: stamps.get(page.id) ?? current.serverUpdatedAt,
           })
         }
@@ -670,6 +758,14 @@ export class SyncEngine {
     const dirty = await this.db.docStates.where('dirty').equals(1).toArray()
 
     for (const state of dirty) {
+      // Its page was dropped from this device; the document went with it on
+      // the server too, so there is nowhere to push it.
+      const page = await this.db.pages.get(state.pageId)
+      if (!page) {
+        await forgetPages(this.db, [state.pageId])
+        continue
+      }
+
       let base = state.version
 
       for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
@@ -688,6 +784,15 @@ export class SyncEngine {
 
         const result = (data as Array<{ ydoc: string; version: number; applied: boolean }>)?.[0]
         if (!result) throw new Error('push_page_doc returned nothing')
+
+        // The server has no live page for this document. If it once did, the
+        // page was deleted for good on another device before this one heard,
+        // so drop it now. If it never did, the row has yet to be uploaded:
+        // leave the document dirty for the next sync.
+        if (result.applied && result.version === 0) {
+          if (page.serverUpdatedAt > 0) await forgetPages(this.db, [state.pageId])
+          break
+        }
 
         if (result.applied) {
           const after = stateVector(state.pageId)

@@ -20,6 +20,11 @@ export interface PageRow {
   serverUpdatedAt: number
   /** Metadata differs from the server and needs pushing. */
   dirty: 0 | 1
+  /** Which fields the unpushed edit changed. A pull adopts the server's value
+   *  for every other field, so trashing a page on one device survives a rename
+   *  of it on another. Missing on rows written before this existed, which are
+   *  treated as dirty in every field. */
+  dirtyFields?: PageField[]
   /** A flattened copy of the page's text for local search. Derived from the
    *  document and never sent to the server. */
   searchText: string
@@ -27,6 +32,10 @@ export interface PageRow {
    *  'remote' pages must wait for their document to arrive before editing. */
   origin: 'local' | 'remote'
 }
+
+/** The metadata a device can change and push. */
+export const PAGE_FIELDS = ['title', 'parentId', 'sortKey', 'deletedAt'] as const
+export type PageField = (typeof PAGE_FIELDS)[number]
 
 export interface DocStateRow {
   pageId: string

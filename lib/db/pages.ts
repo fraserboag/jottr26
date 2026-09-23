@@ -1,7 +1,7 @@
 import { generateKeyBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
-import { activeDatabase } from './dexie'
-import type { PageRow } from './schema'
+import { activeDatabase, type JottrDB } from './dexie'
+import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
 import { DOC_FIELD, openDoc, readPlainText, readTitle } from './ydoc'
 import { newId } from '@/lib/util/id'
 
@@ -13,8 +13,20 @@ function db() {
 
 /** Every local write goes through here: it stamps the edit time and flags the
  *  row for the sync engine in one place, so no mutation can forget to. */
-async function touch(id: string, patch: Partial<PageRow>) {
-  await db().pages.update(id, { ...patch, updatedAt: Date.now(), dirty: 1 })
+async function touch(id: string, patch: Partial<Pick<PageRow, PageField>>) {
+  const fields = Object.keys(patch) as PageField[]
+  await db()
+    .pages.where('id')
+    .equals(id)
+    .modify((page) => {
+      Object.assign(page, patch)
+      page.updatedAt = Date.now()
+      // A clean row starts a fresh list; a row already waiting to be pushed
+      // adds to its own. One with no list is dirty in every field already.
+      const already = page.dirty ? page.dirtyFields : []
+      page.dirtyFields = already && [...new Set([...already, ...fields])]
+      page.dirty = 1
+    })
 }
 
 export async function siblingsOf(parentId: string): Promise<PageRow[]> {
@@ -44,6 +56,7 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     updatedAt: now,
     serverUpdatedAt: 0,
     dirty: 1,
+    dirtyFields: [...PAGE_FIELDS],
     searchText: '',
     // This device owns the document's initial shape. A page that arrived from
     // the server is marked 'remote' and waits for its content instead.
@@ -151,14 +164,22 @@ export async function deleteForever(pageId: string) {
     'rw',
     [database.pages, database.docStates, database.docUpdates, database.purges],
     async () => {
-      for (const id of ids) {
-        await database.pages.delete(id)
-        await database.docStates.delete(id)
-        await database.docUpdates.where('pageId').equals(id).delete()
-        await database.purges.put({ id, queuedAt: Date.now() })
-      }
+      await forgetPages(database, ids)
+      for (const id of ids) await database.purges.put({ id, queuedAt: Date.now() })
     },
   )
+}
+
+/** Drops every trace of these pages from this device, without queueing
+ *  anything for the server. Used both here and when a pull learns that another
+ *  device deleted them for good. */
+export async function forgetPages(database: JottrDB, ids: string[]) {
+  if (ids.length === 0) return
+  await database.transaction('rw', [database.pages, database.docStates, database.docUpdates], async () => {
+    await database.pages.bulkDelete(ids)
+    await database.docStates.bulkDelete(ids)
+    await database.docUpdates.where('pageId').anyOf(ids).delete()
+  })
 }
 
 export async function emptyTrash() {

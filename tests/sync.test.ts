@@ -7,7 +7,9 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName } =
   await import('@/lib/db/dexie')
-const { createPage, trashPage, deleteForever, refreshDerived } = await import('@/lib/db/pages')
+const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived } = await import(
+  '@/lib/db/pages'
+)
 const { openDoc, releaseAll, readTitle, readPlainText, DOC_FIELD } = await import('@/lib/db/ydoc')
 const { SyncEngine } = await import('@/lib/sync/engine')
 
@@ -303,8 +305,108 @@ describe('local-first sync', () => {
     await deleteForever(id)
     await laptop.sync()
 
-    assert.equal(server.pages.has(id), false, 'the row should be gone from the server')
-    assert.equal(server.docs.has(id), false, 'the document should be gone too')
+    const tombstone = server.pages.get(id)
+    assert.ok(tombstone?.purged_at, 'the row should stay behind as a tombstone')
+    assert.equal(tombstone?.title, '', 'the tombstone should not keep the title')
+    assert.equal(server.docs.has(id), false, 'the document should be gone')
+
+    await phone.sync()
+    assert.equal(await phone.page(id), undefined, 'the phone should drop it from its trash')
+  })
+
+  it('drops a page purged on another device before this one saw it trashed', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Test')
+    await laptop.sync()
+    await phone.sync()
+
+    // Trashed and emptied from the trash without the phone syncing in between,
+    // so the phone never sees the page in the trash at all.
+    await laptop.focus()
+    await trashPage(id)
+    await emptyTrash()
+    await laptop.sync()
+
+    await phone.sync()
+    assert.equal(await phone.page(id), undefined, 'the page should be gone from the phone')
+  })
+
+  it('does not bring back a purged page that another device was still editing', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Doomed')
+    await laptop.sync()
+    await phone.sync()
+
+    await phone.setTitle(id, ' but renamed')
+    await phone.type(id, 'typed on the phone')
+
+    await laptop.focus()
+    await trashPage(id)
+    await emptyTrash()
+    await laptop.sync()
+
+    // The phone pushes before it pulls here, as it would if the purge landed
+    // between its own pull and push.
+    await phone.pushWithoutPulling()
+    await phone.sync()
+
+    assert.equal(phone.phase(), 'synced', 'the stale push must not wedge the phone in an error')
+    assert.equal(await phone.page(id), undefined)
+    assert.ok(server.pages.get(id)?.purged_at, 'the tombstone should survive the stale push')
+    assert.equal(server.pages.get(id)?.title, '')
+    assert.equal(server.docs.has(id), false, 'the document must not be recreated')
+    assert.equal(await phone.pendingCount(), 0)
+
+    await laptop.sync()
+    assert.equal(await laptop.page(id), undefined)
+  })
+
+  it('keeps a trashing from one device and a move from the other', async () => {
+    await laptop.focus()
+    const parent = await createPage()
+    const id = await createPage()
+    await laptop.sync()
+    await phone.sync()
+
+    await laptop.focus()
+    await trashPage(id)
+    await laptop.sync()
+
+    // The phone moves the page before it has heard about the trashing. Its
+    // push must not carry the stale deletedAt back up with the move.
+    await phone.focus()
+    await movePage(id, parent, 0)
+    await phone.sync()
+    await laptop.sync()
+
+    for (const device of [laptop, phone]) {
+      const row = await device.page(id)
+      assert.ok((row?.deletedAt ?? 0) > 0, `${device.name} should still have it in the trash`)
+      assert.equal(row?.parentId, parent, `${device.name} should have the move`)
+    }
+    assert.ok(server.pages.get(id)?.deleted_at)
+  })
+
+  it('drops pages deleted from the server outright, but keeps ones not yet uploaded', async () => {
+    await laptop.focus()
+    const gone = await createPage()
+    await laptop.sync()
+    await phone.sync()
+    assert.ok(await phone.page(gone))
+
+    // A delete that left no tombstone, as every purge did before tombstones.
+    server.pages.delete(gone)
+    server.docs.delete(gone)
+
+    await phone.focus()
+    const fresh = await createPage()
+    ;(phone.engine as unknown as { reconciledAt: number }).reconciledAt = 0
+    await phone.sync()
+
+    assert.equal(await phone.page(gone), undefined, 'the vanished page should be dropped')
+    assert.ok(await phone.page(fresh), 'a page the server has never seen must survive')
   })
 
   it('keeps literal angle brackets in a title', async () => {
@@ -399,6 +501,29 @@ describe('local-first sync', () => {
 
     assert.equal((await laptop.engine.syncNow()).phase, 'synced', 'the cancelled sync must not block the next')
     assert.equal(server.pages.get(id)?.title, 'Stuck in a tunnel')
+  })
+
+  it('gives up on a sync the network never answers, and retries it', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Suspended mid-request')
+
+    const internals = laptop.engine as unknown as {
+      cycleTimeoutMs: number
+      inFlight: boolean
+      retryTimer: ReturnType<typeof setTimeout> | null
+    }
+    internals.cycleTimeoutMs = 30
+    server.stalled = true
+    await laptop.engine.syncOnce()
+    server.stalled = false
+    internals.cycleTimeoutMs = 90_000
+    if (internals.retryTimer) clearTimeout(internals.retryTimer)
+
+    assert.equal(laptop.phase(), 'error', 'a timeout is a failure, with a retry scheduled')
+    assert.equal(internals.inFlight, false, 'the hung request must not hold later syncs')
+    assert.equal((await laptop.engine.syncNow()).phase, 'synced')
+    assert.equal(server.pages.get(id)?.title, 'Suspended mid-request')
   })
 
   it('does not start a cancelled manual sync that was queued behind another', async () => {

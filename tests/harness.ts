@@ -40,6 +40,7 @@ interface PageRecord {
   parent_id: string | null
   sort_key: string
   deleted_at: string | null
+  purged_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -59,7 +60,7 @@ export class FakeServer {
   docs = new Map<string, DocRecord>()
   /** Monotonic, so ordering never depends on how fast the test runs. */
   private clock = Date.parse('2026-01-01T00:00:00.000Z')
-  counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0, delete: 0, blobFetch: 0 }
+  counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0, delete: 0, purge: 0, blobFetch: 0 }
   /** A network that never answers: queries hang until their signal aborts. */
   stalled = false
 
@@ -75,6 +76,8 @@ export class FakeServer {
       let mode: 'select' | 'upsert' | 'delete' = 'select'
       let payload: PageRecord[] = []
       let sinceIso: string | null = null
+      let afterId: string | null = null
+      let limit: number | null = null
       let inList: string[] | null = null
       let range: [number, number] | null = null
       let signal: AbortSignal | null = null
@@ -83,11 +86,13 @@ export class FakeServer {
       const run = () => {
         if (mode === 'upsert') {
           this.counts.upsert += 1
-          const out = payload.map((row) => {
+          const out = payload.flatMap((row) => {
             const existing = this.pages.get(row.id)
+            // The keep_purged trigger: a tombstone is skipped, not an error.
+            if (existing?.purged_at) return []
             const record: PageRecord = { ...(existing ?? row), ...row, updated_at: this.stamp() }
             this.pages.set(row.id, record)
-            return { id: record.id, updated_at: record.updated_at }
+            return [{ id: record.id, updated_at: record.updated_at }]
           })
           return { data: out, error: null }
         }
@@ -105,6 +110,7 @@ export class FakeServer {
         rows = table === 'pages' ? [...this.pages.values()] : [...this.docs.values()]
 
         if (sinceIso) rows = rows.filter((row) => row.updated_at >= sinceIso!)
+        if (afterId !== null) rows = rows.filter((row) => (row as PageRecord).id > afterId!)
         if (inList) {
           this.counts.blobFetch += 1
           const wanted = new Set(inList)
@@ -121,12 +127,15 @@ export class FakeServer {
             )
         }
         if (range) rows = rows.slice(range[0], range[1] + 1)
+        if (limit !== null) rows = rows.slice(0, limit)
         return { data: rows, error: null }
       }
 
       Object.assign(builder, {
         select: () => builder,
         gte: (_column: string, value: string) => ((sinceIso = value), builder),
+        gt: (_column: string, value: string) => ((afterId = value), builder),
+        limit: (value: number) => ((limit = value), builder),
         order: (column: string) => (orders.push(column), builder),
         range: (a: number, b: number) => ((range = [a, b]), builder),
         in: (_column: string, values: string[]) => ((inList = values), builder),
@@ -144,11 +153,45 @@ export class FakeServer {
       return builder
     }
 
-    const rpc = (name: string, params: { p_page_id: string; p_ydoc: string; p_base_version: number }) =>
-      Object.assign(settle(name, params), { abortSignal() { return this } })
+    type PushParams = { p_page_id: string; p_ydoc: string; p_base_version: number }
+    type PurgeParams = { p_ids: string[] }
 
-    const settle = (_name: string, params: { p_page_id: string; p_ydoc: string; p_base_version: number }) => {
+    const rpc = (name: string, params: PushParams | PurgeParams) =>
+      Object.assign(name === 'purge_pages' ? purge(params as PurgeParams) : settle(params as PushParams), {
+        abortSignal() {
+          return this
+        },
+      })
+
+    /** purge_pages: the document goes, the row stays behind as a tombstone. */
+    const purge = (params: PurgeParams) => {
+      this.counts.purge += 1
+      for (const id of params.p_ids) {
+        this.docs.delete(id)
+        const existing = this.pages.get(id)
+        if (existing?.purged_at) continue
+        const now = this.stamp()
+        this.pages.set(id, {
+          id,
+          user_id: existing?.user_id ?? '',
+          title: '',
+          parent_id: existing?.parent_id ?? null,
+          sort_key: existing?.sort_key ?? 'a0',
+          deleted_at: existing?.deleted_at ?? now,
+          purged_at: now,
+          created_at: existing?.created_at ?? now,
+          updated_at: now,
+        })
+      }
+      return Promise.resolve({ data: null, error: null })
+    }
+
+    const settle = (params: PushParams) => {
       this.counts.rpc += 1
+      const page = this.pages.get(params.p_page_id)
+      if (!page || page.purged_at) {
+        return Promise.resolve({ data: [{ ydoc: '', version: 0, applied: true }], error: null })
+      }
       const existing = this.docs.get(params.p_page_id)
 
       if (params.p_base_version <= 0 && !existing) {
