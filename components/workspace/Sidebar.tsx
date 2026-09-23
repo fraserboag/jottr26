@@ -115,14 +115,14 @@ export function Sidebar({
 
       {forceSync.overlay}
 
-      {/* Clicking the empty space under the list closes the open page. Rows,
-          and the menus they portal out of this element, bubble through here
-          too, so only a click that landed on the space itself counts — and
-          not one on the scrollbar, which Firefox reports as a click on the
-          element it scrolls. */}
+      {/* Clicking the empty space under the list closes the open page, or the
+          trash. Rows, and the menus they portal out of this element, bubble
+          through here too, so only a click that landed on the space itself
+          counts — and not one on the scrollbar, which Firefox reports as a
+          click on the element it scrolls. */}
       <nav
         onClick={(event) => {
-          if (!openId || event.target !== event.currentTarget) return
+          if ((!openId && !trashOpen) || event.target !== event.currentTarget) return
           const bounds = event.currentTarget.getBoundingClientRect()
           if (event.clientX - bounds.left >= event.currentTarget.clientWidth) return
           onOpen(null)
