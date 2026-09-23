@@ -96,6 +96,10 @@ body {
    the search bar. It is also the unit the gap under the title is measured in. */
 :root {
   --body-size: 16px;
+  /* Lines within a list item sit a touch closer than lines of a paragraph,
+     so the space between items is what separates one from the next. */
+  --body-leading: 1.8;
+  --list-leading: 1.6;
 }
 
 /* The size Apple Notes sets its body in. */
@@ -154,7 +158,9 @@ body {
   outline: none;
   color: var(--text);
   font-size: var(--body-size);
-  line-height: 1.7;
+  /* A hair heavier than regular: antialiased system type at 400 reads thin. */
+  font-weight: 450;
+  line-height: var(--body-leading);
   padding-bottom: 40vh; /* Room to keep the caret away from the bottom edge. */
   word-break: break-word;
 }
@@ -165,7 +171,7 @@ body {
 
 .ProseMirror p {
   margin: 1px 0;
-  min-height: 1.7em;
+  min-height: calc(var(--body-leading) * 1em);
 }
 
 .ProseMirror h1.jottr-title {
@@ -174,11 +180,11 @@ body {
   font-weight: 700;
   letter-spacing: -0.022em;
   /* A blank body line between the name of the page and the page itself: the
-     body's own size x 1.7 above — not an em of this heading — plus the 2px
+     body's own line height above — not an em of this heading — plus the 2px
      that sits above and below any block, which an actual empty line would
      carry too. The total outruns every block's top margin, so the gap reads
      the same whether the note opens on a paragraph, a list or a table. */
-  margin: 0 0 calc(var(--body-size) * 1.7 + 4px);
+  margin: 0 0 calc(var(--body-size) * var(--body-leading) + 4px);
 }
 
 .ProseMirror ul,
@@ -198,11 +204,14 @@ body {
 .ProseMirror ol {
   list-style: decimal;
 }
-.ProseMirror li > p {
+.ProseMirror li > p,
+.ProseMirror li > div > p {
   margin: 0;
+  min-height: calc(var(--list-leading) * 1em);
 }
 .ProseMirror li {
-  margin: 1px 0;
+  line-height: var(--list-leading);
+  margin: 0.35em 0;
 }
 
 .ProseMirror ul[data-type="taskList"] {
@@ -217,7 +226,7 @@ body {
 .ProseMirror ul[data-type="taskList"] li > label {
   display: flex;
   align-items: center;
-  height: 1.7em;
+  height: calc(var(--list-leading) * 1em);
   flex: 0 0 auto;
 }
 .ProseMirror ul[data-type="taskList"] li > div {
