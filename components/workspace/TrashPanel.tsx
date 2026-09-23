@@ -77,7 +77,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={() => void restorePage(page.id)}
-                  className="px-1 font-medium text-danger hover:underline pointer-coarse:py-2"
+                  className="px-1 font-medium text-accent hover:underline pointer-coarse:py-2"
                 >
                   Restore
                 </button>
