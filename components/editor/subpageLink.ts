@@ -14,6 +14,9 @@ export function linkToNewSubpage(editor: Editor, parentId: string) {
   const { from, to } = editor.state.selection
   if (from === to) return
   const title = editor.state.doc.textBetween(from, to, ' ').replace(/\s+/g, ' ').trim()
+  // Only blank space selected would make an untitled page linked from nothing
+  // anyone can see.
+  if (!title) return
   const id = newId()
   editor.chain().focus().setLink({ href: pageHref(id) }).run()
   void createPage({ id, parentId, title })
