@@ -1,14 +1,23 @@
 import { InputRule, mergeAttributes, Node } from '@tiptap/core'
 import type { Fragment, Node as PMNode, ResolvedPos, Schema } from '@tiptap/pm/model'
-import { Plugin, PluginKey, Selection, TextSelection, type Command, type EditorState } from '@tiptap/pm/state'
+import {
+  Plugin,
+  PluginKey,
+  Selection,
+  TextSelection,
+  type Command,
+  type EditorState,
+  type Transaction,
+} from '@tiptap/pm/state'
 import type { EditorView, NodeView, ViewMutationRecord } from '@tiptap/pm/view'
 
-/** An accordion: a section heading that owns a box beneath it, which folds away.
+/** An accordion: a heading line that owns a box beneath it, which folds away.
  *
- *  The heading is the same thing a section heading is everywhere else on a
- *  page — bold body text — so a section can be turned into an accordion, or
- *  back, without it looking like a different kind of block. What it adds is the
- *  box below and the chevron that opens and shuts it.
+ *  The heading is an ordinary line of body text, formatted however it is
+ *  written — plain, bold, italic — so a line can be turned into an accordion,
+ *  or back, without it looking like a different kind of block. What it adds is
+ *  the box below and the chevron that opens and shuts it. It can stand on the
+ *  page or be the first line of a list item.
  *
  *  One attribute, `open`, and it lives in the document. That makes a folded
  *  section stay folded across reloads and page switches, and it means folding
@@ -82,12 +91,39 @@ export function unwrapAccordion(): Command {
   }
 }
 
+const LIST_ITEMS = ['listItem', 'taskItem']
+
+/** Onto a new line straight after an accordion. When the accordion is the
+ *  first line of a list item, that is the next item of the list, split off
+ *  the way Enter splits one at the end of its first line: whatever is nested
+ *  under the item moves down with the new one. Anywhere else it is a new line
+ *  below. False where no line can go. */
+function newLineAfter(tr: Transaction, after: number) {
+  const $after = tr.doc.resolve(after)
+  const parent = $after.parent
+  const paragraph = tr.doc.type.schema.nodes.paragraph
+
+  if (LIST_ITEMS.includes(parent.type.name) && $after.index() === 1) {
+    const attrs = parent.type.name === 'taskItem' ? { ...parent.attrs, checked: false } : parent.attrs
+    tr.insert(after, paragraph.create()).split(after, 1, [{ type: parent.type, attrs }])
+    // Past the item's close, the new item's open and the paragraph's.
+    tr.setSelection(TextSelection.create(tr.doc, after + 3))
+    return true
+  }
+
+  if (!parent.canReplaceWith($after.index(), $after.index(), paragraph)) return false
+  tr.insert(after, paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, after + 1))
+  return true
+}
+
 /** Enter, in a heading: down into the box, onto a fresh line of its own.
  *
  *  The same thing Enter does in the page title, for the same reason — the
  *  heading names what comes next, so Enter goes to write it. A folded box is
  *  stepped over instead: its contents are put away, so Enter is a new line
- *  on the page below it, as it would be after any other line. */
+ *  below it, as it would be after any other line — or the next item, in a
+ *  list. */
 export function enterAccordionBody(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
@@ -95,15 +131,9 @@ export function enterAccordionBody(): Command {
 
     const accordion = $from.node(-1)
     if (!accordion.attrs.open) {
-      const after = $from.after(-1)
-      const $after = state.doc.resolve(after)
-      const paragraph = state.schema.nodes.paragraph
-      if (!$after.parent.canReplaceWith($after.index(), $after.index(), paragraph)) return false
-      if (dispatch) {
-        const tr = state.tr.insert(after, paragraph.create())
-        tr.setSelection(TextSelection.create(tr.doc, after + 1))
-        dispatch(tr.scrollIntoView())
-      }
+      const tr = state.tr
+      if (!newLineAfter(tr, $from.after(-1))) return false
+      if (dispatch) dispatch(tr.scrollIntoView())
       return true
     }
 
@@ -125,7 +155,7 @@ export function enterAccordionBody(): Command {
 }
 
 /** Enter, on an empty last line of the box: out of the accordion, onto a new
- *  line below it.
+ *  line below it, or the next item when the accordion heads a list item.
  *
  *  Everywhere else in the box Enter is a new line, as it is on the page. The
  *  blank last line is the way out, as it is at the end of a list. The line is
@@ -138,17 +168,10 @@ export function leaveAccordion(): Command {
     const body = $from.node(-1)
     if (body.type.name !== ACCORDION_BODY || $from.index(-1) !== body.childCount - 1) return false
 
-    const after = $from.after(-2)
-    const $after = state.doc.resolve(after)
-    const paragraph = state.schema.nodes.paragraph
-    if (!$after.parent.canReplaceWith($after.index(), $after.index(), paragraph)) return false
-
-    if (dispatch) {
-      const tr = state.tr.insert(after, paragraph.create())
-      if (body.childCount > 1) tr.delete($from.before(), $from.after())
-      tr.setSelection(TextSelection.near(tr.doc.resolve(tr.mapping.map(after, -1) + 1)))
-      dispatch(tr.scrollIntoView())
-    }
+    const tr = state.tr
+    if (body.childCount > 1) tr.delete($from.before(), $from.after())
+    if (!newLineAfter(tr, tr.mapping.map($from.after(-2)))) return false
+    if (dispatch) dispatch(tr.scrollIntoView())
     return true
   }
 }
@@ -393,8 +416,7 @@ export const Accordion = Node.create({
       new InputRule({
         find: /^>\s$/,
         handler: ({ state, range, chain }) => {
-          // Somewhere an accordion cannot go, such as the first line of a list
-          // item, the '> ' stays as typed.
+          // Somewhere an accordion cannot go, the '> ' stays as typed.
           if (!makeAccordion()(state)) return null
           chain()
             .deleteRange(range)

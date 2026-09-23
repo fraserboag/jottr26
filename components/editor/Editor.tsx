@@ -6,10 +6,11 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
+import { ListItem, TaskItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
@@ -158,6 +159,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // make quotes. A callout is the block that sets a passage apart, and
           // '>' opens an accordion instead.
           blockquote: false,
+          // Added below instead, as a version whose first line can be an
+          // accordion.
+          listItem: false,
           // Added below instead, as versions a new line doesn't carry over.
           bold: false,
           italic: false,
@@ -168,8 +172,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
         }),
         ...FormattingMarks,
+        ListItem,
         TaskList,
-        TaskItem.configure({ nested: true }),
+        TaskItem,
         Callout,
         ...AccordionKit,
         // Rows, cells and headers come from the kit; the table node itself is

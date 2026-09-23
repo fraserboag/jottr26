@@ -3,9 +3,10 @@ import { describe, it } from 'node:test'
 import * as Y from 'yjs'
 import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { EditorState, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { liftListItem, sinkListItem, splitListItem } from '@tiptap/pm/schema-list'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import {
@@ -19,6 +20,7 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
+import { ListItem, TaskItem } from '@/components/editor/extensions/lists'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -27,9 +29,10 @@ import { filterSlashItems } from '@/components/editor/extensions/slash'
 const schema = getSchema([
   JottrDocument,
   Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
+  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false, listItem: false }),
+  ListItem,
   TaskList,
-  TaskItem.configure({ nested: true }),
+  TaskItem,
   Callout,
   ...AccordionKit,
   TableKit.configure({ table: false }),
@@ -114,8 +117,8 @@ describe('accordion block', () => {
     assert.equal(state.selection.$from.parentOffset, 3)
   })
 
-  it('refuses where an accordion cannot go, like the first line of a list item', () => {
-    const start = page(schema.node('bulletList', null, [schema.node('listItem', null, [paragraph('one')])]))
+  it('refuses where an accordion cannot go, like a line of code', () => {
+    const start = page(schema.node('codeBlock', null, [schema.text('x = 1')]))
     assert.equal(run(start, makeAccordion()).applied, false)
   })
 
@@ -253,5 +256,127 @@ describe('accordion block', () => {
         `'${query}' should find the accordion`,
       )
     }
+  })
+})
+
+function bullets(...items: Node[][]) {
+  return schema.node('bulletList', null, items.map((content) => schema.node('listItem', null, content)))
+}
+
+function tasks(...items: [boolean, Node[]][]) {
+  return schema.node(
+    'taskList',
+    null,
+    items.map(([checked, content]) => schema.node('taskItem', { checked }, content)),
+  )
+}
+
+describe('accordion as a list item', () => {
+  it('turns the first line of a bullet or a checkbox item into an accordion', () => {
+    for (const list of [bullets([paragraph('one')]), tasks([true, [paragraph('one')]])]) {
+      const start = page(list)
+      const { state, applied } = run(start, makeAccordion())
+      assert.equal(applied, true)
+      state.doc.check()
+      const item = state.doc.child(1).child(0)
+      assert.equal(item.child(0).type.name, 'accordion')
+      assert.equal(item.child(0).child(0).textContent, 'one')
+      assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+    }
+  })
+
+  it('keeps making plain lines for new items', () => {
+    assert.equal(schema.nodes.listItem.createAndFill()!.child(0).type.name, 'paragraph')
+    assert.equal(schema.nodes.taskItem.createAndFill()!.child(0).type.name, 'paragraph')
+
+    const start = page(bullets([accordion('Details')], [paragraph('two')]))
+    const { state, applied } = run(start, splitListItem(schema.nodes.listItem))
+    assert.equal(applied, true)
+    state.doc.check()
+    assert.equal(state.doc.child(1).childCount, 3)
+    assert.equal(state.doc.child(1).child(2).child(0).type.name, 'paragraph')
+  })
+
+  it('starts the next item on Enter from an empty last line of the box', () => {
+    const start = page(bullets([accordion('Details', [paragraph('text'), paragraph()])], [paragraph('after')]))
+    // Past the 'text' line, into the blank one under it.
+    const at = caretAt(start, inside(start, 'accordionBody', 7))
+    const { state, applied } = run(at, leaveAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    const list = state.doc.child(1)
+    assert.equal(list.childCount, 3)
+    assert.equal(list.child(0).child(0).child(1).childCount, 1, 'the blank line went with you')
+    assert.equal(list.child(1).childCount, 1)
+    assert.equal(list.child(1).child(0).content.size, 0)
+    assert.equal(list.child(2).textContent, 'after')
+    assert.equal(state.selection.$from.node(-1), list.child(1), 'on the new item')
+  })
+
+  it('moves what is nested under the item down with the new one, as Enter does', () => {
+    const nested = bullets([paragraph('child')])
+    const start = page(bullets([accordion('Details', [paragraph()], false), nested]))
+    const at = caretAt(start, inside(start, 'accordionTitle', 7))
+    const { state, applied } = run(at, enterAccordionBody())
+    assert.equal(applied, true)
+    state.doc.check()
+    const list = state.doc.child(1)
+    assert.equal(list.childCount, 2)
+    assert.equal(list.child(0).childCount, 1)
+    assert.equal(list.child(1).child(1).textContent, 'child')
+    assert.equal(state.selection.$from.node(-1), list.child(1))
+  })
+
+  it('starts a new, unticked item after a ticked one', () => {
+    const start = page(tasks([true, [accordion('Details', [paragraph()], false)]]))
+    const at = caretAt(start, inside(start, 'accordionTitle', 7))
+    const { state, applied } = run(at, enterAccordionBody())
+    assert.equal(applied, true)
+    state.doc.check()
+    const list = state.doc.child(1)
+    assert.equal(list.childCount, 2)
+    assert.equal(list.child(0).attrs.checked, true)
+    assert.equal(list.child(1).attrs.checked, false)
+  })
+
+  it('goes back to a plain item on Backspace at the start of the heading', () => {
+    const start = page(bullets([accordion('Details', [paragraph('one')])]))
+    const at = caretAt(start, inside(start, 'accordionTitle'))
+    const { state, applied } = run(at, backspaceAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    const item = state.doc.child(1).child(0)
+    assert.deepEqual(
+      item.children.map((node) => [node.type.name, node.textContent]),
+      [
+        ['paragraph', 'Details'],
+        ['paragraph', 'one'],
+      ],
+    )
+  })
+
+  it('indents and outdents from the heading like any other item', () => {
+    const start = page(bullets([paragraph('one')], [accordion('Details')]))
+    const at = caretAt(start, inside(start, 'accordionTitle', 2))
+    const sunk = run(at, sinkListItem(schema.nodes.listItem))
+    assert.equal(sunk.applied, true)
+    sunk.state.doc.check()
+    const first = sunk.state.doc.child(1).child(0)
+    assert.equal(first.child(1).child(0).child(0).type.name, 'accordion')
+
+    const lifted = run(sunk.state, liftListItem(schema.nodes.listItem))
+    assert.equal(lifted.applied, true)
+    lifted.state.doc.check()
+    assert.equal(lifted.state.doc.child(1).child(1).child(0).type.name, 'accordion')
+  })
+
+  it('survives the trip through Yjs', () => {
+    const state = page(bullets([accordion('Details', [paragraph('hidden')], false)]))
+    const ydoc = new Y.Doc()
+    const fragment = ydoc.getXmlFragment('test')
+    prosemirrorToYXmlFragment(state.doc, fragment)
+    const back = yXmlFragmentToProseMirrorRootNode(fragment, schema)
+    back.check()
+    assert.ok(back.eq(state.doc))
   })
 })

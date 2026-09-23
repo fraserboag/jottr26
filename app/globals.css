@@ -286,25 +286,19 @@ h1.page-title {
   min-height: calc(var(--list-leading) * 1em);
 }
 
-/* An accordion: a section heading — the same bold body text as any other —
-   with a chevron at the end of its line, over a box like a callout's that
-   folds away. Child combinators throughout, so folding one accordion never
-   reaches into another nested in its box. */
+/* An accordion: a heading line — ordinary body text, formatted however it is
+   written — with a chevron at the end of its line, over a box like a
+   callout's that folds away. Child combinators throughout, so folding one
+   accordion never reaches into another nested in its box. */
 .ProseMirror div[data-type="accordion"] {
   position: relative;
   margin: 2px 0 8px;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-content > div[data-type="accordionTitle"] {
-  font-weight: 700;
   margin: 1px 0;
   min-height: calc(var(--body-leading) * 1em);
   /* Keeps a long heading from running under the chevron. */
   padding-right: 36px;
-}
-/* The heading is bold already, and a section heading turned into one with '>'
-   brings its bold mark along: left alone, that would step up to 900. */
-.ProseMirror div[data-type="accordionTitle"] :is(strong, a) {
-  font-weight: inherit;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle {
   position: absolute;
@@ -346,6 +340,23 @@ h1.page-title {
 }
 .ProseMirror div[data-type="accordionBody"] p {
   min-height: calc(var(--list-leading) * 1em);
+}
+/* As the first line of a list item, the heading sits on the list's leading
+   like any other item's line, so the bullet or checkbox lines up with it and
+   the item's own margin does the spacing. A checkbox item wraps its content in
+   a div, hence the second selector. */
+.ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) {
+  margin: 0;
+}
+.ProseMirror
+  :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"])
+  > .accordion-content
+  > div[data-type="accordionTitle"] {
+  margin: 0;
+  min-height: calc(var(--list-leading) * 1em);
+}
+.ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) > .accordion-toggle {
+  top: calc((var(--list-leading) * 1em - 28px) / 2);
 }
 /* A box inside another box shares its shade, so it takes a faint rule round
    its edge to stand out from the one it sits in. Drawn as an inset shadow so
