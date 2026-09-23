@@ -64,9 +64,9 @@ export function Sidebar({
               type="button"
               ref={ref}
               onClick={toggle}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
+              className="mr-auto flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-[var(--hover)]"
             >
-              <span className="min-w-0 flex-1 truncate text-left text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
+              <span className="min-w-0 truncate text-left text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
                 Jottr
               </span>
               <Icon name="chevronDown" size={14} className="text-faint pointer-coarse:size-[15px]" strokeWidth={2} />
