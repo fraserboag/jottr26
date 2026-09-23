@@ -62,7 +62,7 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
         if (instance.state.selection instanceof CellSelection) return false
         return !instance.isActive('codeBlock')
       }}
-      className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)]"
+      className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pop-in"
     >
       {linkOpen ? (
         <LinkPicker

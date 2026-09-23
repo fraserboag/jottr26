@@ -47,7 +47,7 @@ export function SlashMenu(props: SlashListProps) {
 
   return (
     <div
-      className="fixed z-50 overflow-hidden rounded-xl border border-line bg-raised shadow-[var(--shadow-pop)]"
+      className="fixed z-50 overflow-hidden rounded-xl border border-line bg-raised shadow-[var(--shadow-pop)] pop-in"
       style={{ top: position.top, left: position.left, width: WIDTH }}
     >
       <SlashList {...props} className="max-h-[312px] p-1.5" />
