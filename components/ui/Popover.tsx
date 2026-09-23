@@ -11,13 +11,14 @@ import {
 import { createPortal } from 'react-dom'
 
 type Align = 'start' | 'end' | 'center'
-type Side = 'bottom' | 'top'
+type Side = 'bottom' | 'top' | 'right'
 
 /** A small anchored panel: menus, pickers, the account card.
  *
  *  Rendered into a portal at fixed coordinates so it is never clipped by the
  *  sidebar's own scroll container, and flipped above the trigger when there is
- *  no room below. */
+ *  no room below. A panel to the right sits level with the trigger and flips to
+ *  its left when the window runs out. */
 export function Popover({
   trigger,
   children,
@@ -54,6 +55,13 @@ export function Popover({
       const rect = anchor.getBoundingClientRect()
       const height = panelRef.current?.offsetHeight ?? 240
       const margin = 8
+
+      if (side === 'right') {
+        let left = rect.right + 6
+        if (left + width > window.innerWidth - margin) left = rect.left - width - 6
+        setPosition({ top: rect.top + rect.height / 2 - height / 2, left: Math.max(margin, left) })
+        return
+      }
 
       let top = side === 'bottom' ? rect.bottom + 6 : rect.top - height - 6
       if (top + height > window.innerHeight - margin) top = rect.top - height - 6

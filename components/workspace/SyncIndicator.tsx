@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Icon } from "@/components/ui/Icon";
 import { Popover } from "@/components/ui/Popover";
 import { useWorkspace } from "./WorkspaceProvider";
 import { SyncOverlay } from "./SyncOverlay";
@@ -54,9 +53,11 @@ export function SyncIndicator() {
   return (
     <>
       <Popover
-        width={176}
+        side="right"
+        width={104}
         role="dialog"
         shadow="soft"
+        className="rounded-md! p-0.5!"
         trigger={({ ref, toggle, open }) => (
           <button
             type="button"
@@ -68,24 +69,21 @@ export function SyncIndicator() {
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-muted transition-colors hover:bg-[var(--hover)] pointer-coarse:h-9 pointer-coarse:text-[14px]"
           >
             Sync
-            <span aria-hidden="true" className={`size-2 rounded-full ${visual.dot}`} />
+            <span aria-hidden="true" className={`size-1.5 rounded-full ${visual.dot}`} />
           </button>
         )}
       >
         {(close) => (
-          <div className="p-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                close();
-                void startSync(status.phase === "error");
-              }}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-3 py-1.5 font-medium transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2"
-            >
-              <Icon name="refresh" size={14} />
-              Force sync
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              void startSync(status.phase === "error");
+            }}
+            className="flex h-[26px] w-full items-center justify-center whitespace-nowrap rounded-[5px] px-2 text-[13px] font-medium text-ink transition-colors hover:bg-[var(--hover)] pointer-coarse:h-[30px] pointer-coarse:text-[14px]"
+          >
+            Force sync
+          </button>
         )}
       </Popover>
 
