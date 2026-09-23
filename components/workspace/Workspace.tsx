@@ -18,10 +18,9 @@ const Editor = dynamic(() => import('@/components/editor/Editor').then((m) => m.
   ssr: false,
 })
 
-const SIDEBAR_KEY = 'jottr.sidebar'
 const WIDTH_KEY = 'jottr.sidebarWidth'
 
-// The floor keeps the header's workspace button and the collapse control side
+// The floor keeps the header's workspace button and the sync indicator side
 // by side; the ceiling stops a drag from crowding out the page itself.
 const MIN_WIDTH = 200
 const MAX_WIDTH = 480
@@ -62,36 +61,15 @@ export function Workspace() {
 
       // A phone opening the app cold lands on the page list, since picking a
       // page is the first thing to do there. Narrowing a window later is not
-      // a fresh start, and gets the page to itself.
-      if (!media.matches) setSidebarOpen(cold)
-      else {
-        let stored: string | null = null
-        try {
-          stored = localStorage.getItem(SIDEBAR_KEY)
-        } catch {
-          /* Ignore. */
-        }
-        setSidebarOpen(stored !== 'hidden')
-      }
+      // a fresh start, and gets the page to itself. A wide screen always has
+      // the sidebar: there is no way to hide it there.
+      setSidebarOpen(media.matches || cold)
       cold = false
     }
     apply()
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
   }, [])
-
-  const setSidebar = useCallback(
-    (next: boolean) => {
-      setSidebarOpen(next)
-      if (!wide) return
-      try {
-        localStorage.setItem(SIDEBAR_KEY, next ? 'shown' : 'hidden')
-      } catch {
-        /* Ignore. */
-      }
-    },
-    [wide],
-  )
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -188,7 +166,7 @@ export function Workspace() {
       {showSidebar && !wide && (
         <div
           className="fixed inset-0 z-40 bg-[var(--overlay)]"
-          onPointerDown={() => setSidebar(false)}
+          onPointerDown={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
@@ -217,7 +195,6 @@ export function Workspace() {
             onOpen={openPage}
             onOpenSearch={() => setOverlay('search')}
             onOpenTrash={() => setOverlay('trash')}
-            onCollapse={() => setSidebar(false)}
           />
         </div>
       </aside>
@@ -253,7 +230,7 @@ export function Workspace() {
         {!showSidebar && (
           <button
             type="button"
-            onClick={() => setSidebar(true)}
+            onClick={() => setSidebarOpen(true)}
             aria-label="Show sidebar"
             className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-8 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
           >

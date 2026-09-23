@@ -20,14 +20,12 @@ export function Sidebar({
   onOpen,
   onOpenSearch,
   onOpenTrash,
-  onCollapse,
 }: {
   pages: PageRow[]
   openId: string | null
   onOpen: (id: string | null) => void
   onOpenSearch: () => void
   onOpenTrash: () => void
-  onCollapse: () => void
 }) {
   const { session, signOut, status } = useWorkspace()
   // The sidebar only ever renders after the workspace has mounted and read
@@ -108,15 +106,6 @@ export function Sidebar({
         </Popover>
 
         <SyncIndicator />
-
-        <button
-          type="button"
-          onClick={onCollapse}
-          aria-label="Hide sidebar"
-          className="grid size-8 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9"
-        >
-          <Icon name="panel" size={18} className="pointer-coarse:size-5" />
-        </button>
       </header>
 
       {/* Clicking the empty space under the list closes the open page. Rows,
