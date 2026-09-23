@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageTree } from './PageTree'
-import { SyncIndicator } from './SyncIndicator'
+import { SyncStatusRow, useForceSync } from './SyncIndicator'
 import { useWorkspace } from './WorkspaceProvider'
 import { buildTree, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
@@ -27,6 +27,7 @@ export function Sidebar({
   onOpenTrash: () => void
 }) {
   const { session, signOut, status } = useWorkspace()
+  const forceSync = useForceSync()
   // The sidebar only ever renders after the workspace has mounted and read
   // IndexedDB, so there is no server render to disagree with.
   const [expanded, setExpanded] = useState<Set<string>>(() => {
@@ -80,6 +81,13 @@ export function Sidebar({
                 Signed in as {session?.user.email}
               </p>
               <MenuSeparator />
+              <SyncStatusRow
+                onForceSync={() => {
+                  close()
+                  void forceSync.startSync()
+                }}
+              />
+              <MenuSeparator />
               <MenuItem
                 icon={<Icon name="logout" size={14} />}
                 tone="danger"
@@ -103,9 +111,9 @@ export function Sidebar({
             </>
           )}
         </Popover>
-
-        <SyncIndicator />
       </header>
+
+      {forceSync.overlay}
 
       {/* Clicking the empty space under the list closes the open page. Rows,
           and the menus they portal out of this element, bubble through here
