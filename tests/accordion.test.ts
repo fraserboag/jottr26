@@ -119,12 +119,25 @@ describe('accordion block', () => {
     assert.equal(run(start, makeAccordion()).applied, false)
   })
 
-  it('goes into the box on Enter in the heading, opening it if folded', () => {
-    const start = page(accordion('Details', [paragraph('already here')], false))
+  it('steps over a folded box on Enter in its heading, onto a new line below', () => {
+    const start = page(accordion('Details', [paragraph('already here')], false), paragraph('next'))
+    const at = caretAt(start, inside(start, 'accordionTitle', 7))
+    const { state, applied } = run(at, enterAccordionBody())
+    assert.equal(applied, true)
+    assert.equal(state.doc.child(1).attrs.open, false, 'the box stays folded')
+    assert.equal(state.doc.child(1).child(1).childCount, 1, 'nothing typed into the box')
+    assert.equal(state.doc.child(2).type.name, 'paragraph')
+    assert.equal(state.doc.child(2).content.size, 0)
+    assert.equal(state.doc.child(3).textContent, 'next')
+    assert.equal(state.selection.$from.depth, 1, 'on the page, not in the box')
+    assert.equal(state.selection.$from.index(0), 2)
+  })
+
+  it('goes into an open box on Enter in the heading', () => {
+    const start = page(accordion('Details', [paragraph('already here')]))
     const at = caretAt(start, inside(start, 'accordionTitle', 7))
     const { state, applied, tr } = run(at, enterAccordionBody())
     assert.equal(applied, true)
-    assert.equal(state.doc.child(1).attrs.open, true)
     assert.equal(state.selection.$from.parent.type.name, 'paragraph')
     assert.equal(state.selection.$from.node(-1).type.name, 'accordionBody')
     // A fresh line above what was there, not the head of the existing one.

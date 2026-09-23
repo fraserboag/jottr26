@@ -86,19 +86,29 @@ export function unwrapAccordion(): Command {
  *
  *  The same thing Enter does in the page title, for the same reason — the
  *  heading names what comes next, so Enter goes to write it. A folded box is
- *  opened first, since otherwise the line would be typed somewhere hidden. */
+ *  stepped over instead: its contents are put away, so Enter is a new line
+ *  on the page below it, as it would be after any other line. */
 export function enterAccordionBody(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== ACCORDION_TITLE) return false
 
-    if (dispatch) {
-      const accordionPos = $from.before(-1)
-      const accordion = $from.node(-1)
-      const tr = state.tr
-      if (!accordion.attrs.open) {
-        tr.setNodeAttribute(accordionPos, 'open', true)
+    const accordion = $from.node(-1)
+    if (!accordion.attrs.open) {
+      const after = $from.after(-1)
+      const $after = state.doc.resolve(after)
+      const paragraph = state.schema.nodes.paragraph
+      if (!$after.parent.canReplaceWith($after.index(), $after.index(), paragraph)) return false
+      if (dispatch) {
+        const tr = state.tr.insert(after, paragraph.create())
+        tr.setSelection(TextSelection.create(tr.doc, after + 1))
+        dispatch(tr.scrollIntoView())
       }
+      return true
+    }
+
+    if (dispatch) {
+      const tr = state.tr
       // Past the heading and into the box.
       const bodyStart = $from.after() + 1
       const first = accordion.child(1).firstChild
