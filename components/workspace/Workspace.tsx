@@ -250,15 +250,17 @@ export function Workspace() {
       <main className="relative flex min-w-0 flex-1 flex-col">
         {/* The only way back to a hidden sidebar, so it floats over the page
             rather than scrolling away with it. It keeps the old top bar's
-            backdrop: on a phone the page's left edge passes underneath. */}
+            backdrop: on a phone the page's left edge passes underneath. There
+            it is always on screen, so it is drawn as a raised button rather
+            than a bare icon that looks like part of the text. */}
         {!showSidebar && (
           <button
             type="button"
             onClick={() => setSidebar(true)}
             aria-label="Show sidebar"
-            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center pointer-coarse:size-9 rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted"
+            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-7 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-10 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted pointer-coarse:shadow-[var(--shadow-soft)]"
           >
-            <Icon name="panel" size={16} />
+            <Icon name="panel" size={16} className="pointer-coarse:size-5" />
           </button>
         )}
 
@@ -273,7 +275,9 @@ export function Workspace() {
               drawer opened and closed. */}
           <div
             className={`mx-auto w-full max-w-[780px] px-5 pb-16 sm:px-10 ${
-              wide ? 'pt-16' : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)]'
+              wide
+                ? 'pt-16'
+                : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+2.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.5rem)]'
             }`}
           >
             {page ? (
