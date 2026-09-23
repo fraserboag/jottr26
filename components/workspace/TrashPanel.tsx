@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { deleteForever, emptyTrash, restorePage } from '@/lib/db/pages'
 import { useTrashedPages } from '@/lib/db/hooks'
@@ -10,6 +11,14 @@ const when = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric'
 export function TrashPanel({ onClose }: { onClose: () => void }) {
   const { userId } = useWorkspace()
   const pages = useTrashedPages(userId) ?? []
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   return (
     <div
@@ -36,19 +45,11 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                   void emptyTrash()
                 }
               }}
-              className="rounded-lg border border-line-strong bg-raised px-3 py-1 font-medium text-danger shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2"
+              className="font-medium text-danger hover:underline pointer-coarse:py-2"
             >
               Empty trash
             </button>
           )}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9"
-          >
-            <Icon name="x" size={15} />
-          </button>
         </div>
 
         {pages.length === 0 ? (
@@ -60,7 +61,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
             {pages.map((page) => (
               <li
                 key={page.id}
-                className="group flex items-center gap-1.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--hover)]"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--hover)]"
               >
                 <span className="flex h-[1lh] w-4 shrink-0 items-center justify-center self-start">
                   <Icon name="file" size={14} className="text-faint" />
@@ -76,7 +77,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                 <button
                   type="button"
                   onClick={() => void restorePage(page.id)}
-                  className="rounded-lg border border-line-strong bg-raised px-3 py-1 font-medium text-ink shadow-[var(--shadow-soft)] opacity-0 transition hover:bg-[var(--hover)] focus:opacity-100 group-hover:opacity-100 pointer-coarse:py-2 pointer-coarse:opacity-100"
+                  className="px-1 font-medium text-danger hover:underline pointer-coarse:py-2"
                 >
                   Restore
                 </button>
@@ -88,7 +89,7 @@ export function TrashPanel({ onClose }: { onClose: () => void }) {
                       void deleteForever(page.id)
                     }
                   }}
-                  className="grid size-7 place-items-center rounded-md text-faint opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100 pointer-coarse:size-9 pointer-coarse:opacity-100"
+                  className="grid size-7 place-items-center rounded-md text-faint transition-colors hover:text-danger pointer-coarse:size-9"
                 >
                   <Icon name="trash" size={14} />
                 </button>
