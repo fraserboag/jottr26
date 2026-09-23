@@ -149,7 +149,7 @@ function Row({
         </button>
 
         {/* Shown on hover, which a touch screen never has, so there they stay. */}
-        <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+        <div className="flex shrink-0 items-center opacity-0 pointer-coarse:gap-1 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           <Popover
             width={208}
             trigger={({ toggle, ref }) => (
@@ -161,9 +161,9 @@ function Row({
                   event.stopPropagation()
                   toggle()
                 }}
-                className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
+                className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:size-10 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
               >
-                <Icon name="more" size={15} strokeWidth={2.4} />
+                <Icon name="more" size={16} strokeWidth={2.4} />
               </button>
             )}
           >
@@ -194,9 +194,9 @@ function Row({
                 onOpen(id)
               })
             }}
-            className="grid size-5 place-items-center rounded text-faint hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-8"
+            className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:size-10 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
           >
-            <Icon name="plus" size={15} strokeWidth={2.2} />
+            <Icon name="plus" size={16} strokeWidth={2.2} />
           </button>
         </div>
       </div>
