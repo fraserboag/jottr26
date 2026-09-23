@@ -81,9 +81,11 @@ function SignIn() {
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-soft)]">
           {stage === "email" ? (
             <form onSubmit={sendCode}>
-              <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">Sign into Jottr</h1>
+              <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-ink">
+                Sign into Jottr
+              </h1>
               <p className="mt-1.5 leading-relaxed text-muted">
-                Enter your email address below to sign in, or this will create an account if you
+                Enter your email address below to sign in. This will create an account if you
                 don&apos;t already have one.
               </p>
 
