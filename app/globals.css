@@ -13,6 +13,7 @@
   --overlay: rgb(23 23 22 / 0.28);
 
   --text: #1f1f1e;
+  --text-note: #2c2c2c; /* Note content: a touch softer than the UI's ink. */
   --text-muted: #6f6e6a;
   --text-faint: #a3a29d;
 
@@ -161,7 +162,7 @@ body {
    --------------------------------------------------------------------------- */
 .ProseMirror {
   outline: none;
-  color: var(--text);
+  color: var(--text-note);
   font-size: var(--body-size);
   font-weight: var(--body-weight);
   line-height: var(--body-leading);
