@@ -165,6 +165,14 @@ body {
   word-break: break-word;
 }
 
+/* A phone's denser screen draws the same weight heavier, so it steps back
+   halfway to regular. */
+@media (pointer: coarse) {
+  .ProseMirror {
+    font-weight: 425;
+  }
+}
+
 .ProseMirror > * + * {
   margin-top: 2px;
 }
