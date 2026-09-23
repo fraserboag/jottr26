@@ -1,8 +1,10 @@
 import { Logo } from '@/components/ui/Logo'
+import { SignedInRedirect } from '@/components/SignedInRedirect'
 
 export default function LandingPage() {
   return (
     <div className="min-h-dvh bg-surface">
+      <SignedInRedirect />
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
         <div className="flex items-center gap-2.5">
           <Logo className="size-7" />
