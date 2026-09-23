@@ -241,7 +241,7 @@ export function Workspace() {
         )}
 
         {page ? (
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+          <div className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             {/* 700px of text, the same column Notion sets, plus the side padding:
                 the cap is the two added together, not the column on its own. */}
             {/* Narrow screens centre nothing, so the floating button would sit on
@@ -258,7 +258,7 @@ export function Workspace() {
               className={`mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${
                 wide
                   ? 'pt-28'
-                  : `page-enter ${entry.up ? '[--enter-from:-24px] ' : ''}pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]`
+                  : `page-enter ${entry.up ? '[--enter-side:-1] ' : ''}pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]`
               }`}
             >
               {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
