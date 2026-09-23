@@ -171,7 +171,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
       // Lines up with the page titles above it: past the chevron column, with
       // the plus sitting where each page's icon sits. The chevron is wider on
       // a touch screen, and the offset follows it.
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-7 pr-1 pointer-coarse:pl-9 text-[14px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2 pointer-coarse:text-[16px]"
+      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-7 pr-1 pointer-coarse:pl-9 text-[14.5px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2 pointer-coarse:text-[16px]"
     >
       <span className="w-4 shrink-0">
         <Icon name="plus" size={15} strokeWidth={2} />
