@@ -280,6 +280,66 @@ body {
   min-height: calc(var(--list-leading) * 1em);
 }
 
+/* An accordion: a section heading — the same bold body text as any other —
+   with a chevron at the end of its line, over a box like a callout's that
+   folds away. Child combinators throughout, so folding one accordion never
+   reaches into another nested in its box. */
+.ProseMirror div[data-type="accordion"] {
+  position: relative;
+  margin: 2px 0 8px;
+}
+.ProseMirror div[data-type="accordion"] > .accordion-content > div[data-type="accordionTitle"] {
+  font-weight: 700;
+  margin: 1px 0;
+  min-height: calc(var(--body-leading) * 1em);
+  /* Keeps a long heading from running under the chevron. */
+  padding-right: 36px;
+}
+.ProseMirror div[data-type="accordionTitle"] a {
+  font-weight: inherit;
+}
+.ProseMirror div[data-type="accordion"] > .accordion-toggle {
+  position: absolute;
+  top: calc((var(--body-leading) * 1em - 28px) / 2 + 1px);
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.ProseMirror div[data-type="accordion"] > .accordion-toggle:hover {
+  background: var(--hover);
+}
+.ProseMirror div[data-type="accordion"] > .accordion-toggle svg {
+  transition: transform 150ms ease;
+}
+.ProseMirror div[data-type="accordion"][data-open="false"] > .accordion-toggle svg {
+  transform: rotate(-90deg);
+}
+.ProseMirror div[data-type="accordion"][data-open="false"] > .accordion-content > div[data-type="accordionBody"] {
+  display: none;
+}
+.ProseMirror div[data-type="accordionBody"] {
+  line-height: var(--list-leading);
+  background: var(--surface-sunken);
+  border-radius: 8px;
+  padding: 20px 22px;
+  margin-top: 6px;
+}
+.ProseMirror div[data-type="accordionBody"] > :first-child {
+  margin-top: 0;
+}
+.ProseMirror div[data-type="accordionBody"] > :last-child {
+  margin-bottom: 0;
+}
+.ProseMirror div[data-type="accordionBody"] p {
+  min-height: calc(var(--list-leading) * 1em);
+}
+
 .ProseMirror code {
   font-family: var(--font-mono);
   font-size: 0.875em;

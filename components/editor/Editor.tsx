@@ -8,6 +8,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
+import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
@@ -148,7 +149,8 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // headings here are bold body text, not their own block.
           heading: false,
           // Same again for Blockquote: without this, '>' and Mod-Shift-B still
-          // make quotes. A callout is the block that sets a passage apart.
+          // make quotes. A callout is the block that sets a passage apart, and
+          // '>' opens an accordion instead.
           blockquote: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
@@ -156,6 +158,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         TaskList,
         TaskItem.configure({ nested: true }),
         Callout,
+        ...AccordionKit,
         // Rows, cells and headers come from the kit; the table node itself is
         // the finance-aware one, so its extra attribute and plugin are in the
         // schema from the start.
@@ -179,14 +182,20 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Shown on every empty node so the title always reads 'Untitled',
           // while body placeholders appear only where the caret is.
           showOnlyCurrent: false,
+          // Looks inside blocks too, which is where an accordion's heading is.
+          includeChildren: true,
           emptyNodeClass: 'is-empty',
-          placeholder: ({ editor: instance, node, hasAnchor }) => {
+          placeholder: ({ editor: instance, node, pos, hasAnchor }) => {
             if (node.type.name === 'title') return 'Untitled'
+            // An empty heading would leave a chevron with nothing beside it.
+            if (node.type.name === 'accordionTitle') return 'Heading'
             if (!hasAnchor) return ''
             // Every cell holds an empty paragraph, and prompting in each one
             // would fill the grid with the same sentence.
             if (instance.isActive('table')) return ''
-            if (node.type.name === 'paragraph') return "Write something, or press '/' for blocks"
+            // Only on the page itself, not in a list, a callout or a box.
+            const topLevel = instance.state.doc.resolve(pos).depth === 0
+            if (node.type.name === 'paragraph' && topLevel) return "Write something, or press '/' for blocks"
             return ''
           },
         }),

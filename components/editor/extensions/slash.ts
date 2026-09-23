@@ -9,6 +9,7 @@ import type {} from '@tiptap/starter-kit'
 import type {} from '@tiptap/extension-list'
 import type {} from '@tiptap/extension-table'
 import type {} from './callout'
+import type {} from './accordion'
 
 export interface SlashItem {
   id: string
@@ -63,6 +64,14 @@ export const slashItems: SlashItem[] = [
     icon: 'callout',
     keywords: ['note', 'box', 'panel', 'aside', 'info', 'highlight'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCallout().run(),
+  },
+  {
+    id: 'accordion',
+    title: 'Accordion',
+    hint: 'A heading that folds away what is under it',
+    icon: 'accordion',
+    keywords: ['toggle', 'collapse', 'fold', 'expand', 'dropdown', 'section', 'details'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleAccordion().run(),
   },
   {
     id: 'code',
