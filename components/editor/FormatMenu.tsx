@@ -8,6 +8,7 @@ import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
+import { useOpenPageId } from '@/lib/util/route'
 import { LinkPicker } from './LinkPicker'
 import { linkToNewSubpage } from './subpageLink'
 
@@ -18,6 +19,7 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
   // linking to a note works offline like everything else here.
   const { userId } = useWorkspace()
   const pages = useAllPages(userId)
+  const [, openPage] = useOpenPageId()
 
   // v3 does not re-render on every transaction by default, which is what keeps
   // typing cheap; this subscribes to just the flags the toolbar draws.
@@ -84,7 +86,7 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
               setLinkOpen(true)
             }}
           />
-          <ToolButton icon="filePlus" label="Link to a new subpage" onClick={() => linkToNewSubpage(editor, pageId)} />
+          <ToolButton icon="filePlus" label="Link to a new subpage" onClick={() => linkToNewSubpage(editor, pageId, openPage)} />
           <span className="mx-1 h-6 w-px bg-line" />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />

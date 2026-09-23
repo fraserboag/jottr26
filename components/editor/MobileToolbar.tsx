@@ -6,6 +6,7 @@ import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
+import { useOpenPageId } from '@/lib/util/route'
 import { LinkPicker } from './LinkPicker'
 import { TableControls, useTableState } from './TableMenu'
 import { linkToNewSubpage } from './subpageLink'
@@ -35,6 +36,7 @@ export function MobileToolbar({
   const [linkValue, setLinkValue] = useState('')
   const { userId } = useWorkspace()
   const pages = useAllPages(userId)
+  const [, openPage] = useOpenPageId()
   const barRef = useRef<HTMLDivElement>(null)
   const table = useTableState(editor)
 
@@ -269,7 +271,7 @@ export function MobileToolbar({
                 // The new page takes its title from the selection, so there has
                 // to be one.
                 disabled={!state.selected}
-                onClick={() => linkToNewSubpage(editor, pageId)}
+                onClick={() => linkToNewSubpage(editor, pageId, openPage)}
               />
               <span className="mx-1 h-7 w-px shrink-0 bg-line" />
               <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
