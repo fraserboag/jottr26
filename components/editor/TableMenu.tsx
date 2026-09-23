@@ -106,11 +106,6 @@ export function TableControls({ editor, state }: { editor: Editor; state: TableS
         active={state.headerRow}
         onClick={() => editor.chain().focus().toggleHeaderRow().run()}
       />
-      <ToolButton
-        icon="trash"
-        label="Delete table"
-        onClick={() => editor.chain().focus().deleteTable().run()}
-      />
     </>
   )
 }
