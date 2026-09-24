@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { MenuItem, Popover } from '@/components/ui/Popover'
@@ -53,6 +53,7 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
   const [dragId, setDragId] = useState<string | null>(null)
   const [drop, setDrop] = useState<Drop | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const pointerType = useRef('')
 
   const follow = (event: MouseEvent, id: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -62,6 +63,19 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
     if (!(target instanceof Element) || !event.currentTarget.contains(target) || target.closest('.subpages-menu')) return
     event.preventDefault()
     openPage(id)
+  }
+
+  // The block sits inside the editor's editable element, so a press on any of
+  // its controls would focus the editor, and on a phone raise the keyboard, for
+  // a tap that types nothing. Refused here, as the toolbar's buttons do; the
+  // tap still clicks. Not for a mouse press on an entry, which is how a drag
+  // starts. A touch press is safe to refuse there: its mousedown only comes
+  // once the finger has lifted, after any drag.
+  const keepFocus = (event: MouseEvent) => {
+    const target = event.target
+    if (!(target instanceof Element) || !target.closest('li, .subpages-group-head, button, a')) return
+    if (pointerType.current === 'mouse' && target.closest('li') && !target.closest('.subpages-menu')) return
+    event.preventDefault()
   }
 
   const add = (parentId: string) => {
@@ -216,7 +230,14 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
     )
 
   return (
-    <NodeViewWrapper data-type="subpages" contentEditable={false}>
+    <NodeViewWrapper
+      data-type="subpages"
+      contentEditable={false}
+      onPointerDown={(event: PointerEvent) => {
+        pointerType.current = event.pointerType
+      }}
+      onMouseDown={keepFocus}
+    >
       <div className="subpages-head">
         <p className="subpages-title">Subpages</p>
         <div className="subpages-actions">
