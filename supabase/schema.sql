@@ -253,3 +253,66 @@ begin
   end if;
 end
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Sign-up alerts: email the owner each time someone confirms a new account.
+--
+-- signInWithOtp creates the auth.users row as soon as a code is requested, so
+-- this waits for email_confirmed_at to be set. Typos and abandoned attempts
+-- never confirm, so they don't send an alert. The email itself is sent by the notify-signup
+-- Edge Function (supabase/functions); the setup is in the README.
+--
+-- Nothing in here may ever raise: this runs inside sign-in, and an error
+-- would stop anyone signing in. With the Vault secrets missing it does
+-- nothing, and pg_net queues the request, so a slow or broken function never
+-- holds sign-in up either.
+-- ---------------------------------------------------------------------------
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.notify_signup()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_url    text;
+  v_secret text;
+begin
+  if new.email_confirmed_at is null
+     or (tg_op = 'UPDATE' and old.email_confirmed_at is not null) then
+    return new;
+  end if;
+
+  select decrypted_secret into v_url
+    from vault.decrypted_secrets where name = 'project_url';
+  select decrypted_secret into v_secret
+    from vault.decrypted_secrets where name = 'signup_alert_secret';
+  if v_url is null or v_secret is null then
+    return new;
+  end if;
+
+  perform net.http_post(
+    url     := rtrim(v_url, '/') || '/functions/v1/notify-signup',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-signup-alert-secret', v_secret
+    ),
+    body    := jsonb_build_object(
+      'email', new.email,
+      'total', (select count(*) from auth.users where email_confirmed_at is not null)
+    )
+  );
+  return new;
+exception when others then
+  raise warning 'notify_signup failed: %', sqlerrm;
+  return new;
+end;
+$$;
+
+revoke execute on function public.notify_signup() from public, anon, authenticated;
+
+drop trigger if exists users_notify_signup on auth.users;
+create trigger users_notify_signup
+  after insert or update of email_confirmed_at on auth.users
+  for each row execute function public.notify_signup();
