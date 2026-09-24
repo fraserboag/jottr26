@@ -46,12 +46,6 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// The page asks for this once the user accepts an update, never automatically:
-// swapping the shell out from under someone mid-sentence is not an improvement.
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
-})
-
 const isStaticAsset = (url) =>
   url.pathname.startsWith('/_next/static/') ||
   url.pathname.startsWith('/icons/') ||
