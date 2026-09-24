@@ -280,7 +280,7 @@ export function Workspace() {
           </button>
         )}
 
-        {page && <LastEdited at={Math.max(page.updatedAt, page.editedAt ?? 0)} />}
+        {page && <LastUpdated at={Math.max(page.updatedAt, page.editedAt ?? 0)} />}
 
         {page || trashOpen ? (
           <div className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
@@ -369,11 +369,12 @@ function describeEdit(at: number, now: number) {
   return (date.getFullYear() === new Date(now).getFullYear() ? shortDate : longDate).format(date)
 }
 
-/** The open page's last edit, faintly in the bottom right. It floats over the
- *  page like the buttons up top and lets clicks through, and rides above the
- *  phone's formatting bar while that is up. Ticks every half minute so
+/** When the open page last changed, faintly in the bottom right. It mirrors
+ *  the breadcrumb in the opposite corner — same size, padding and colour as
+ *  the trail's last crumb — lets clicks through, and rides above the phone's
+ *  formatting bar while that is up. Ticks every half minute so
  *  "just now" doesn't stay just now. */
-function LastEdited({ at }: { at: number }) {
+function LastUpdated({ at }: { at: number }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000)
@@ -384,9 +385,9 @@ function LastEdited({ at }: { at: number }) {
   return (
     <p
       title={fullTime.format(at)}
-      className="pointer-events-none absolute right-3 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--toolbar-inset,0px))] z-20 select-none text-xs text-faint/80"
+      className="pointer-events-none absolute right-2 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--toolbar-inset,0px))] z-20 flex h-8 select-none items-center px-2 text-faint pointer-coarse:h-9"
     >
-      Edited {describeEdit(at, now)}
+      Last updated {describeEdit(at, now)}
     </p>
   )
 }
