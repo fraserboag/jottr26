@@ -69,14 +69,14 @@ function SignIn() {
 
   if (checking) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-surface">
+      <main className="fixed inset-0 grid place-items-center overflow-hidden overscroll-none bg-surface">
         <Icon name="refresh" size={18} className="animate-spin text-faint" />
       </main>
     );
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-sunken px-5 py-10">
+    <main className="fixed inset-0 grid place-items-center overflow-hidden overscroll-none bg-sunken px-5">
       <div className="w-full max-w-[26rem]">
         <div className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-soft)]">
           {stage === "email" ? (
