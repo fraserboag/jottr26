@@ -360,7 +360,7 @@ h1.page-title {
     color: var(--text-muted);
   }
   .ProseMirror div[data-type="subpages"] .subpages-button:not([data-open]) {
-    opacity: 0.6;
+    opacity: 0.4;
   }
   /* The same size as the entries' menus below and the sidebar's buttons. */
   .ProseMirror div[data-type="subpages"] .subpages-button svg {
@@ -444,7 +444,7 @@ h1.page-title {
    so there it stays, a little faded. */
 @media (pointer: coarse) {
   .ProseMirror div[data-type="subpages"] .subpages-menu:not(:has([aria-expanded="true"])) {
-    opacity: 0.6;
+    opacity: 0.4;
   }
 }
 @media (pointer: fine) {
