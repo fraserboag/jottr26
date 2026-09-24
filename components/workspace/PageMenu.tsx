@@ -26,7 +26,9 @@ export function PageMenu({ page }: { page: PageRow }) {
             open ? 'bg-[var(--active)] text-muted' : 'text-faint pointer-coarse:text-muted'
           }`}
         >
-          <Icon name="more" size={16} strokeWidth={2.4} />
+          {/* Heavier than the other icons' strokes: at their weight the dots
+              are specks. */}
+          <Icon name="more" size={16} strokeWidth={3.6} />
         </button>
       )}
     >

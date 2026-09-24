@@ -106,7 +106,7 @@ function Row({
           setDragId(null)
           setDrop(null)
         }}
-        className={`group relative flex items-center gap-1 rounded-md pr-1 transition-colors ${
+        className={`relative flex items-center gap-1 rounded-md pr-1 transition-colors ${
           isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
@@ -146,8 +146,7 @@ function Row({
           </span>
         </button>
 
-        {/* Shown on hover, which a touch screen never has, so there they stay. */}
-        <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+        <div className="flex shrink-0 items-center">
           <PageMenu page={page} />
 
           <button

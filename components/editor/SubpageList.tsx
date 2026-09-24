@@ -161,8 +161,6 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
                 >
                   {page.title || 'Untitled'}
                 </a>
-                {/* Shown on hover, which a touch screen never has, so there
-                    it stays. */}
                 <span className="subpages-menu">
                   <PageMenu page={page} />
                 </span>

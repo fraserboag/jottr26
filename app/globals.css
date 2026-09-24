@@ -371,16 +371,6 @@ h1.page-title {
   display: flex;
   flex-shrink: 0;
   margin-left: auto;
-  opacity: 0;
-  transition: opacity 150ms;
-}
-.ProseMirror div[data-type="subpages"] li:is(:hover, :focus-within) .subpages-menu {
-  opacity: 1;
-}
-@media (pointer: coarse) {
-  .ProseMirror div[data-type="subpages"] .subpages-menu {
-    opacity: 1;
-  }
 }
 .ProseMirror div[data-type="subpages"] li + li {
   margin-top: 4px;
