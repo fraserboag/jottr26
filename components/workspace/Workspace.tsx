@@ -280,6 +280,8 @@ export function Workspace() {
           </button>
         )}
 
+        {page && <LastEdited at={Math.max(page.updatedAt, page.editedAt ?? 0)} />}
+
         {page || trashOpen ? (
           <div className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
             {/* 700px of text, the same column Notion sets, plus the side padding:
@@ -346,6 +348,46 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
         </span>
       ))}
     </nav>
+  )
+}
+
+const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+const longDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+const fullTime = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'short' })
+
+function describeEdit(at: number, now: number) {
+  // An edit newer than the last tick reads as just now.
+  const minutes = Math.floor((now - at) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return relative.format(-minutes, 'minute')
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return relative.format(-hours, 'hour')
+  const days = Math.floor(hours / 24)
+  if (days < 7) return relative.format(-days, 'day')
+  const date = new Date(at)
+  return (date.getFullYear() === new Date(now).getFullYear() ? shortDate : longDate).format(date)
+}
+
+/** The open page's last edit, faintly in the bottom right. It floats over the
+ *  page like the buttons up top and lets clicks through, and rides above the
+ *  phone's formatting bar while that is up. Ticks every half minute so
+ *  "just now" doesn't stay just now. */
+function LastEdited({ at }: { at: number }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  if (!at) return null
+  return (
+    <p
+      title={fullTime.format(at)}
+      className="pointer-events-none absolute right-3 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--toolbar-inset,0px))] z-20 select-none text-xs text-faint/80"
+    >
+      Edited {describeEdit(at, now)}
+    </p>
   )
 }
 

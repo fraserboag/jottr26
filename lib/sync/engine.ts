@@ -605,6 +605,7 @@ export class SyncEngine {
             searchText: local?.searchText ?? '',
             createdAt: Date.parse(row.created_at),
             updatedAt: serverUpdatedAt,
+            editedAt: local?.editedAt,
             serverUpdatedAt,
             dirty: 0,
             origin: local?.origin ?? 'remote',

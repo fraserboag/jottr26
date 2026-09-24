@@ -96,8 +96,8 @@ export async function createPage(options: { id?: string; parentId?: string; titl
 }
 
 /** Mirrors the document back onto the row the sidebar and search read. The
- *  title counts as a change worth syncing; the search text does not, so it is
- *  written without flagging the row. */
+ *  title counts as a change worth syncing; the search text and edit time do
+ *  not, so they are written without flagging the row. */
 export async function refreshDerived(pageId: string) {
   const handle = await openDoc(pageId)
   const page = await db().pages.get(pageId)
@@ -106,8 +106,11 @@ export async function refreshDerived(pageId: string) {
   const title = readTitle(handle.doc)
   if (page.title !== title) await touch(pageId, { title })
 
+  const patch: Partial<PageRow> = {}
   const searchText = readPlainText(handle.doc)
-  if (page.searchText !== searchText) await db().pages.update(pageId, { searchText })
+  if (page.searchText !== searchText) patch.searchText = searchText
+  if (handle.editedAt > (page.editedAt ?? 0)) patch.editedAt = handle.editedAt
+  if (Object.keys(patch).length) await db().pages.update(pageId, patch)
 }
 
 export async function toggleFavorite(pageId: string) {

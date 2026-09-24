@@ -20,6 +20,11 @@ export interface PageRow {
   createdAt: number
   /** Local edit time, used to resolve metadata races against the server. */
   updatedAt: number
+  /** When this device last changed the document itself, which `updatedAt`
+   *  misses: typing is not a metadata edit. Local only and not indexed; the
+   *  server's time for a document saved elsewhere arrives as `updatedAt`.
+   *  Missing on rows no one has edited here. */
+  editedAt?: number
   /** The server's updated_at as we last received it. 0 = never synced. */
   serverUpdatedAt: number
   /** Metadata differs from the server and needs pushing. */
