@@ -163,7 +163,7 @@ function Favourite({
   return (
     <li>
       <div
-        className={`flex items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors ${
+        className={`group flex items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors ${
           isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
@@ -182,7 +182,9 @@ function Favourite({
             {page.title || 'Untitled'}
           </span>
         </button>
-        <div className="flex shrink-0 items-center">
+        {/* Shown on hover, or while the menu is open, which a touch screen
+            never has, so there it stays. */}
+        <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 pointer-coarse:opacity-100">
           <PageMenu page={page} />
         </div>
       </div>
