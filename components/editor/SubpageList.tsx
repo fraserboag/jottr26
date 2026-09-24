@@ -16,9 +16,10 @@ import type { SubpagesOptions } from './extensions/subpages'
 
 /** The subpage block as it is drawn: the open page's children, one link each.
  *
- *  The node view keeps ProseMirror out of clicks on the links, so following
+ *  The node view keeps ProseMirror out of clicks on the entries, so following
  *  one is handled here, in place, the same way the editor follows a page link
- *  written in the text. The hrefs are real, so a modified or middle click
+ *  written in the text. A click anywhere on an entry but its menu follows it.
+ *  The title's href is real, so a modified or middle click there
  *  still gets its new tab.
  *
  *  The entries drag to reorder, with the sidebar's own move: both lists sort by
@@ -53,6 +54,10 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
 
   const follow = (event: MouseEvent, id: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    // Clicks in the menu, including on its items, which React bubbles up here
+    // from the portal they're drawn in, are the menu's own.
+    const target = event.target
+    if (!(target instanceof Element) || !event.currentTarget.contains(target) || target.closest('.subpages-menu')) return
     event.preventDefault()
     openPage(id)
   }
@@ -153,11 +158,12 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
         event.dataTransfer.setData('application/x-jottr-subpage', page.id)
       }}
       onDragEnd={end}
+      onClick={(event) => follow(event, page.id)}
     >
       <Icon name="file" size={15} className="text-faint" />
       {/* Not draggable itself, so a drag picks up the whole entry
           rather than the link's address. */}
-      <a href={pageHref(page.id)} draggable={false} onClick={(event) => follow(event, page.id)}>
+      <a href={pageHref(page.id)} draggable={false}>
         {page.title || 'Untitled'}
       </a>
       <span className="subpages-menu">
@@ -174,8 +180,8 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
         <div ref={listRef}>
           {groups.map(({ page, children }) => (
             <div key={page.id} className="subpages-group">
-              <div className="subpages-group-head">
-                <a href={pageHref(page.id)} draggable={false} onClick={(event) => follow(event, page.id)}>
+              <div className="subpages-group-head" onClick={(event) => follow(event, page.id)}>
+                <a href={pageHref(page.id)} draggable={false}>
                   {page.title || 'Untitled'}
                 </a>
                 <span className="subpages-menu">

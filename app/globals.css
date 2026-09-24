@@ -396,11 +396,13 @@ h1.page-title {
   height: calc(var(--list-leading) * 1em);
   margin-left: auto;
 }
-/* The entry under the pointer, or whose menu is open, is tinted like a
-   sidebar row, so it's clear which one the menu acts on. The tint reaches a
+/* An entry opens its page from a click anywhere on it, like a sidebar row.
+   The one under the pointer, or whose menu is open, is tinted like one too,
+   so it's clear which one a click or the menu acts on. The tint reaches a
    little past the entry, on the sides by padding given back as margin and
    above and below by a shadow of the same shade, so nothing moves. */
 .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head) {
+  cursor: pointer;
   margin-inline: -4px;
   padding-inline: 4px;
   border-radius: 4px;
