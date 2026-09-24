@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { SignedInRedirect } from "@/components/SignedInRedirect";
 
 export default function LandingPage() {
@@ -7,7 +6,19 @@ export default function LandingPage() {
       <SignedInRedirect />
       <main className="w-full max-w-[34rem]">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-muted">
+        {/* Pre-encoded at 2x and 3x the column width and served as-is: running it through
+            next/image re-encodes and rescales it, which visibly softens the UI text. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/screenshot-1632.webp"
+          srcSet="/screenshot-1088.webp 1088w, /screenshot-1632.webp 1632w"
+          sizes="(min-width: 34rem) 34rem, 100vw"
+          alt="Jottr open on a desktop, showing the page sidebar and a note with subpages, a checklist and a callout"
+          width={1632}
+          height={1060}
+          className="mt-6 h-auto w-full rounded-xl"
+        />
+        <p className="mt-6 text-[15px] leading-relaxed text-muted">
           A notes app with the quality of life features of Notion, and none of the bloat. Jottr is
           focused on providing a streamlined feature set, fast performance and reliable syncing with
           offline support.
@@ -39,14 +50,6 @@ export default function LandingPage() {
             Open Jottr
           </a>
         </div>
-        <Image
-          src="/screenshot.webp"
-          alt="Jottr open on a desktop, showing the page sidebar and a note with subpages, a checklist and a callout"
-          width={1400}
-          height={909}
-          sizes="(min-width: 34rem) 34rem, 100vw"
-          className="mt-10 h-auto w-full rounded-xl"
-        />
       </main>
     </div>
   );
