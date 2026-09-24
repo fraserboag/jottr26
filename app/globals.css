@@ -269,7 +269,7 @@ h1.page-title {
    them give up their outer margins rather than doubling the padding. Its
    lines sit at the list leading: the page's looser leading reads too airy in
    a shaded box, and its half-leading pads the box a second time. */
-.ProseMirror :is(div[data-type="callout"], div[data-type="subpages"]) {
+.ProseMirror :is(div[data-type="callout"], div[data-type="subpages"] > .subpages-box) {
   line-height: var(--list-leading);
   background: var(--surface-sunken);
   border-radius: 8px;
@@ -286,13 +286,20 @@ h1.page-title {
   min-height: calc(var(--list-leading) * 1em);
 }
 
-/* A subpage list: drawn in a callout's box, but not written in. A bold line
-   names it, the way a section is headed anywhere else on a page, and under it
-   are the page's children, one to a line, each with the sidebar's page icon
-   in place of a bullet. */
-.ProseMirror div[data-type="subpages"] .subpages-title {
-  margin: 0 0 6px;
+/* A subpage list, laid out like an accordion but not written in: a bold
+   heading line on the page itself, over a callout's box holding the page's
+   children, one to a line, each with the sidebar's page icon in place of a
+   bullet. The spacing is the accordion's, so the two sit alike on a page. */
+.ProseMirror div[data-type="subpages"] {
+  margin: 2px 0 8px;
+}
+.ProseMirror div[data-type="subpages"] > .subpages-title {
+  margin: 1px 0;
+  min-height: calc(var(--body-leading) * 1em);
   font-weight: 620;
+}
+.ProseMirror div[data-type="subpages"] > .subpages-box {
+  margin: 6px 0 0;
 }
 .ProseMirror div[data-type="subpages"] ul {
   list-style: none;
@@ -334,7 +341,7 @@ h1.page-title {
 }
 /* Its box would hide the usual selection tint, so a selected list is ringed
    instead, ready to be deleted or cut. */
-.ProseMirror .ProseMirror-selectednode > div[data-type="subpages"] {
+.ProseMirror .ProseMirror-selectednode > div[data-type="subpages"] > .subpages-box {
   box-shadow: 0 0 0 2px var(--accent);
 }
 .ProseMirror div[data-type="subpages"] .subpages-empty {
@@ -444,7 +451,7 @@ h1.page-title {
    its edge to stand out from the one it sits in. Drawn as an inset shadow so
    it costs no layout. */
 .ProseMirror :is(div[data-type="callout"], div[data-type="accordionBody"])
-  :is(div[data-type="callout"], div[data-type="accordionBody"], div[data-type="subpages"]) {
+  :is(div[data-type="callout"], div[data-type="accordionBody"], div[data-type="subpages"] > .subpages-box) {
   box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 

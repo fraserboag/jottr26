@@ -50,47 +50,49 @@ export function SubpageList({ extension }: ReactNodeViewProps) {
   return (
     <NodeViewWrapper data-type="subpages" contentEditable={false}>
       <p className="subpages-title">Subpages</p>
-      {pages === undefined ? null : pages.length === 0 ? (
-        <p className="subpages-empty">No subpages yet</p>
-      ) : (
-        <ul>
-          {pages.map((page) => (
-            <li
-              key={page.id}
-              draggable
-              data-dragging={dragId === page.id || undefined}
-              data-drop={drop?.id === page.id ? drop.zone : undefined}
-              onDragStart={(event) => {
-                setDragId(page.id)
-                event.dataTransfer.effectAllowed = 'move'
-                // A type of its own rather than text/plain, which the editor
-                // would paste in as the page's id if the entry were dropped
-                // anywhere else on the page.
-                event.dataTransfer.setData('application/x-jottr-subpage', page.id)
-              }}
-              onDragEnd={end}
-              onDragOver={(event) => over(event, page.id)}
-              onDragLeave={() => setDrop(null)}
-              onDrop={(event) => {
-                event.preventDefault()
-                if (dragId && drop) void dropRelative(dragId, drop.id, drop.zone)
-                end()
-              }}
-            >
-              <Icon name="file" size={15} className="text-faint" />
-              {/* Not draggable itself, so a drag picks up the whole entry
-                  rather than the link's address. */}
-              <a
-                href={pageHref(page.id)}
-                draggable={false}
-                onClick={(event) => follow(event, page.id)}
+      <div className="subpages-box">
+        {pages === undefined ? null : pages.length === 0 ? (
+          <p className="subpages-empty">No subpages yet</p>
+        ) : (
+          <ul>
+            {pages.map((page) => (
+              <li
+                key={page.id}
+                draggable
+                data-dragging={dragId === page.id || undefined}
+                data-drop={drop?.id === page.id ? drop.zone : undefined}
+                onDragStart={(event) => {
+                  setDragId(page.id)
+                  event.dataTransfer.effectAllowed = 'move'
+                  // A type of its own rather than text/plain, which the editor
+                  // would paste in as the page's id if the entry were dropped
+                  // anywhere else on the page.
+                  event.dataTransfer.setData('application/x-jottr-subpage', page.id)
+                }}
+                onDragEnd={end}
+                onDragOver={(event) => over(event, page.id)}
+                onDragLeave={() => setDrop(null)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  if (dragId && drop) void dropRelative(dragId, drop.id, drop.zone)
+                  end()
+                }}
               >
-                {page.title || 'Untitled'}
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+                <Icon name="file" size={15} className="text-faint" />
+                {/* Not draggable itself, so a drag picks up the whole entry
+                    rather than the link's address. */}
+                <a
+                  href={pageHref(page.id)}
+                  draggable={false}
+                  onClick={(event) => follow(event, page.id)}
+                >
+                  {page.title || 'Untitled'}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </NodeViewWrapper>
   )
 }
