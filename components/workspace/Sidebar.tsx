@@ -48,7 +48,7 @@ export function Sidebar({
               ref={ref}
               onClick={toggle}
               aria-label="Settings"
-              className="grid size-8 place-items-center rounded-md border border-transparent text-muted transition-colors hover:border-keyline hover:bg-[var(--hover)] hover:text-ink pointer-coarse:size-9"
+              className="grid size-8 place-items-center rounded-md text-muted transition-colors hover:bg-[var(--hover)] hover:text-ink pointer-coarse:size-9"
             >
               <Icon name="settings" size={18} className="pointer-coarse:size-5" strokeWidth={1.8} />
             </button>
@@ -164,7 +164,7 @@ function Favourite({
     <li>
       <div
         className={`flex items-center gap-1 rounded-md pl-1 pr-1 transition-colors ${
-          isOpen ? 'bg-[var(--active)] shadow-[inset_0_0_0_1px_var(--keyline)]' : 'hover:bg-[var(--hover)]'
+          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
         <span className="size-5 shrink-0 pointer-coarse:size-7" />
@@ -233,7 +233,7 @@ function SidebarAction({
       onClick={onClick}
       aria-current={current ? 'page' : undefined}
       className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors pointer-coarse:py-2.5 ${
-        current ? 'bg-[var(--active)] shadow-[inset_0_0_0_1px_var(--keyline)]' : 'hover:bg-[var(--hover)]'
+        current ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
       }`}
     >
       <Icon name={icon} size={16} className="text-faint" />

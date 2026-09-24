@@ -22,8 +22,8 @@ export function PageMenu({ page }: { page: PageRow }) {
             event.stopPropagation()
             toggle()
           }}
-          className={`grid size-6 touch-manipulation place-items-center rounded-md border transition-colors hover:border-keyline hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:[&_svg]:size-5 ${
-            open ? 'border-keyline bg-[var(--active)] text-muted' : 'border-transparent text-faint pointer-coarse:text-muted'
+          className={`grid size-6 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:[&_svg]:size-5 ${
+            open ? 'bg-[var(--active)] text-muted' : 'text-faint pointer-coarse:text-muted'
           }`}
         >
           {/* Heavier than the other icons' strokes: at their weight the dots
