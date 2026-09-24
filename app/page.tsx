@@ -16,7 +16,7 @@ export default function LandingPage() {
           alt="Jottr open on a desktop, showing the page sidebar and a note with subpages, a checklist and a callout"
           width={1632}
           height={1060}
-          className="mt-6 h-auto w-full rounded-xl"
+          className="mt-4 h-auto w-full rounded-xl"
         />
         <p className="mt-6 text-[15px] leading-relaxed text-muted">
           A notes app with the quality of life features of Notion, and none of the bloat. Jottr is
