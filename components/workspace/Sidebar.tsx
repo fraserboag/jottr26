@@ -33,7 +33,7 @@ export function Sidebar({
   const favourites = pages.filter((page) => page.isFavorite)
 
   return (
-    <div className="flex h-full flex-col bg-sidebar">
+    <div className="sidebar-tones flex h-full flex-col bg-sidebar">
       <header className="flex items-center gap-1 px-3 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <span className="mr-auto min-w-0 truncate px-2 py-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
           Jottr

@@ -20,6 +20,10 @@
   --text: #2c2c2c;
   --text-muted: #6f6e6a;
   --text-faint: #a3a29d;
+  /* The sidebar's greys, a step darker: on its deeper shade the page's own
+     read washed out. Still well short of the text itself. */
+  --sidebar-text-muted: #62615d;
+  --sidebar-text-faint: #8c8b86;
 
   --line: #e9e8e4;
   --line-strong: #dcdbd6;
@@ -75,6 +79,15 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* The sidebar's icons, section labels and quieter rows take its own greys.
+   Its menus portal out to the body, so they keep the page's. The subpage
+   block does the sidebar's job in its colours, so it takes them too. */
+.sidebar-tones,
+.ProseMirror div[data-type="subpages"] {
+  --text-muted: var(--sidebar-text-muted);
+  --text-faint: var(--sidebar-text-faint);
 }
 
 html,
