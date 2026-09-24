@@ -31,11 +31,6 @@
   --accent: #4b58d0;
   --accent-contrast: #ffffff;
   --accent-soft: rgb(75 88 208 / 0.12);
-  /* The accent, washed out: the open page in the sidebar, and the boxes that
-     set a passage apart on the page (callouts, accordions, subpage lists). */
-  --selected: rgb(75 88 208 / 0.15);
-  --wash: rgb(75 88 208 / 0.085);
-  --wash-edge: rgb(75 88 208 / 0.22);
 
   --ok: #2f9e44;
   --warn: #d97706;
@@ -285,7 +280,7 @@ h1.page-title {
    a shaded box, and its half-leading pads the box a second time. */
 .ProseMirror :is(div[data-type="callout"], div[data-type="subpages"] > .subpages-box) {
   line-height: var(--list-leading);
-  background: var(--wash);
+  background: var(--surface-sunken);
   border-radius: 8px;
   padding: 20px 22px;
   margin: 8px 0;
@@ -503,7 +498,7 @@ h1.page-title {
 }
 .ProseMirror div[data-type="accordionBody"] {
   line-height: var(--list-leading);
-  background: var(--wash);
+  background: var(--surface-sunken);
   border-radius: 8px;
   padding: 20px 22px;
   margin-top: 6px;
@@ -534,12 +529,12 @@ h1.page-title {
 .ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) > .accordion-toggle {
   margin-top: calc((var(--list-leading) * 1em - 20px) / 2);
 }
-/* A box inside another box deepens the wash, and takes a faint rule round its
-   edge to stand out from the one it sits in. Drawn as an inset shadow so it
-   costs no layout. */
+/* A box inside another box shares its shade, so it takes a faint rule round
+   its edge to stand out from the one it sits in. Drawn as an inset shadow so
+   it costs no layout. */
 .ProseMirror :is(div[data-type="callout"], div[data-type="accordionBody"])
   :is(div[data-type="callout"], div[data-type="accordionBody"], div[data-type="subpages"] > .subpages-box) {
-  box-shadow: inset 0 0 0 1px var(--wash-edge);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 .ProseMirror code {
