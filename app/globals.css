@@ -20,8 +20,14 @@
   --text-muted: #6f6e6a;
   --text-faint: #a3a29d;
 
-  --line: #e9e8e4;
-  --line-strong: #dcdbd6;
+  /* Set as far below the warm page as the originals sat below white, so
+     rules still show against the tinted surfaces. */
+  --line: #e6e3da;
+  --line-strong: #d6d2c7;
+  /* A hairline round a fill that is itself a shade: the open page's row, and
+     an icon button under the pointer. Translucent, so it sits the same
+     distance above whatever fill it rims. */
+  --keyline: rgb(70 55 30 / 0.12);
 
   --hover: rgb(23 23 22 / 0.045);
   --active: rgb(23 23 22 / 0.075);
@@ -55,6 +61,7 @@
   --color-faint: var(--text-faint);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-keyline: var(--keyline);
   --color-accent: var(--accent);
   --color-accent-contrast: var(--accent-contrast);
   --color-accent-soft: var(--accent-soft);
@@ -281,8 +288,11 @@ h1.page-title {
 .ProseMirror :is(div[data-type="callout"], div[data-type="subpages"] > .subpages-box) {
   line-height: var(--list-leading);
   background: var(--surface-sunken);
+  /* A hairline round the shade. The padding gives up the pixel it takes, so
+     the box and the text in it sit where they did without it. */
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 20px 22px;
+  padding: 19px 21px;
   margin: 8px 0;
 }
 .ProseMirror div[data-type="callout"] > :first-child {
@@ -330,10 +340,11 @@ h1.page-title {
   color: var(--text-faint);
   cursor: pointer;
   touch-action: manipulation;
-  transition: background 150ms, color 150ms;
+  transition: background 150ms, color 150ms, box-shadow 150ms;
 }
 .ProseMirror div[data-type="subpages"] :is(.subpages-button:hover, .subpages-button[data-open]) {
   background: var(--active);
+  box-shadow: inset 0 0 0 1px var(--keyline);
   color: var(--text-muted);
 }
 @media (pointer: coarse) {
@@ -471,7 +482,7 @@ h1.page-title {
   border-radius: 5px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background 120ms ease, box-shadow 120ms ease;
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle::after {
   content: "";
@@ -482,6 +493,7 @@ h1.page-title {
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle:hover {
   background: var(--hover);
+  box-shadow: inset 0 0 0 1px var(--keyline);
 }
 .ProseMirror div[data-type="accordion"] > .accordion-toggle svg {
   transition: transform 150ms ease;
@@ -499,8 +511,9 @@ h1.page-title {
 .ProseMirror div[data-type="accordionBody"] {
   line-height: var(--list-leading);
   background: var(--surface-sunken);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 20px 22px;
+  padding: 19px 21px;
   margin-top: 6px;
 }
 .ProseMirror div[data-type="accordionBody"] > :first-child {
@@ -529,12 +542,11 @@ h1.page-title {
 .ProseMirror :is(li > div[data-type="accordion"], ul[data-type="taskList"] > li > div > div[data-type="accordion"]) > .accordion-toggle {
   margin-top: calc((var(--list-leading) * 1em - 20px) / 2);
 }
-/* A box inside another box shares its shade, so it takes a faint rule round
-   its edge to stand out from the one it sits in. Drawn as an inset shadow so
-   it costs no layout. */
+/* A box inside another box shares its shade, so its rule is drawn a step
+   darker to stand out from the one it sits in. */
 .ProseMirror :is(div[data-type="callout"], div[data-type="accordionBody"])
   :is(div[data-type="callout"], div[data-type="accordionBody"], div[data-type="subpages"] > .subpages-box) {
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  border-color: var(--line-strong);
 }
 
 .ProseMirror code {

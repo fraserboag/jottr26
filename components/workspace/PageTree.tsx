@@ -107,7 +107,7 @@ function Row({
           setDrop(null)
         }}
         className={`relative flex items-center gap-1 rounded-md pr-1 transition-colors ${
-          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+          isOpen ? 'bg-[var(--active)] shadow-[inset_0_0_0_1px_var(--keyline)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
         }`}
@@ -124,7 +124,7 @@ function Row({
             if (hasChildren) onToggleExpand(page.id)
           }}
           className={`grid size-5 shrink-0 place-items-center rounded text-faint transition-colors pointer-coarse:size-7 ${
-            hasChildren ? 'hover:bg-[var(--active)] hover:text-muted' : 'invisible'
+            hasChildren ? 'border border-transparent hover:border-keyline hover:bg-[var(--active)] hover:text-muted' : 'invisible'
           }`}
           tabIndex={hasChildren ? 0 : -1}
         >
@@ -160,7 +160,7 @@ function Row({
                 onOpen(id)
               })
             }}
-            className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
+            className="grid size-6 touch-manipulation place-items-center rounded-md border border-transparent text-faint transition-colors hover:border-keyline hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
           >
             <Icon name="plus" size={16} strokeWidth={2.2} />
           </button>
