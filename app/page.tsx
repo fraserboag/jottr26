@@ -2,7 +2,7 @@ import { SignedInRedirect } from "@/components/SignedInRedirect";
 
 export default function LandingPage() {
   return (
-    <div className="flex min-h-dvh items-start justify-center bg-surface px-5 pt-12 pb-16 sm:items-center sm:py-16">
+    <div className="flex min-h-dvh items-start justify-center bg-surface px-5 pt-8 pb-16 sm:items-center sm:pt-10 sm:pb-16">
       <SignedInRedirect />
       <main className="w-full max-w-[34rem]">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
