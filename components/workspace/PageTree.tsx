@@ -107,7 +107,7 @@ function Row({
           setDrop(null)
         }}
         className={`relative flex items-center gap-1 rounded-md pr-1 transition-colors ${
-          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+          isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
         }`}
