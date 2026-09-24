@@ -175,6 +175,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           code: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
+          // The accent, like every other drop line and resize handle, rather
+          // than the text colour it defaults to.
+          dropcursor: { color: 'var(--accent)' },
         }),
         ...FormattingMarks,
         ListItem,
