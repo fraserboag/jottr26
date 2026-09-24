@@ -39,6 +39,7 @@ interface PageRecord {
   title: string
   parent_id: string | null
   sort_key: string
+  is_favorite?: boolean
   deleted_at: string | null
   purged_at?: string | null
   created_at: string

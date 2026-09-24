@@ -12,6 +12,7 @@ import {
   META_PAGES_CURSOR,
   PAGE_FIELDS,
   type DocStateRow,
+  type PageField,
   type PageRow,
 } from '@/lib/db/schema'
 import { forgetPages, touch } from '@/lib/db/pages'
@@ -69,6 +70,7 @@ interface ServerPage {
   title: string
   parent_id: string | null
   sort_key: string
+  is_favorite: boolean
   deleted_at: string | null
   purged_at?: string | null
   created_at: string
@@ -576,10 +578,11 @@ export class SyncEngine {
           }
 
           const local = await this.db.pages.get(row.id)
-          const server = {
+          const server: Pick<PageRow, PageField> = {
             title: row.title,
             parentId: row.parent_id ?? '',
             sortKey: row.sort_key,
+            isFavorite: row.is_favorite ? 1 : 0,
             deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
           }
 
@@ -787,6 +790,7 @@ export class SyncEngine {
         title: page.title,
         parent_id: page.parentId || null,
         sort_key: page.sortKey,
+        is_favorite: page.isFavorite === 1,
         deleted_at: page.deletedAt ? new Date(page.deletedAt).toISOString() : null,
         created_at: new Date(page.createdAt).toISOString(),
       }))

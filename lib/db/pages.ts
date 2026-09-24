@@ -59,6 +59,7 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     title: options.title ?? '',
     parentId,
     sortKey: generateKeyBetween(last?.sortKey ?? null, null),
+    isFavorite: 0,
     deletedAt: 0,
     createdAt: now,
     updatedAt: now,
@@ -107,6 +108,12 @@ export async function refreshDerived(pageId: string) {
 
   const searchText = readPlainText(handle.doc)
   if (page.searchText !== searchText) await db().pages.update(pageId, { searchText })
+}
+
+export async function toggleFavorite(pageId: string) {
+  const page = await db().pages.get(pageId)
+  if (!page) return
+  await touch(pageId, { isFavorite: page.isFavorite ? 0 : 1 })
 }
 
 export async function movePage(pageId: string, parentId: string, index: number) {

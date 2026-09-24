@@ -11,6 +11,10 @@ export interface PageRow {
   /** '' means the page sits at the root. */
   parentId: string
   sortKey: string
+  /** Not indexed: the sidebar picks favourites out of the pages it already
+   *  holds. Missing on rows written before favourites came back, which reads
+   *  as not a favourite. */
+  isFavorite?: 0 | 1
   /** Epoch ms, or 0 when the page is not in the trash. */
   deletedAt: number
   createdAt: number
@@ -34,7 +38,7 @@ export interface PageRow {
 }
 
 /** The metadata a device can change and push. */
-export const PAGE_FIELDS = ['title', 'parentId', 'sortKey', 'deletedAt'] as const
+export const PAGE_FIELDS = ['title', 'parentId', 'sortKey', 'isFavorite', 'deletedAt'] as const
 export type PageField = (typeof PAGE_FIELDS)[number]
 
 export interface DocStateRow {

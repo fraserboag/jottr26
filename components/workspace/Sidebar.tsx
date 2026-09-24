@@ -2,6 +2,7 @@
 
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
+import { PageMenu } from './PageMenu'
 import { PageTree } from './PageTree'
 import { SyncStatusRow, useForceSync } from './SyncIndicator'
 import { useWorkspace } from './WorkspaceProvider'
@@ -29,6 +30,7 @@ export function Sidebar({
   const expanded = useExpanded()
 
   const tree: TreeNode[] = buildTree(pages)
+  const favourites = pages.filter((page) => page.isFavorite)
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -106,6 +108,17 @@ export function Sidebar({
         }}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4"
       >
+        {favourites.length > 0 && (
+          <>
+            <SectionLabel>Favourites</SectionLabel>
+            <ul className="mb-3 min-w-0">
+              {favourites.map((page) => (
+                <Favourite key={page.id} page={page} isOpen={openId === page.id} onOpen={onOpen} />
+              ))}
+            </ul>
+          </>
+        )}
+
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
           <p className="px-2 py-2 leading-relaxed text-faint">
@@ -132,6 +145,48 @@ export function Sidebar({
         <SidebarAction icon="trash" label="View Trash" current={trashOpen} onClick={onOpenTrash} />
       </footer>
     </div>
+  )
+}
+
+/** A row drawn like the page tree's, flat and without the tree's drag, which
+ *  would move the page itself rather than reorder the favourites. The chevron
+ *  column stays as a blank, so the titles line up with the tree's below. */
+function Favourite({
+  page,
+  isOpen,
+  onOpen,
+}: {
+  page: PageRow
+  isOpen: boolean
+  onOpen: (id: string | null) => void
+}) {
+  return (
+    <li>
+      <div
+        className={`flex items-center gap-1 rounded-md pl-1 pr-1 transition-colors ${
+          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+        }`}
+      >
+        <span className="size-5 shrink-0 pointer-coarse:size-7" />
+        <button
+          type="button"
+          onClick={() => onOpen(page.id)}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
+        >
+          <span className="w-4 shrink-0 text-center text-[13px] leading-none">
+            <Icon name="file" size={15} className="text-faint" />
+          </span>
+          <span
+            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-muted'}`}
+          >
+            {page.title || 'Untitled'}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center">
+          <PageMenu page={page} />
+        </div>
+      </div>
+    </li>
   )
 }
 

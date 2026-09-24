@@ -1,8 +1,8 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
-import { MenuItem, Popover } from '@/components/ui/Popover'
-import { trashPage } from '@/lib/db/pages'
+import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
+import { toggleFavorite, trashPage } from '@/lib/db/pages'
 import type { PageRow } from '@/lib/db/schema'
 
 /** The three-dot menu on a page, wherever the page is listed: a row in the
@@ -33,16 +33,28 @@ export function PageMenu({ page }: { page: PageRow }) {
       )}
     >
       {(close) => (
-        <MenuItem
-          icon={<Icon name="trash" size={14} />}
-          tone="danger"
-          onClick={() => {
-            void trashPage(page.id)
-            close()
-          }}
-        >
-          Trash
-        </MenuItem>
+        <>
+          <MenuItem
+            icon={<Icon name="star" size={14} filled={page.isFavorite === 1} />}
+            onClick={() => {
+              void toggleFavorite(page.id)
+              close()
+            }}
+          >
+            {page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            icon={<Icon name="trash" size={14} />}
+            tone="danger"
+            onClick={() => {
+              void trashPage(page.id)
+              close()
+            }}
+          >
+            Trash
+          </MenuItem>
+        </>
       )}
     </Popover>
   )

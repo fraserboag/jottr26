@@ -7,9 +7,8 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName } =
   await import('@/lib/db/dexie')
-const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived } = await import(
-  '@/lib/db/pages'
-)
+const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
+  await import('@/lib/db/pages')
 const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
@@ -337,6 +336,25 @@ describe('local-first sync', () => {
     } finally {
       stop()
     }
+  })
+
+  it('keeps a favourite starred on one device while another renames the page', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Starred')
+    await laptop.sync()
+    await phone.sync()
+
+    await phone.setTitle(id, ' and renamed')
+
+    await laptop.focus()
+    await toggleFavorite(id)
+    await laptop.sync()
+
+    await phone.sync()
+    assert.equal((await phone.page(id))?.isFavorite, 1, 'the phone should see the star')
+    assert.equal(server.pages.get(id)?.is_favorite, true, "the phone's rename must not unstar it")
+    assert.match(server.pages.get(id)?.title ?? '', /renamed/)
   })
 
   it('drops a page purged on another device before this one saw it trashed', async () => {

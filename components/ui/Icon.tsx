@@ -9,6 +9,7 @@ const paths = {
   chevronRight: 'm9 6 6 6-6 6',
   chevronDown: 'm6 9 6 6 6-6',
   trash: 'M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3',
+  star: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9L12 3Z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   check: 'm5 13 4 4L19 7',
   cloudCheck: 'M7 18a4 4 0 0 1-.4-7.98 5.5 5.5 0 0 1 10.6-1.2A4.2 4.2 0 0 1 17.5 18H7Zm2.5-4.2 1.8 1.8 3.4-3.6',
@@ -62,18 +63,20 @@ export function Icon({
   size = 16,
   className = '',
   strokeWidth = 1.7,
+  filled = false,
 }: {
   name: IconName
   size?: number
   className?: string
   strokeWidth?: number
+  filled?: boolean
 }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth={strokeWidth}
       strokeLinecap="round"

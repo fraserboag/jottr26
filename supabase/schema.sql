@@ -25,6 +25,8 @@ create table if not exists public.pages (
 -- tell them to drop their copy. See purge_pages below.
 alter table public.pages add column if not exists purged_at timestamptz;
 
+alter table public.pages add column if not exists is_favorite boolean not null default false;
+
 -- ---------------------------------------------------------------------------
 -- page_docs: the Yjs document, base64 of Y.encodeStateAsUpdate(doc).
 -- `version` is a compare-and-swap token, not a clock. See push_page_doc below.
