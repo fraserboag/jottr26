@@ -742,6 +742,12 @@ h1.page-title {
   margin: 8px 0;
 }
 
+/* Bold a step short of the browser's 700, which shouts over body text at 450:
+   the same weight as a table's header row. */
+.ProseMirror strong {
+  font-weight: 620;
+}
+
 .ProseMirror a {
   color: var(--accent);
   font-weight: 500;
