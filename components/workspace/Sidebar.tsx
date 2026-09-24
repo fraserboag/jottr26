@@ -178,7 +178,7 @@ function Favourite({
             <Icon name="file" size={15} className="text-faint" />
           </span>
           <span
-            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-muted'}`}
+            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-[var(--text-note)]'}`}
           >
             {page.title || 'Untitled'}
           </span>

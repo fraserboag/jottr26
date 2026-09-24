@@ -301,7 +301,7 @@ h1.page-title {
    children, one to a line, each with the sidebar's page icon in place of a
    bullet. The spacing is the accordion's, so the two sit alike on a page.
    It does the sidebar's job, so the box is drawn in the sidebar's colours
-   rather than a callout's: its shade, and its entries in its muted text. */
+   rather than a callout's: its shade, and its entries in its text. */
 .ProseMirror div[data-type="subpages"] {
   margin: 2px 0 8px;
 }
@@ -391,7 +391,7 @@ h1.page-title {
   flex-shrink: 0;
 }
 .ProseMirror div[data-type="subpages"] li > a {
-  color: var(--text-muted);
+  color: var(--text-note);
   font-weight: var(--body-weight);
   text-decoration: none;
 }
