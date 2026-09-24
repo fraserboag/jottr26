@@ -486,6 +486,11 @@ h1.page-title {
   align-items: center;
   gap: 8px;
 }
+/* A page dragged onto a heading goes to the end of its list, ringed as the
+   sidebar rings a page it would drop into. */
+.ProseMirror div[data-type="subpages"] .subpages-group-head[data-drop="inside"] {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
 .ProseMirror div[data-type="subpages"] .subpages-group-head + ul {
   margin-top: 4px;
 }

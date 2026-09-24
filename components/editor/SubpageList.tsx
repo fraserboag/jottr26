@@ -37,10 +37,12 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  children listed under it; a child with none still gets its heading, so it
  *  stays in reach, with nothing under it. A heading has the sidebar's plus as
  *  well as its menu, for a new subpage under it; the entries below don't, as
- *  what they'd add would sit a level deeper than the list shows. Dragging there reorders within a heading only, for the
- *  same reason as above: moving a page to another heading reparents it. */
+ *  what they'd add would sit a level deeper than the list shows. Dragging there
+ *  also moves a page between headings, as the sidebar does: dropped above or
+ *  below another heading's entry, or onto the heading itself, which puts it at
+ *  the end of that heading's list, and is the only way into one with none. */
 
-type Drop = { id: string; zone: 'before' | 'after' }
+type Drop = { id: string; zone: 'before' | 'after' | 'inside' }
 
 const DEPTHS = [1, 2] as const
 
@@ -125,13 +127,14 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
       if (!inList(event.target)) return place(null)
       event.preventDefault()
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
-      const item = event.target instanceof Element ? event.target.closest('li') : null
+      const element = event.target instanceof Element ? event.target : null
+      const head = element?.closest<HTMLElement>('.subpages-group-head')
+      if (head?.dataset.id) return place({ id: head.dataset.id, zone: 'inside' })
+      const item = element?.closest('li')
       // In the gap between two entries the line stays where it was.
       if (!item) return
       const id = item.dataset.id
       if (!id || id === dragging) return place(null)
-      const from = list?.querySelector<HTMLElement>(`li[data-id="${dragging}"]`)
-      if (item.dataset.parent !== from?.dataset.parent) return place(null)
       const rect = item.getBoundingClientRect()
       place({ id, zone: event.clientY - rect.top < rect.height / 2 ? 'before' : 'after' })
     }
@@ -162,7 +165,6 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
     <li
       key={page.id}
       data-id={page.id}
-      data-parent={page.parentId ?? undefined}
       draggable
       data-dragging={dragging === page.id || undefined}
       data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
@@ -197,7 +199,12 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
         <div ref={listRef}>
           {groups.map(({ page, children }) => (
             <div key={page.id} className="subpages-group">
-              <div className="subpages-group-head" onClick={(event) => follow(event, page.id)}>
+              <div
+                className="subpages-group-head"
+                data-id={page.id}
+                data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
+                onClick={(event) => follow(event, page.id)}
+              >
                 <a href={pageHref(page.id)} draggable={false}>
                   {page.title || 'Untitled'}
                 </a>
