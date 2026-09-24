@@ -231,21 +231,29 @@ export function Workspace() {
       )}
 
       <main className="relative flex min-w-0 flex-1 flex-col">
-        {/* The only way back to a hidden sidebar, so it floats over the page
-            rather than scrolling away with it. It keeps the old top bar's
-            backdrop: on a phone the page's left edge passes underneath. There
-            it is always on screen, so it gets an outline rather than being a
-            bare icon that looks like part of the text. */}
-        {!showSidebar && (
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Show sidebar"
-            className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-8 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
-          >
-            <Icon name="panel" size={18} />
-          </button>
-        )}
+        {/* The top left: the way back to a hidden sidebar, then the open
+            page's trail. Both float over the page rather than scrolling away
+            with it, on one line with the star in the opposite corner — same
+            top, same height, same distance in from the edge — and stop short
+            of it. The row itself lets clicks through to the page; only what
+            is drawn in it takes them. */}
+        <div className="pointer-events-none absolute left-2 right-12 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 flex min-w-0 items-center gap-2 pointer-coarse:right-[3.25rem] pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)]">
+          {/* It keeps the old top bar's backdrop: on a phone the page's left
+              edge passes underneath. There it is always on screen, so it gets
+              an outline rather than being a bare icon that looks like part of
+              the text. */}
+          {!showSidebar && (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Show sidebar"
+              className="pointer-events-auto grid size-8 shrink-0 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
+            >
+              <Icon name="panel" size={18} />
+            </button>
+          )}
+          {page && trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
+        </div>
 
         {/* The top-right counterpart of the sidebar button, with the same
             backdrop for the same reason. It sits where the settings button
@@ -294,10 +302,7 @@ export function Workspace() {
               }`}
             >
               {page ? (
-                <>
-                  {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
-                  <Editor pageId={page.id} />
-                </>
+                <Editor pageId={page.id} />
               ) : (
                 <TrashPage />
               )}
@@ -312,13 +317,16 @@ export function Workspace() {
 }
 
 /** The ancestors, then the page itself as plain unclickable text to close
- *  the trail. Most pages are top level and get no trail at all. Plain text with no box
- *  around it: a crumb starts exactly where the title does, and hovering
- *  underlines it the way a link would. The spacing either side of a chevron
- *  carries the separation the padding used to. */
+ *  the trail. Most pages are top level and get no trail at all. The crumbs
+ *  are plain text, and hovering underlines one the way a link would; the box
+ *  round them is the floating buttons' backdrop, there so the page can scroll
+ *  under the trail without the two reading as one. */
 function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string | null) => void }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-3 flex min-w-0 items-center gap-1.5 overflow-hidden">
+    <nav
+      aria-label="Breadcrumb"
+      className="pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 overflow-hidden rounded-md bg-surface/85 px-2 backdrop-blur-md pointer-coarse:h-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90"
+    >
       {trail.map((crumb, index) => (
         <span key={crumb.id} className="flex min-w-0 items-center gap-1.5">
           {index > 0 && <Icon name="chevronRight" size={12} className="text-faint" />}
