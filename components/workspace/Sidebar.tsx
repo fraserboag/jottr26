@@ -129,7 +129,7 @@ export function Sidebar({
       </nav>
 
       <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-        <SidebarAction icon="trash" label="Trash" current={trashOpen} onClick={onOpenTrash} />
+        <SidebarAction icon="trash" label="View Trash" current={trashOpen} onClick={onOpenTrash} />
       </footer>
     </div>
   )

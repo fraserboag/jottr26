@@ -16,7 +16,7 @@ export function TrashPage() {
   return (
     <>
       <div className="flex items-baseline gap-4">
-        <h1 className="page-title flex-1">Trash</h1>
+        <h1 className="page-title flex-1">View Trash</h1>
         {pages.length > 0 && (
           <button
             type="button"
