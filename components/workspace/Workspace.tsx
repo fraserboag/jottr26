@@ -269,7 +269,7 @@ export function Workspace() {
             >
               {page ? (
                 <>
-                  {trail.length > 1 && <Breadcrumb trail={trail.slice(0, -1)} onOpen={openPage} />}
+                  {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
                   <Editor pageId={page.id} />
                 </>
               ) : (
@@ -285,8 +285,8 @@ export function Workspace() {
   )
 }
 
-/** Only the ancestors: the page's own name is the title right underneath, and
- *  most pages are top level and get no trail at all. Plain text with no box
+/** The ancestors, then the page itself as plain unclickable text to close
+ *  the trail. Most pages are top level and get no trail at all. Plain text with no box
  *  around it: a crumb starts exactly where the title does, and hovering
  *  underlines it the way a link would. The spacing either side of a chevron
  *  carries the separation the padding used to. */
@@ -296,13 +296,19 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
       {trail.map((crumb, index) => (
         <span key={crumb.id} className="flex min-w-0 items-center gap-1.5">
           {index > 0 && <Icon name="chevronRight" size={12} className="text-faint" />}
-          <button
-            type="button"
-            onClick={() => onOpen(crumb.id)}
-            className="truncate text-muted underline-offset-2 hover:underline"
-          >
-            {crumb.title || 'Untitled'}
-          </button>
+          {index === trail.length - 1 ? (
+            <span aria-current="page" className="truncate text-faint">
+              {crumb.title || 'Untitled'}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onOpen(crumb.id)}
+              className="truncate text-muted underline-offset-2 hover:underline"
+            >
+              {crumb.title || 'Untitled'}
+            </button>
+          )}
         </span>
       ))}
     </nav>
