@@ -371,8 +371,8 @@ function describeEdit(at: number, now: number) {
 
 /** When the open page last changed, faintly in the bottom right. It mirrors
  *  the breadcrumb in the opposite corner — same size, padding and colour as
- *  the trail's last crumb — lets clicks through, and rides above the phone's
- *  formatting bar while that is up. Ticks every half minute so
+ *  the trail's last crumb — and lets clicks through. Left off touch screens,
+ *  where the corner belongs to the page and the keyboard bar. Ticks every half minute so
  *  "just now" doesn't stay just now. */
 function LastUpdated({ at }: { at: number }) {
   const [now, setNow] = useState(() => Date.now())
@@ -385,7 +385,7 @@ function LastUpdated({ at }: { at: number }) {
   return (
     <p
       title={fullTime.format(at)}
-      className="pointer-events-none absolute right-2 bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+var(--toolbar-inset,0px))] z-20 flex h-8 select-none items-center px-2 text-faint pointer-coarse:h-9"
+      className="pointer-events-none absolute right-2 bottom-2 z-20 flex h-8 select-none items-center px-2 text-faint pointer-coarse:hidden"
     >
       Last updated {describeEdit(at, now)}
     </p>
