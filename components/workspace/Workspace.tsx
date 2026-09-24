@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { Sidebar } from './Sidebar'
 import { TrashPage } from './TrashPage'
@@ -231,9 +231,10 @@ export function Workspace() {
       )}
 
       <main className="relative flex min-w-0 flex-1 flex-col">
-        {/* The top left: the way back to a hidden sidebar, then the open
-            page's trail. Both float over the page rather than scrolling away
-            with it, on one line with the star in the opposite corner — same
+        {/* The top left: the way back to a hidden sidebar, then, on a wide
+            screen, the open page's trail. Both float over the page rather
+            than scrolling away with it, on one line with the star in the
+            opposite corner — same
             top, same height, same distance in from the edge — and stop short
             of it. The row itself lets clicks through to the page; only what
             is drawn in it takes them. */}
@@ -252,7 +253,7 @@ export function Workspace() {
               <Icon name="panel" size={18} />
             </button>
           )}
-          {page && trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
+          {wide && page && trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} floating />}
         </div>
 
         {/* The top-right counterpart of the sidebar button, with the same
@@ -260,30 +261,27 @@ export function Workspace() {
             sits in the sidebar's header: that button is centred on the Jottr
             wordmark's line, which puts it a few pixels below the header's
             padding — 3.6px, and 3.2px with a touch screen's larger text. */}
-        {page && (
-          <button
-            type="button"
-            onClick={() => void toggleFavorite(page.id)}
-            aria-label={page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-            aria-pressed={page.isFavorite === 1}
-            className={`absolute right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 grid size-8 place-items-center rounded-md bg-surface/85 backdrop-blur-md transition-colors hover:bg-[var(--hover)] pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 ${
-              page.isFavorite ? 'text-star' : 'text-faint hover:text-muted pointer-coarse:text-muted'
-            }`}
-          >
-            <Icon
-              name="star"
-              size={18}
-              className="pointer-coarse:size-5"
-              strokeWidth={1.8}
-              filled={page.isFavorite === 1}
-            />
-          </button>
+        {wide && page && (
+          <StarButton
+            page={page}
+            className="absolute right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 rounded-md bg-surface/85 backdrop-blur-md pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90"
+          />
         )}
 
         {page && <LastUpdated at={Math.max(page.updatedAt, page.editedAt ?? 0)} />}
 
         {page || trashOpen ? (
-          <div className="scroll-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="scroll-thin relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+            {/* On a narrow screen the trail and the star are part of the page:
+                they start level with the sidebar button, the trail just past
+                it, but scroll away with the text rather than floating over
+                it, so they need no backdrop. */}
+            {!wide && page && (
+              <div className="pointer-events-none absolute left-2 right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-10 flex min-w-0 items-center gap-2 pl-10 pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:pl-11">
+                {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
+                <StarButton page={page} className="ml-auto rounded-md" />
+              </div>
+            )}
             {/* 700px of text, the same column Notion sets, plus the side padding:
                 the cap is the two added together, not the column on its own. */}
             {/* Narrow screens centre nothing, so the floating button would sit on
@@ -300,7 +298,7 @@ export function Workspace() {
               className={`page-enter mx-auto w-full max-w-[780px] px-5 pb-[calc(4rem+var(--toolbar-inset,0px))] sm:px-10 ${entry.up ? '[--enter-side:-1] ' : ''}${
                 wide
                   ? 'pt-28'
-                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4rem)]'
+                  : 'pt-[calc(max(0.5rem,env(safe-area-inset-top))+4.5rem)] pointer-coarse:pt-[calc(max(0.5rem,env(safe-area-inset-top))+4.75rem)]'
               }`}
             >
               {page ? (
@@ -320,27 +318,66 @@ export function Workspace() {
 
 /** The ancestors, then the page itself as plain unclickable text to close
  *  the trail. Most pages are top level and get no trail at all. The crumbs
- *  are plain text, and hovering underlines one the way a link would; the box
- *  round them is the floating buttons' backdrop, there so the page can scroll
- *  under the trail without the two reading as one. */
-function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string | null) => void }) {
+ *  are plain text, and hovering underlines one the way a link would. When
+ *  the trail floats, the box round it is the floating buttons' backdrop,
+ *  there so the page can scroll under the trail without the two reading as
+ *  one. On a narrow screen a deep trail won't fit, so rather than cutting the
+ *  titles short it scrolls sideways, starting at the right-hand end with the
+ *  open page, and the reader swipes back for the rest. */
+function Breadcrumb({
+  trail,
+  onOpen,
+  floating = false,
+}: {
+  trail: PageRow[]
+  onOpen: (id: string | null) => void
+  floating?: boolean
+}) {
+  const navRef = useRef<HTMLElement>(null)
+  // Keyed on the titles as well as the ids, so renaming a page, which changes
+  // how wide the trail is, puts the open page back in view.
+  const trailKey = trail.map((crumb) => `${crumb.id}:${crumb.title}`).join('/')
+
+  // Starts the scrolling trail at its end. It happens again when the width
+  // changes, such as when the phone turns, but not while the reader is only
+  // swiping along it.
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    if (floating || !nav) return
+    const pin = () => {
+      nav.scrollLeft = nav.scrollWidth
+    }
+    pin()
+    const observer = new ResizeObserver(pin)
+    observer.observe(nav)
+    return () => observer.disconnect()
+  }, [floating, trailKey])
+
   return (
     <nav
+      ref={navRef}
       aria-label="Breadcrumb"
-      className="pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 overflow-hidden rounded-md bg-surface/85 px-2 backdrop-blur-md pointer-coarse:h-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90"
+      className={`pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 pointer-coarse:h-9 ${
+        floating
+          ? 'overflow-hidden rounded-md bg-surface/85 px-2 backdrop-blur-md pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90'
+          : 'overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+      }`}
     >
       {trail.map((crumb, index) => (
-        <span key={crumb.id} className="flex min-w-0 items-center gap-1.5">
+        <span
+          key={crumb.id}
+          className={`flex items-center gap-1.5 ${floating ? 'min-w-0' : 'shrink-0 whitespace-nowrap'}`}
+        >
           {index > 0 && <Icon name="chevronRight" size={12} className="text-faint" />}
           {index === trail.length - 1 ? (
-            <span aria-current="page" className="truncate text-faint">
+            <span aria-current="page" className={`text-faint ${floating ? 'truncate' : ''}`}>
               {crumb.title || 'Untitled'}
             </span>
           ) : (
             <button
               type="button"
               onClick={() => onOpen(crumb.id)}
-              className="truncate text-muted underline-offset-2 hover:underline"
+              className={`text-muted underline-offset-2 hover:underline ${floating ? 'truncate' : ''}`}
             >
               {crumb.title || 'Untitled'}
             </button>
@@ -348,6 +385,24 @@ function Breadcrumb({ trail, onOpen }: { trail: PageRow[]; onOpen: (id: string |
         </span>
       ))}
     </nav>
+  )
+}
+
+/** Adds the open page to the favourites, or takes it off. Where it sits,
+ *  and whether it has a backdrop, is up to the caller. */
+function StarButton({ page, className }: { page: PageRow; className: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => void toggleFavorite(page.id)}
+      aria-label={page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+      aria-pressed={page.isFavorite === 1}
+      className={`pointer-events-auto grid size-8 shrink-0 place-items-center transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9 ${className} ${
+        page.isFavorite ? 'text-star' : 'text-faint hover:text-muted pointer-coarse:text-muted'
+      }`}
+    >
+      <Icon name="star" size={18} className="pointer-coarse:size-5" strokeWidth={1.8} filled={page.isFavorite === 1} />
+    </button>
   )
 }
 
