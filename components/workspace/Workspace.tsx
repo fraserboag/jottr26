@@ -172,9 +172,13 @@ export function Workspace() {
         dragging ? ' cursor-col-resize select-none [&_button]:cursor-col-resize' : ''
       }`}
     >
-      {showSidebar && !wide && (
+      {/* Kept in the page while shut, so it fades with the drawer's slide both
+          ways rather than blinking on and off around it. */}
+      {!wide && (
         <div
-          className="fixed inset-0 z-40 bg-[var(--overlay)]"
+          className={`fixed inset-0 z-40 bg-[var(--overlay)] transition-opacity duration-200 ${
+            showSidebar ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
           onPointerDown={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
