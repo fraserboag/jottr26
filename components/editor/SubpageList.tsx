@@ -42,6 +42,12 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
     setDrop(null)
   }
 
+  // A page trashed or moved away on another device mid-drag takes its entry
+  // with it, and a browser sends no dragend for an element that has gone. The
+  // drag is over then, or the listeners below would refuse every drag in the
+  // editor until the page was reloaded.
+  const dragging = dragId && pages?.some((page) => page.id === dragId) ? dragId : null
+
   // While an entry is being dragged, this block has every drag event in the
   // editor to itself. Left to reach the editor, they draw its drop cursor
   // round the block and would let the entry land in the text; the node view's
@@ -50,7 +56,7 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
   // anything else sees them, and the drop is decided here: over the list it
   // moves the page, anywhere else it is refused.
   useEffect(() => {
-    if (!dragId) return
+    if (!dragging) return
     const dom = editor.view.dom
     const list = listRef.current
     let target: Drop | null = null
@@ -70,7 +76,7 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
       // In the gap between two entries the line stays where it was.
       if (!item) return
       const id = item.dataset.id
-      if (!id || id === dragId) return place(null)
+      if (!id || id === dragging) return place(null)
       const rect = item.getBoundingClientRect()
       place({ id, zone: event.clientY - rect.top < rect.height / 2 ? 'before' : 'after' })
     }
@@ -81,7 +87,7 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
     const land = (event: DragEvent) => {
       event.stopPropagation()
       event.preventDefault()
-      if (target) void dropRelative(dragId, target.id, target.zone)
+      if (target) void dropRelative(dragging, target.id, target.zone)
       end()
     }
 
@@ -95,7 +101,7 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
       dom.removeEventListener('dragleave', leave, true)
       dom.removeEventListener('drop', land, true)
     }
-  }, [dragId, editor])
+  }, [dragging, editor])
 
   return (
     <NodeViewWrapper data-type="subpages" contentEditable={false}>
@@ -110,8 +116,8 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
                 key={page.id}
                 data-id={page.id}
                 draggable
-                data-dragging={dragId === page.id || undefined}
-                data-drop={drop?.id === page.id ? drop.zone : undefined}
+                data-dragging={dragging === page.id || undefined}
+                data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
                 onDragStart={(event) => {
                   setDragId(page.id)
                   event.dataTransfer.effectAllowed = 'move'
