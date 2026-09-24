@@ -390,17 +390,26 @@ h1.page-title {
   margin: 0;
   color: var(--text-faint);
 }
-/* At a depth of two: each child a bold heading line with its own menu, over
-   its children, spaced apart from the next child's. */
+/* At a depth of two: each child a heading line with its own menu, over its
+   children, a blank line clear of the next child's. The heading follows its
+   link like any other, but is drawn as plain bold text, like the block's own
+   heading, rather than as a link. */
 .ProseMirror div[data-type="subpages"] .subpages-group + .subpages-group {
-  margin-top: 14px;
+  margin-top: calc(var(--list-leading) * 1em);
 }
 .ProseMirror div[data-type="subpages"] .subpages-group-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+}
+.ProseMirror div[data-type="subpages"] .subpages-group-head + ul {
+  margin-top: 4px;
+}
+.ProseMirror div[data-type="subpages"] .subpages-group-head > a {
+  color: inherit;
   font-weight: 620;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 /* An accordion: a heading line — ordinary body text, formatted however it is

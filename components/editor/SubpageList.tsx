@@ -34,7 +34,7 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  The three dots beside it hold the block's own settings, so far only its
  *  depth. At a depth of two, each child becomes a heading with its own
  *  children listed under it; a child with none still gets its heading, so it
- *  stays in reach. Dragging there reorders within a heading only, for the
+ *  stays in reach, with nothing under it. Dragging there reorders within a heading only, for the
  *  same reason as above: moving a page to another heading reparents it. */
 
 type Drop = { id: string; zone: 'before' | 'after' }
@@ -182,11 +182,7 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
                   <PageMenu page={page} />
                 </span>
               </div>
-              {children.length === 0 ? (
-                <p className="subpages-empty">No subpages</p>
-              ) : (
-                <ul>{children.map((child) => entry(child.page))}</ul>
-              )}
+              {children.length > 0 && <ul>{children.map((child) => entry(child.page))}</ul>}
             </div>
           ))}
         </div>
@@ -204,9 +200,6 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
       <div className="subpages-head">
         <p className="subpages-title">Subpages</p>
         <div className="subpages-actions">
-          <button type="button" className="subpages-button" aria-label="Add a subpage" onClick={add}>
-            <Icon name="plus" size={16} strokeWidth={2.2} />
-          </button>
           <Popover
             width="auto"
             align="end"
@@ -241,6 +234,9 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
               </>
             )}
           </Popover>
+          <button type="button" className="subpages-button" aria-label="Add a subpage" onClick={add}>
+            <Icon name="plus" size={16} strokeWidth={2.2} />
+          </button>
         </div>
       </div>
       <div className="subpages-box">{list}</div>
