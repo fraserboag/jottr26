@@ -151,8 +151,8 @@ function Row({
         </button>
 
         {/* Shown on hover, or while the menu is open, which a touch screen
-            never has, so there they stay. */}
-        <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 pointer-coarse:opacity-100">
+            never has, so there they stay, a little faded. */}
+        <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100 pointer-coarse:opacity-60">
           <PageMenu page={page} />
 
           <button
