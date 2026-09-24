@@ -109,8 +109,9 @@ function Row({
         // Each level steps in far enough to centre its chevron under the
         // parent's page icon, the way the note indents a nested list, so the
         // tree reads in clean columns. The chevron is wider on a touch
-        // screen, and the step follows it.
-        className={`group relative flex items-center gap-1.5 rounded-md pl-[calc(var(--depth)*24px+6px)] pr-1 transition-colors pointer-coarse:pl-[calc(var(--depth)*28px+6px)] ${
+        // screen, and the step follows it. The chevron's negative margin pulls
+        // the page icon in close, and the step is shortened to match.
+        className={`group relative flex items-center gap-1.5 rounded-md pl-[calc(var(--depth)*20px+6px)] pr-1 transition-colors pointer-coarse:pl-[calc(var(--depth)*24px+6px)] ${
           isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
@@ -127,7 +128,7 @@ function Row({
             event.stopPropagation()
             if (hasChildren) onToggleExpand(page.id)
           }}
-          className={`grid size-5 shrink-0 place-items-center rounded text-faint transition-colors pointer-coarse:size-7 ${
+          className={`-mr-1 grid size-5 shrink-0 place-items-center rounded text-faint transition-colors pointer-coarse:size-7 ${
             hasChildren ? 'hover:bg-[var(--active)] hover:text-muted' : 'invisible'
           }`}
           tabIndex={hasChildren ? 0 : -1}
