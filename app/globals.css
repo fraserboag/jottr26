@@ -30,6 +30,9 @@
   --ok: #2f9e44;
   --warn: #d97706;
   --danger: #e03131;
+  /* A starred page. Paler than --warn, so a favourite reads as marked rather
+     than as a warning. */
+  --star: #f6d365;
 
   --shadow-soft: 0 1px 2px rgb(23 23 22 / 0.06), 0 4px 14px rgb(23 23 22 / 0.07);
   --shadow-pop: 0 2px 6px rgb(23 23 22 / 0.08), 0 12px 32px rgb(23 23 22 / 0.14);
@@ -53,6 +56,7 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-star: var(--star);
 
   /* No webfont: the fastest font is the one already on the device, and the
      first paint of a local-first app should not wait on a download. */
