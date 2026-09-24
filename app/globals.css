@@ -767,8 +767,7 @@ h1.page-title {
 /* The keyboard bar rises into place instead: it spans the screen, and
    scaling a strip that wide from its middle reads as a zoom rather than an
    arrival. Named as `translate` because the bar is placed with an inline
-   `transform`, which a transform keyframe would overwrite. The block list
-   opening on the bar rises the same way. */
+   `transform`, which a transform keyframe would overwrite. */
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -778,6 +777,17 @@ h1.page-title {
 
 .rise-in {
   animation: rise-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The bar itself comes up with the keyboard, which slides its whole height in
+   over about a third of a second. Travelling the bar's own full height over
+   the same time, on a similarly unhurried curve, keeps the two moving as one
+   rather than the bar arriving first. The block list opening on the bar
+   comes up the same way. */
+.rise-in.with-keyboard {
+  --rise-distance: 100%;
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

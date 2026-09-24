@@ -211,11 +211,14 @@ export function MobileToolbar({
         if (next instanceof Node && (barRef.current?.contains(next) || editor.view.dom.contains(next))) return
         setLinkOpen(false)
       }}
-      className="rise-in fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
+      className="rise-in with-keyboard fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
     >
+      {/* The list slides up out of the formatting row the way the keyboard
+          slides up out of the screen's edge, clipped so it never passes over
+          the row on its way. */}
       {blocks && (
-        <div className="rise-in border-b border-line [--rise-distance:6px]">
-          {blocks}
+        <div className="overflow-hidden border-b border-line">
+          <div className="rise-in with-keyboard">{blocks}</div>
         </div>
       )}
       {!formatting ? null : linkOpen ? (
