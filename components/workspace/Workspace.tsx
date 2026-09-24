@@ -234,10 +234,9 @@ export function Workspace() {
         {/* The top left: the way back to a hidden sidebar, then, on a wide
             screen, the open page's trail. Both float over the page rather
             than scrolling away with it, on one line with the star in the
-            opposite corner — same
-            top, same height, same distance in from the edge — and stop short
-            of it. The row itself lets clicks through to the page; only what
-            is drawn in it takes them. */}
+            opposite corner — same top, same height, same distance in from the
+            edge — and stop short of it. The row itself lets clicks through to
+            the page; only what is drawn in it takes them. */}
         <div className="pointer-events-none absolute left-2 right-12 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 flex min-w-0 items-center gap-2 pointer-coarse:right-[3.25rem] pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)]">
           {/* It keeps the old top bar's backdrop: on a phone the page's left
               edge passes underneath. There it is always on screen, so it gets
