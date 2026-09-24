@@ -34,8 +34,8 @@ export function Sidebar({
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
-      <header className="flex items-center gap-1 px-2 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <span className="mr-auto min-w-0 truncate px-1.5 py-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
+      <header className="flex items-center gap-1 px-3 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <span className="mr-auto min-w-0 truncate px-2 py-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink pointer-coarse:text-[19px]">
           Jottr
         </span>
         <Popover
@@ -106,7 +106,7 @@ export function Sidebar({
           if (event.clientX - bounds.left >= event.currentTarget.clientWidth) return
           onOpen(null)
         }}
-        className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4"
+        className="scroll-thin min-h-0 flex-1 overflow-y-auto px-3 pb-4"
       >
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
@@ -130,7 +130,7 @@ export function Sidebar({
         />
 
         {favourites.length > 0 && (
-          <div className="mt-3">
+          <div className="mt-5">
             <SectionLabel>Favourites</SectionLabel>
             <ul className="min-w-0">
               {favourites.map((page) => (
@@ -141,7 +141,7 @@ export function Sidebar({
         )}
       </nav>
 
-      <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+      <footer className="border-t border-line px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
         <SidebarAction icon="trash" label="View Trash" current={trashOpen} onClick={onOpenTrash} />
       </footer>
     </div>
@@ -163,7 +163,7 @@ function Favourite({
   return (
     <li>
       <div
-        className={`flex items-center gap-1 rounded-md pl-1 pr-1 transition-colors ${
+        className={`flex items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors ${
           isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
@@ -198,7 +198,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
       // Lines up with the page titles above it: past the chevron column, with
       // the plus sitting where each page's icon sits. The chevron is wider on
       // a touch screen, and the offset follows it.
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-7 pr-1 pointer-coarse:pl-9 text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2"
+      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-8 pr-1 pointer-coarse:pl-10 text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2"
     >
       <span className="w-4 shrink-0">
         <Icon name="plus" size={15} strokeWidth={2} />
@@ -210,7 +210,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2 pb-1 pt-2 text-[11.5px] font-semibold uppercase tracking-wide text-faint pointer-coarse:text-[12.5px]">
+    <p className="px-2 pb-1.5 pt-3 text-[11.5px] font-semibold uppercase tracking-wide text-faint pointer-coarse:text-[12.5px]">
       {children}
     </p>
   )

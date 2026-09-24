@@ -106,12 +106,16 @@ function Row({
           setDragId(null)
           setDrop(null)
         }}
-        className={`group relative flex items-center gap-1 rounded-md pr-1 transition-colors ${
+        // Each level steps in far enough to centre its chevron under the
+        // parent's page icon, the way the note indents a nested list, so the
+        // tree reads in clean columns. The chevron is wider on a touch
+        // screen, and the step follows it.
+        className={`group relative flex items-center gap-1.5 rounded-md pl-[calc(var(--depth)*24px+6px)] pr-1 transition-colors pointer-coarse:pl-[calc(var(--depth)*28px+6px)] ${
           isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
         }`}
-        style={{ paddingLeft: depth * 12 + 4 }}
+        style={{ '--depth': depth } as React.CSSProperties}
       >
         {active === 'before' && <Indicator className="top-0" />}
         {active === 'after' && <Indicator className="bottom-0" />}
@@ -164,7 +168,7 @@ function Row({
             }}
             className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
           >
-            <Icon name="plus" size={16} strokeWidth={2.2} />
+            <Icon name="plus" size={16} strokeWidth={2} />
           </button>
         </div>
       </div>
