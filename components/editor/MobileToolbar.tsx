@@ -211,10 +211,10 @@ export function MobileToolbar({
         if (next instanceof Node && (barRef.current?.contains(next) || editor.view.dom.contains(next))) return
         setLinkOpen(false)
       }}
-      className="fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
+      className="rise-in fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
     >
       {blocks && (
-        <div className="border-b border-line">
+        <div className="rise-in border-b border-line [--rise-distance:6px]">
           {blocks}
         </div>
       )}
