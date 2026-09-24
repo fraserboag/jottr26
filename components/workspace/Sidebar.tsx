@@ -108,17 +108,6 @@ export function Sidebar({
         }}
         className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4"
       >
-        {favourites.length > 0 && (
-          <>
-            <SectionLabel>Favourites</SectionLabel>
-            <ul className="mb-3 min-w-0">
-              {favourites.map((page) => (
-                <Favourite key={page.id} page={page} isOpen={openId === page.id} onOpen={onOpen} />
-              ))}
-            </ul>
-          </>
-        )}
-
         <SectionLabel>Pages</SectionLabel>
         {tree.length === 0 ? (
           <p className="px-2 py-2 leading-relaxed text-faint">
@@ -139,6 +128,17 @@ export function Sidebar({
             void createPage().then(onOpen)
           }}
         />
+
+        {favourites.length > 0 && (
+          <div className="mt-3">
+            <SectionLabel>Favourites</SectionLabel>
+            <ul className="min-w-0">
+              {favourites.map((page) => (
+                <Favourite key={page.id} page={page} isOpen={openId === page.id} onOpen={onOpen} />
+              ))}
+            </ul>
+          </div>
+        )}
       </nav>
 
       <footer className="border-t border-line px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
