@@ -1,9 +1,12 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 
-/** A list of the page's subpages: the pages one level down, each a link.
+/** A list of the page's subpages: the pages one level down, each a link — or,
+ *  set to a depth of two, the pages two levels down, grouped under the child
+ *  each one sits in.
  *
- *  The node is an empty marker and nothing more. Which pages sit under this one
+ *  The node is an empty marker, carrying only that depth: a setting of this
+ *  block's, not a copy of anything. Which pages sit under this one
  *  is page metadata, already synced on its own, so the list is read from the
  *  local database on each device and drawn by a node view. Writing it into the
  *  document would put a copy of that metadata in the CRDT, where two devices
@@ -36,6 +39,16 @@ export const Subpages = Node.create<SubpagesOptions>({
 
   addOptions() {
     return { pageId: '' }
+  },
+
+  addAttributes() {
+    return {
+      depth: {
+        default: 1,
+        parseHTML: (element) => (element.getAttribute('data-depth') === '2' ? 2 : 1),
+        renderHTML: (attributes) => ({ 'data-depth': String(attributes.depth) }),
+      },
+    }
   },
 
   parseHTML() {

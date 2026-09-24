@@ -46,6 +46,25 @@ export function useChildPages(parentId: string): PageRow[] | undefined {
   }, [parentId])
 }
 
+/** A page's live subpages two levels down: each child, in sidebar order, with
+ *  its own children under it. Live for the same reasons as the list above. */
+export function useGrandchildPages(parentId: string, enabled: boolean): TreeNode[] | undefined {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db || !parentId || !enabled) return []
+    const children = (await db.pages.where('parentId').equals(parentId).toArray())
+      .filter((page) => !page.deletedAt)
+      .sort(bySortKey)
+    const grandchildren = (await db.pages.where('parentId').anyOf(children.map((page) => page.id)).toArray())
+      .filter((page) => !page.deletedAt)
+      .sort(bySortKey)
+    return children.map((page) => ({
+      page,
+      children: grandchildren.filter((child) => child.parentId === page.id).map((child) => ({ page: child, children: [] })),
+    }))
+  }, [parentId, enabled])
+}
+
 /** Whether a page's document is on this device yet.
  *
  *  A page created here owns its own initial content. A page that arrived from

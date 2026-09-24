@@ -45,14 +45,14 @@ describe('subpage list', () => {
     assert.equal($from.index(0), 2)
   })
 
-  it('holds nothing of its own, so there is nothing in it to edit or sync', () => {
+  it('holds nothing of its own but its depth, so there is nothing in it to edit', () => {
     const instance = editor([paragraph()], 0)
     instance.commands.insertSubpages()
     const node = instance.state.doc.child(0)
     assert.equal(node.type.name, 'subpages')
     assert.equal(node.isAtom, true)
     assert.equal(node.content.size, 0)
-    assert.equal(Object.keys(node.attrs).length, 0)
+    assert.deepEqual({ ...node.attrs }, { depth: 1 })
   })
 
   it('is in the slash menu', () => {

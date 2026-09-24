@@ -184,12 +184,12 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         Subpages.extend({
           addNodeView: () =>
             ReactNodeViewRenderer(SubpageList, {
-              // The entries and the add button are the list's own: a click
+              // The entries, headings and buttons are the list's own: a click
               // follows a link or adds a page and a drag reorders, and
               // ProseMirror would read any of them as an edit to the
               // document. Anywhere else in the block, it selects the block so
               // it can be deleted.
-              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('li, button'),
+              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('li, button, a'),
             }),
         }).configure({ pageId }),
         ...AccordionKit,

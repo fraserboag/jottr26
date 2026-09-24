@@ -304,8 +304,14 @@ h1.page-title {
   min-height: calc(var(--body-leading) * 1em);
   font-weight: 620;
 }
-/* The sidebar's plus button, at the right-hand end of the heading line. */
-.ProseMirror div[data-type="subpages"] .subpages-add {
+/* The sidebar's plus button and a three-dot menu for the block's settings, at
+   the right-hand end of the heading line. */
+.ProseMirror div[data-type="subpages"] .subpages-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ProseMirror div[data-type="subpages"] .subpages-button {
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -317,12 +323,12 @@ h1.page-title {
   touch-action: manipulation;
   transition: background 150ms, color 150ms;
 }
-.ProseMirror div[data-type="subpages"] .subpages-add:hover {
+.ProseMirror div[data-type="subpages"] :is(.subpages-button:hover, .subpages-button[data-open]) {
   background: var(--active);
   color: var(--text-muted);
 }
 @media (pointer: coarse) {
-  .ProseMirror div[data-type="subpages"] .subpages-add {
+  .ProseMirror div[data-type="subpages"] .subpages-button {
     width: 32px;
     height: 32px;
     color: var(--text-muted);
@@ -383,6 +389,18 @@ h1.page-title {
 .ProseMirror div[data-type="subpages"] .subpages-empty {
   margin: 0;
   color: var(--text-faint);
+}
+/* At a depth of two: each child a bold heading line with its own menu, over
+   its children, spaced apart from the next child's. */
+.ProseMirror div[data-type="subpages"] .subpages-group + .subpages-group {
+  margin-top: 14px;
+}
+.ProseMirror div[data-type="subpages"] .subpages-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-weight: 620;
 }
 
 /* An accordion: a heading line — ordinary body text, formatted however it is

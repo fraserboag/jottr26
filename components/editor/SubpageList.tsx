@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
+import { MenuItem, Popover } from '@/components/ui/Popover'
 import { PageMenu } from '@/components/workspace/PageMenu'
-import { useChildPages } from '@/lib/db/hooks'
+import { useChildPages, useGrandchildPages } from '@/lib/db/hooks'
 import { createPage, dropRelative } from '@/lib/db/pages'
 import { expandPage } from '@/lib/util/expanded'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import { pageHref } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
+import type { PageRow } from '@/lib/db/schema'
 import type { SubpagesOptions } from './extensions/subpages'
 
 /** The subpage block as it is drawn: the open page's children, one link each.
@@ -27,17 +29,27 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  Each entry has the sidebar's three-dot menu, and the plus in the corner is
  *  the sidebar's own plus for this page: a new, empty subpage at the end of
  *  the list, opened straight away, with this page's branch in the sidebar
- *  opened to show it. */
+ *  opened to show it.
+ *
+ *  The three dots beside it hold the block's own settings, so far only its
+ *  depth. At a depth of two, each child becomes a heading with its own
+ *  children listed under it; a child with none still gets its heading, so it
+ *  stays in reach. Dragging there reorders within a heading only, for the
+ *  same reason as above: moving a page to another heading reparents it. */
 
 type Drop = { id: string; zone: 'before' | 'after' }
 
-export function SubpageList({ editor, extension }: ReactNodeViewProps) {
+const DEPTHS = [1, 2] as const
+
+export function SubpageList({ editor, extension, node, updateAttributes }: ReactNodeViewProps) {
   const { pageId } = extension.options as SubpagesOptions
+  const depth = node.attrs.depth === 2 ? 2 : 1
   const pages = useChildPages(pageId)
+  const groups = useGrandchildPages(pageId, depth === 2)
   const [, openPage] = useOpenPageId()
   const [dragId, setDragId] = useState<string | null>(null)
   const [drop, setDrop] = useState<Drop | null>(null)
-  const listRef = useRef<HTMLUListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const follow = (event: MouseEvent, id: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -64,7 +76,8 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
   // with it, and a browser sends no dragend for an element that has gone. The
   // drag is over then, or the listeners below would refuse every drag in the
   // editor until the page was reloaded.
-  const dragging = dragId && pages?.some((page) => page.id === dragId) ? dragId : null
+  const listed = depth === 2 ? groups?.flatMap((group) => group.children.map((child) => child.page)) : pages
+  const dragging = dragId && listed?.some((page) => page.id === dragId) ? dragId : null
 
   // While an entry is being dragged, this block has every drag event in the
   // editor to itself. Left to reach the editor, they draw its drop cursor
@@ -95,6 +108,8 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
       if (!item) return
       const id = item.dataset.id
       if (!id || id === dragging) return place(null)
+      const from = list?.querySelector<HTMLElement>(`li[data-id="${dragging}"]`)
+      if (item.dataset.parent !== from?.dataset.parent) return place(null)
       const rect = item.getBoundingClientRect()
       place({ id, zone: event.clientY - rect.top < rect.height / 2 ? 'before' : 'after' })
     }
@@ -121,54 +136,114 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
     }
   }, [dragging, editor])
 
-  return (
-    <NodeViewWrapper data-type="subpages" contentEditable={false}>
-      <div className="subpages-head">
-        <p className="subpages-title">Subpages</p>
-        <button type="button" className="subpages-add" aria-label="Add a subpage" onClick={add}>
-          <Icon name="plus" size={16} strokeWidth={2.2} />
-        </button>
-      </div>
-      <div className="subpages-box">
-        {pages === undefined ? null : pages.length === 0 ? (
-          <p className="subpages-empty">No subpages yet</p>
-        ) : (
-          <ul ref={listRef}>
-            {pages.map((page) => (
-              <li
-                key={page.id}
-                data-id={page.id}
-                draggable
-                data-dragging={dragging === page.id || undefined}
-                data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
-                onDragStart={(event) => {
-                  setDragId(page.id)
-                  event.dataTransfer.effectAllowed = 'move'
-                  // A type of its own rather than text/plain, which the editor
-                  // would paste in as the page's id if the entry were dropped
-                  // anywhere else on the page.
-                  event.dataTransfer.setData('application/x-jottr-subpage', page.id)
-                }}
-                onDragEnd={end}
-              >
-                <Icon name="file" size={15} className="text-faint" />
-                {/* Not draggable itself, so a drag picks up the whole entry
-                    rather than the link's address. */}
-                <a
-                  href={pageHref(page.id)}
-                  draggable={false}
-                  onClick={(event) => follow(event, page.id)}
-                >
+  const entry = (page: PageRow) => (
+    <li
+      key={page.id}
+      data-id={page.id}
+      data-parent={page.parentId ?? undefined}
+      draggable
+      data-dragging={dragging === page.id || undefined}
+      data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
+      onDragStart={(event) => {
+        setDragId(page.id)
+        event.dataTransfer.effectAllowed = 'move'
+        // A type of its own rather than text/plain, which the editor
+        // would paste in as the page's id if the entry were dropped
+        // anywhere else on the page.
+        event.dataTransfer.setData('application/x-jottr-subpage', page.id)
+      }}
+      onDragEnd={end}
+    >
+      <Icon name="file" size={15} className="text-faint" />
+      {/* Not draggable itself, so a drag picks up the whole entry
+          rather than the link's address. */}
+      <a href={pageHref(page.id)} draggable={false} onClick={(event) => follow(event, page.id)}>
+        {page.title || 'Untitled'}
+      </a>
+      <span className="subpages-menu">
+        <PageMenu page={page} />
+      </span>
+    </li>
+  )
+
+  const list =
+    depth === 2 ? (
+      groups === undefined ? null : groups.length === 0 ? (
+        <p className="subpages-empty">No subpages yet</p>
+      ) : (
+        <div ref={listRef}>
+          {groups.map(({ page, children }) => (
+            <div key={page.id} className="subpages-group">
+              <div className="subpages-group-head">
+                <a href={pageHref(page.id)} draggable={false} onClick={(event) => follow(event, page.id)}>
                   {page.title || 'Untitled'}
                 </a>
                 <span className="subpages-menu">
                   <PageMenu page={page} />
                 </span>
-              </li>
-            ))}
-          </ul>
-        )}
+              </div>
+              {children.length === 0 ? (
+                <p className="subpages-empty">No subpages</p>
+              ) : (
+                <ul>{children.map((child) => entry(child.page))}</ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )
+    ) : pages === undefined ? null : pages.length === 0 ? (
+      <p className="subpages-empty">No subpages yet</p>
+    ) : (
+      <div ref={listRef}>
+        <ul>{pages.map(entry)}</ul>
       </div>
+    )
+
+  return (
+    <NodeViewWrapper data-type="subpages" contentEditable={false}>
+      <div className="subpages-head">
+        <p className="subpages-title">Subpages</p>
+        <div className="subpages-actions">
+          <button type="button" className="subpages-button" aria-label="Add a subpage" onClick={add}>
+            <Icon name="plus" size={16} strokeWidth={2.2} />
+          </button>
+          <Popover
+            width="auto"
+            align="end"
+            trigger={({ open, toggle, ref }) => (
+              <button
+                type="button"
+                ref={ref}
+                className="subpages-button"
+                data-open={open || undefined}
+                aria-label="Subpage list options"
+                onClick={toggle}
+              >
+                <Icon name="more" size={16} strokeWidth={3.6} />
+              </button>
+            )}
+          >
+            {(close) => (
+              <>
+                <p className="px-2.5 pt-1 pb-0.5 text-xs text-faint">Depth</p>
+                {DEPTHS.map((value) => (
+                  <MenuItem
+                    key={value}
+                    icon={<Icon name="check" size={14} className={value === depth ? '' : 'invisible'} />}
+                    onClick={() => {
+                      updateAttributes({ depth: value })
+                      close()
+                    }}
+                  >
+                    {value === 1 ? '1 level' : '2 levels'}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+          </Popover>
+        </div>
+      </div>
+      <div className="subpages-box">{list}</div>
     </NodeViewWrapper>
   )
 }
