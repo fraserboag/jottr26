@@ -9,10 +9,10 @@
   /* Paper on a desk: the page is a faintly warm off-white, and the sidebar a
      clear step darker, so the two panes read apart. Menus stay pure white,
      lifted off the page. */
-  --surface: #fbf9f4;
-  --surface-sunken: #f2f0e9;
+  --surface: #fcfbf7;
+  --surface-sunken: #f4f3ee;
   --surface-raised: #ffffff;
-  --sidebar: #efede5;
+  --sidebar: #f1f0ea;
   --overlay: rgb(23 23 22 / 0.28);
 
   /* The darkest any text goes, in the notes and the UI alike: a soft
