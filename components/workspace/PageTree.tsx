@@ -11,7 +11,7 @@ interface TreeProps {
   nodes: TreeNode[]
   openId: string | null
   onOpen: (id: string) => void
-  expanded: Set<string>
+  expanded: ReadonlySet<string>
   onToggleExpand: (id: string) => void
   depth?: number
 }

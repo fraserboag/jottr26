@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback, useState } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageTree } from './PageTree'
@@ -8,10 +7,9 @@ import { SyncStatusRow, useForceSync } from './SyncIndicator'
 import { useWorkspace } from './WorkspaceProvider'
 import { buildTree, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
+import { toggleExpanded, useExpanded } from '@/lib/util/expanded'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { PageRow } from '@/lib/db/schema'
-
-const EXPANDED_KEY = 'jottr.expanded'
 
 export function Sidebar({
   pages,
@@ -28,30 +26,7 @@ export function Sidebar({
 }) {
   const { session, signOut, status } = useWorkspace()
   const forceSync = useForceSync()
-  // The sidebar only ever renders after the workspace has mounted and read
-  // IndexedDB, so there is no server render to disagree with.
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    try {
-      const raw = localStorage.getItem(EXPANDED_KEY)
-      return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
-
-  const toggleExpand = useCallback((id: string) => {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      try {
-        localStorage.setItem(EXPANDED_KEY, JSON.stringify([...next]))
-      } catch {
-        /* Ignore. */
-      }
-      return next
-    })
-  }, [])
+  const expanded = useExpanded()
 
   const tree: TreeNode[] = buildTree(pages)
 
@@ -142,7 +117,7 @@ export function Sidebar({
             openId={openId}
             onOpen={onOpen}
             expanded={expanded}
-            onToggleExpand={toggleExpand}
+            onToggleExpand={toggleExpanded}
           />
         )}
         <AddPage

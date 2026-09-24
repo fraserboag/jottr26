@@ -293,10 +293,40 @@ h1.page-title {
 .ProseMirror div[data-type="subpages"] {
   margin: 2px 0 8px;
 }
-.ProseMirror div[data-type="subpages"] > .subpages-title {
+.ProseMirror div[data-type="subpages"] > .subpages-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ProseMirror div[data-type="subpages"] .subpages-title {
   margin: 1px 0;
   min-height: calc(var(--body-leading) * 1em);
   font-weight: 620;
+}
+/* The sidebar's plus button, at the right-hand end of the heading line. */
+.ProseMirror div[data-type="subpages"] .subpages-add {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-faint);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 150ms, color 150ms;
+}
+.ProseMirror div[data-type="subpages"] .subpages-add:hover {
+  background: var(--active);
+  color: var(--text-muted);
+}
+@media (pointer: coarse) {
+  .ProseMirror div[data-type="subpages"] .subpages-add {
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted);
+  }
 }
 .ProseMirror div[data-type="subpages"] > .subpages-box {
   margin: 6px 0 0;

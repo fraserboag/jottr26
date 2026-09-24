@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { useChildPages } from '@/lib/db/hooks'
-import { dropRelative } from '@/lib/db/pages'
+import { createPage, dropRelative } from '@/lib/db/pages'
+import { expandPage } from '@/lib/util/expanded'
+import { raiseKeyboard } from '@/lib/util/keyboard'
 import { pageHref } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
 import type { SubpagesOptions } from './extensions/subpages'
@@ -19,7 +21,11 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  The entries drag to reorder, with the sidebar's own move: both lists sort by
  *  the same key, so a page dragged here moves there too, and on every other
  *  device. Only above or below another entry — dropping one page into another
- *  would take it out of this list, which is the sidebar's job. */
+ *  would take it out of this list, which is the sidebar's job.
+ *
+ *  The plus in the corner is the sidebar's own plus for this page: a new, empty
+ *  subpage at the end of the list, opened straight away, with this page's
+ *  branch in the sidebar opened to show it. */
 
 type Drop = { id: string; zone: 'before' | 'after' }
 
@@ -35,6 +41,16 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
     openPage(id)
+  }
+
+  const add = () => {
+    // Before anything is awaited, or a phone won't raise its keyboard for the
+    // new page's title.
+    raiseKeyboard()
+    void createPage({ parentId: pageId }).then((id) => {
+      expandPage(pageId)
+      openPage(id)
+    })
   }
 
   const end = () => {
@@ -105,7 +121,12 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
 
   return (
     <NodeViewWrapper data-type="subpages" contentEditable={false}>
-      <p className="subpages-title">Subpages</p>
+      <div className="subpages-head">
+        <p className="subpages-title">Subpages</p>
+        <button type="button" className="subpages-add" aria-label="Add a subpage" onClick={add}>
+          <Icon name="plus" size={16} strokeWidth={2.2} />
+        </button>
+      </div>
       <div className="subpages-box">
         {pages === undefined ? null : pages.length === 0 ? (
           <p className="subpages-empty">No subpages yet</p>
