@@ -150,8 +150,7 @@ export function Sidebar({
 }
 
 /** A row drawn like the page tree's, flat and without the tree's drag, which
- *  would move the page itself rather than reorder the favourites. The chevron
- *  column stays as a blank, so the titles line up with the tree's below. */
+ *  would move the page itself rather than reorder the favourites. */
 function Favourite({
   page,
   isOpen,
@@ -168,13 +167,12 @@ function Favourite({
           isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
-        <span className="size-5 shrink-0 pointer-coarse:size-7" />
         <button
           type="button"
           onClick={() => onOpen(page.id)}
           className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
         >
-          <span className="w-4 shrink-0 text-center text-[13px] leading-none">
+          <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
             <Icon name="file" size={15} className="text-faint" />
           </span>
           <span
@@ -199,12 +197,11 @@ function AddPage({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      // Lines up with the page titles above it: past the chevron column, with
-      // the plus sitting where each page's icon sits. The chevron is wider on
-      // a touch screen, and the offset follows it.
-      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-8 pr-1 pointer-coarse:pl-10 text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2"
+      // Lines up with the pages above it, the plus sitting where each page's
+      // icon sits.
+      className="flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2"
     >
-      <span className="w-4 shrink-0">
+      <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
         <Icon name="plus" size={15} strokeWidth={2} />
       </span>
       <span className="flex-1 text-left">Add new</span>

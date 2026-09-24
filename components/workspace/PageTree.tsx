@@ -106,11 +106,9 @@ function Row({
           setDragId(null)
           setDrop(null)
         }}
-        // Each level steps in far enough to centre its chevron under the
-        // parent's page icon, the way the note indents a nested list, so the
-        // tree reads in clean columns. The chevron is wider on a touch
-        // screen, and the step follows it. The chevron's negative margin pulls
-        // the page icon in close, and the step is shortened to match.
+        // Each level steps in by one icon's width, so a sub-page's icon sits
+        // just past its parent's and the tree reads in clean columns. The
+        // icon is wider on a touch screen, and the step follows it.
         className={`group relative flex items-center gap-1.5 rounded-md pl-[calc(var(--depth)*20px+6px)] pr-1 transition-colors pointer-coarse:pl-[calc(var(--depth)*24px+6px)] ${
           isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
@@ -121,29 +119,32 @@ function Row({
         {active === 'before' && <Indicator className="top-0" />}
         {active === 'after' && <Indicator className="bottom-0" />}
 
-        <button
-          type="button"
-          aria-label={hasChildren ? (isExpanded ? 'Collapse' : 'Expand') : undefined}
-          onClick={(event) => {
-            event.stopPropagation()
-            if (hasChildren) onToggleExpand(page.id)
-          }}
-          className={`-mr-1 grid size-5 shrink-0 place-items-center rounded text-faint transition-colors pointer-coarse:size-7 ${
-            hasChildren ? 'hover:bg-[var(--active)] hover:text-muted' : 'invisible'
-          }`}
-          tabIndex={hasChildren ? 0 : -1}
-        >
-          <Icon name={isExpanded ? 'chevronDown' : 'chevronRight'} size={14} strokeWidth={2} />
-        </button>
+        {/* A page with sub-pages shows its chevron where the page icon would
+            be, as Notion does, so the row needs only the one icon. */}
+        {hasChildren && (
+          <button
+            type="button"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleExpand(page.id)
+            }}
+            className="grid size-5 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-6"
+          >
+            <Icon name={isExpanded ? 'chevronDown' : 'chevronRight'} size={14} strokeWidth={2} />
+          </button>
+        )}
 
         <button
           type="button"
           onClick={() => onOpen(page.id)}
           className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
         >
-          <span className="w-4 shrink-0 text-center text-[13px] leading-none">
-            <Icon name="file" size={15} className="text-faint" />
-          </span>
+          {!hasChildren && (
+            <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
+              <Icon name="file" size={15} className="text-faint" />
+            </span>
+          )}
           <span
             className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-ink'}`}
           >
