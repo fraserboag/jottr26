@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { SITE_URL } from '@/lib/util/site'
 
 export const metadata: Metadata = {
+  metadataBase: SITE_URL,
   title: { default: 'Jottr', template: '%s · Jottr' },
   description:
     'A fast, private notebook. Your pages are stored on your device and synced to your account, so writing never waits for the network.',

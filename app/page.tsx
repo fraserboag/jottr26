@@ -1,4 +1,17 @@
+import type { Metadata } from "next";
 import { SignedInRedirect } from "@/components/SignedInRedirect";
+import { TAGLINE } from "@/lib/util/site";
+
+const title = `Jottr – ${TAGLINE.toLowerCase()}`;
+const description =
+  "A notes app with the quality of life features of Notion and none of the bloat: a streamlined feature set, fast performance and reliable syncing with offline support. Installable on desktop and mobile.";
+
+export const metadata: Metadata = {
+  title: { absolute: title },
+  description,
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", url: "/", siteName: "Jottr", title, description },
+};
 
 export default function LandingPage() {
   return (
@@ -6,6 +19,7 @@ export default function LandingPage() {
       <SignedInRedirect />
       <main className="w-full max-w-[34rem]">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
+        <p className="mt-1 text-[15px] text-muted">{TAGLINE}</p>
         {/* Pre-encoded at 2x and 3x the column width and served as-is: running it through
             next/image re-encodes and rescales it, which visibly softens the UI text. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
