@@ -4,7 +4,7 @@ import { TAGLINE } from "@/lib/util/site";
 
 const title = `Jottr – ${TAGLINE.toLowerCase()}`;
 const description =
-  "A notes app with the quality of life features of Notion and none of the bloat: a streamlined feature set, fast performance and reliable syncing with offline support. Installable on desktop and mobile.";
+  "A notes app with the quality of life features of your favourite editor and none of the bloat: a streamlined feature set, fast performance and reliable syncing with offline support. Installable on desktop and mobile.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -19,7 +19,6 @@ export default function LandingPage() {
       <SignedInRedirect />
       <main className="w-full max-w-[34rem]">
         <h1 className="text-[1.75rem] font-semibold tracking-[-0.02em] text-ink">Jottr</h1>
-        <p className="mt-1 text-[15px] text-muted">{TAGLINE}</p>
         {/* Pre-encoded at 2x and 3x the column width and served as-is: running it through
             next/image re-encodes and rescales it, which visibly softens the UI text. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -33,9 +32,9 @@ export default function LandingPage() {
           className="mt-4 h-auto w-full rounded-xl"
         />
         <p className="mt-6 text-[15px] leading-relaxed text-muted">
-          A notes app with the quality of life features of Notion, and none of the bloat. Jottr is
-          focused on providing a streamlined feature set, fast performance and reliable syncing with
-          offline support.
+          A notes app with the quality of life features of your favourite editor, and none of the
+          bloat. Jottr is focused on providing a streamlined feature set, fast performance and
+          reliable syncing with offline support.
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           Jottr is a PWA, so even though it is only deployed as a web app it can be installed and
@@ -52,9 +51,9 @@ export default function LandingPage() {
           </a>
           , a software developer living in Glasgow, Scotland. As a frequent Notion user for many
           years I created this for one simple reason - Notion has become a sluggish, bloated mess
-          and I knew I could do better. I created this entirely for personal use, but it&apos;s
-          secure and production ready so if anyone comes across this and wants to give it a go
-          themselves - be my guest.
+          and I knew I could do better for my needs. I created this entirely for personal use, but
+          it&apos;s secure and production ready so if anyone comes across this and wants to give it
+          a go themselves - be my guest.
         </p>
         <div className="mt-7">
           <a
