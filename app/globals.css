@@ -26,11 +26,12 @@
   --hover: rgb(23 23 22 / 0.045);
   --active: rgb(23 23 22 / 0.075);
 
-  /* Jottr's own ink: a deep indigo, bluer than violet, rather than the stock
-     link blue. */
-  --accent: #4b58d0;
+  /* Jottr's own ink: a muted indigo, bluer than violet, rather than the stock
+     link blue. Kept dusty so it sits with the warm greys instead of shouting
+     over them, but still dark enough for link text to pass AA on the page. */
+  --accent: #646db9;
   --accent-contrast: #ffffff;
-  --accent-soft: rgb(75 88 208 / 0.12);
+  --accent-soft: rgb(100 109 185 / 0.12);
 
   --ok: #2f9e44;
   --warn: #d97706;
