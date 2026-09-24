@@ -18,6 +18,7 @@ export function PageMenu({ page }: { page: PageRow }) {
           type="button"
           ref={ref}
           aria-label={`Actions for ${page.title || 'Untitled'}`}
+          aria-expanded={open}
           onClick={(event) => {
             event.stopPropagation()
             toggle()

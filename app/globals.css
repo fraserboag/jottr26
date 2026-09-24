@@ -396,6 +396,18 @@ h1.page-title {
   height: calc(var(--list-leading) * 1em);
   margin-left: auto;
 }
+/* Shown on hover, or while the menu is open, which a touch screen never has,
+   so there it stays. */
+@media (pointer: fine) {
+  .ProseMirror div[data-type="subpages"] .subpages-menu {
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is(:hover, :focus-within) > .subpages-menu,
+  .ProseMirror div[data-type="subpages"] .subpages-menu:has([aria-expanded="true"]) {
+    opacity: 1;
+  }
+}
 .ProseMirror div[data-type="subpages"] li + li {
   margin-top: 4px;
 }
