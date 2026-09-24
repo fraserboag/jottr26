@@ -51,7 +51,10 @@ export function useChildPages(parentId: string): PageRow[] | undefined {
 export function useGrandchildPages(parentId: string, enabled: boolean): TreeNode[] | undefined {
   return useLiveQuery(async () => {
     const db = activeDatabase()
-    if (!db || !parentId || !enabled) return []
+    // Not loaded rather than empty while switched off, so switching it on
+    // doesn't flash an empty list before the pages arrive.
+    if (!enabled) return undefined
+    if (!db || !parentId) return []
     const children = (await db.pages.where('parentId').equals(parentId).toArray())
       .filter((page) => !page.deletedAt)
       .sort(bySortKey)
