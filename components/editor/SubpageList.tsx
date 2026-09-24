@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type DragEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { useChildPages } from '@/lib/db/hooks'
@@ -20,12 +20,16 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  the same key, so a page dragged here moves there too, and on every other
  *  device. Only above or below another entry — dropping one page into another
  *  would take it out of this list, which is the sidebar's job. */
-export function SubpageList({ extension }: ReactNodeViewProps) {
+
+type Drop = { id: string; zone: 'before' | 'after' }
+
+export function SubpageList({ editor, extension }: ReactNodeViewProps) {
   const { pageId } = extension.options as SubpagesOptions
   const pages = useChildPages(pageId)
   const [, openPage] = useOpenPageId()
   const [dragId, setDragId] = useState<string | null>(null)
-  const [drop, setDrop] = useState<{ id: string; zone: 'before' | 'after' } | null>(null)
+  const [drop, setDrop] = useState<Drop | null>(null)
+  const listRef = useRef<HTMLUListElement>(null)
 
   const follow = (event: MouseEvent, id: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -33,19 +37,65 @@ export function SubpageList({ extension }: ReactNodeViewProps) {
     openPage(id)
   }
 
-  const over = (event: DragEvent, id: string) => {
-    if (!dragId || dragId === id) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    const rect = event.currentTarget.getBoundingClientRect()
-    const zone = event.clientY - rect.top < rect.height / 2 ? 'before' : 'after'
-    setDrop({ id, zone })
-  }
-
   const end = () => {
     setDragId(null)
     setDrop(null)
   }
+
+  // While an entry is being dragged, this block has every drag event in the
+  // editor to itself. Left to reach the editor, they draw its drop cursor
+  // round the block and would let the entry land in the text; the node view's
+  // own filter can't stop that, because the drop cursor listens on the
+  // editor's element directly. So they are caught on the way down, before
+  // anything else sees them, and the drop is decided here: over the list it
+  // moves the page, anywhere else it is refused.
+  useEffect(() => {
+    if (!dragId) return
+    const dom = editor.view.dom
+    const list = listRef.current
+    let target: Drop | null = null
+    const place = (next: Drop | null) => {
+      if (next?.id === target?.id && next?.zone === target?.zone) return
+      target = next
+      setDrop(next)
+    }
+    const inList = (node: EventTarget | null) => node instanceof Node && !!list?.contains(node)
+
+    const over = (event: DragEvent) => {
+      event.stopPropagation()
+      if (!inList(event.target)) return place(null)
+      event.preventDefault()
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+      const item = event.target instanceof Element ? event.target.closest('li') : null
+      // In the gap between two entries the line stays where it was.
+      if (!item) return
+      const id = item.dataset.id
+      if (!id || id === dragId) return place(null)
+      const rect = item.getBoundingClientRect()
+      place({ id, zone: event.clientY - rect.top < rect.height / 2 ? 'before' : 'after' })
+    }
+    const leave = (event: DragEvent) => {
+      event.stopPropagation()
+      if (!inList(event.relatedTarget)) place(null)
+    }
+    const land = (event: DragEvent) => {
+      event.stopPropagation()
+      event.preventDefault()
+      if (target) void dropRelative(dragId, target.id, target.zone)
+      end()
+    }
+
+    dom.addEventListener('dragenter', over, true)
+    dom.addEventListener('dragover', over, true)
+    dom.addEventListener('dragleave', leave, true)
+    dom.addEventListener('drop', land, true)
+    return () => {
+      dom.removeEventListener('dragenter', over, true)
+      dom.removeEventListener('dragover', over, true)
+      dom.removeEventListener('dragleave', leave, true)
+      dom.removeEventListener('drop', land, true)
+    }
+  }, [dragId, editor])
 
   return (
     <NodeViewWrapper data-type="subpages" contentEditable={false}>
@@ -54,10 +104,11 @@ export function SubpageList({ extension }: ReactNodeViewProps) {
         {pages === undefined ? null : pages.length === 0 ? (
           <p className="subpages-empty">No subpages yet</p>
         ) : (
-          <ul>
+          <ul ref={listRef}>
             {pages.map((page) => (
               <li
                 key={page.id}
+                data-id={page.id}
                 draggable
                 data-dragging={dragId === page.id || undefined}
                 data-drop={drop?.id === page.id ? drop.zone : undefined}
@@ -70,13 +121,6 @@ export function SubpageList({ extension }: ReactNodeViewProps) {
                   event.dataTransfer.setData('application/x-jottr-subpage', page.id)
                 }}
                 onDragEnd={end}
-                onDragOver={(event) => over(event, page.id)}
-                onDragLeave={() => setDrop(null)}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  if (dragId && drop) void dropRelative(dragId, drop.id, drop.zone)
-                  end()
-                }}
               >
                 <Icon name="file" size={15} className="text-faint" />
                 {/* Not draggable itself, so a drag picks up the whole entry
