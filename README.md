@@ -33,7 +33,8 @@ That file creates two tables (`pages` for metadata, `page_docs` for the CRDT
 blob), turns on row level security with `auth.uid() = user_id` on every policy,
 adds the `push_page_doc` compare-and-swap function and the `purge_pages`
 function that turns a permanent delete into a tombstone other devices can pull,
-and puts both tables in the realtime publication.
+and puts `pages` in the realtime publication. `page_docs` stays out of it: a
+saved document stamps its page row instead, so realtime never carries a blob.
 
 ### 3. Put the six-digit code in your sign-in email
 
@@ -128,13 +129,15 @@ device's own last upload on every cycle.
 Postgres change events trigger a REST pull; they are never applied directly.
 Sockets drop silently and large payloads get truncated, so nothing is allowed to
 depend on one arriving. Syncs are also triggered by coming online, by the tab
-becoming visible, by a local edit (debounced), and by a 45-second poll.
+becoming visible, by a local edit (debounced), and by a poll: every 45 seconds
+while realtime is connected, every 10 while it is not.
 
 ### One leader per browser
 
 Tabs elect a sync leader with the Web Locks API, so two open windows do not both
 push. They stay in step through a `BroadcastChannel` that relays Yjs updates
-between them, and through Dexie's cross-tab live queries.
+between them, and through Dexie's cross-tab live queries. A tab that is not the
+leader asks it to push as soon as it has saved an edit.
 
 ### Titles are part of the document
 

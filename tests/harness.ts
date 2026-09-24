@@ -63,6 +63,12 @@ export class FakeServer {
   counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0, delete: 0, purge: 0, blobFetch: 0 }
   /** A network that never answers: queries hang until their signal aborts. */
   stalled = false
+  /** Delay before push_page_doc answers, so overlapping pushes can be seen. */
+  rpcDelayMs = 0
+  /** Fails push_page_doc for this page, as a server error would. */
+  failDocPush: string | null = null
+  rpcInFlight = 0
+  maxRpcInFlight = 0
 
   private stamp() {
     this.clock += 1
@@ -157,11 +163,31 @@ export class FakeServer {
     type PurgeParams = { p_ids: string[] }
 
     const rpc = (name: string, params: PushParams | PurgeParams) =>
-      Object.assign(name === 'purge_pages' ? purge(params as PurgeParams) : settle(params as PushParams), {
+      Object.assign(name === 'purge_pages' ? purge(params as PurgeParams) : delayed(params as PushParams), {
         abortSignal() {
           return this
         },
       })
+
+    const delayed = async (params: PushParams) => {
+      this.rpcInFlight += 1
+      this.maxRpcInFlight = Math.max(this.maxRpcInFlight, this.rpcInFlight)
+      try {
+        if (this.rpcDelayMs) await new Promise((resolve) => setTimeout(resolve, this.rpcDelayMs))
+        if (this.failDocPush === params.p_page_id) {
+          return { data: null, error: { message: 'push_page_doc failed' } }
+        }
+        return await settle(params)
+      } finally {
+        this.rpcInFlight -= 1
+      }
+    }
+
+    /** page_doc_saved: the page row is how other devices hear of the save. */
+    const touchPage = (pageId: string) => {
+      const page = this.pages.get(pageId)
+      if (page) page.updated_at = this.stamp()
+    }
 
     /** purge_pages: the document goes, the row stays behind as a tombstone. */
     const purge = (params: PurgeParams) => {
@@ -202,15 +228,17 @@ export class FakeServer {
           updated_at: this.stamp(),
         }
         this.docs.set(record.page_id, record)
-        return Promise.resolve({ data: [{ ydoc: record.ydoc, version: 1, applied: true }], error: null })
+        touchPage(record.page_id)
+        return Promise.resolve({ data: [{ ydoc: '', version: 1, applied: true }], error: null })
       }
 
       if (existing && existing.version === params.p_base_version) {
         existing.ydoc = params.p_ydoc
         existing.version += 1
         existing.updated_at = this.stamp()
+        touchPage(existing.page_id)
         return Promise.resolve({
-          data: [{ ydoc: existing.ydoc, version: existing.version, applied: true }],
+          data: [{ ydoc: '', version: existing.version, applied: true }],
           error: null,
         })
       }

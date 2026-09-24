@@ -105,8 +105,22 @@ create policy page_docs_insert on public.page_docs for insert with check (auth.u
 create policy page_docs_update on public.page_docs for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy page_docs_delete on public.page_docs for delete using (auth.uid() = user_id);
 
+-- A saved document stamps its page row. Realtime carries only pages (see the
+-- end of this file), so this small row is how other devices hear that the
+-- document changed, instead of being sent the whole blob.
+create or replace function public.page_doc_saved(p_page_id uuid)
+returns void
+language sql
+security invoker
+as $$
+  update public.pages set updated_at = now() where id = p_page_id;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- push_page_doc: compare-and-swap write of a Yjs state blob.
+--
+-- On success only the new version comes back: the client already holds the
+-- blob it sent, and echoing it would double the data every save costs.
 --
 -- The client sends the version it last saw. If the server has moved on, nothing
 -- is written and the current blob comes back with applied = false; the client
@@ -143,10 +157,11 @@ begin
     insert into public.page_docs as d (page_id, ydoc, version)
     values (p_page_id, p_ydoc, 1)
     on conflict (page_id) do nothing
-    returning d.ydoc, d.version into v_ydoc, v_version;
+    returning d.version into v_version;
 
     if found then
-      return query select v_ydoc, v_version, true;
+      perform public.page_doc_saved(p_page_id);
+      return query select ''::text, v_version, true;
       return;
     end if;
   else
@@ -154,10 +169,11 @@ begin
        set ydoc = p_ydoc, version = d.version + 1
      where d.page_id = p_page_id
        and d.version = p_base_version
-    returning d.ydoc, d.version into v_ydoc, v_version;
+    returning d.version into v_version;
 
     if found then
-      return query select v_ydoc, v_version, true;
+      perform public.page_doc_saved(p_page_id);
+      return query select ''::text, v_version, true;
       return;
     end if;
   end if;
@@ -212,7 +228,12 @@ grant execute on function public.purge_pages(uuid[]) to authenticated;
 -- old row carries every column, which is not the default. Without this, cross
 -- device updates silently fall back to the 45-second poll.
 alter table public.pages replica identity full;
-alter table public.page_docs replica identity full;
+
+-- page_docs is deliberately left out. Its rows hold whole documents, and
+-- realtime would push each one, old and new, to every device on every save;
+-- page_doc_saved stamps the page row instead. Earlier versions of this file
+-- published it, so undo that on re-run.
+alter table public.page_docs replica identity default;
 
 do $$
 begin
@@ -222,11 +243,11 @@ begin
   ) then
     alter publication supabase_realtime add table public.pages;
   end if;
-  if not exists (
+  if exists (
     select 1 from pg_publication_tables
      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'page_docs'
   ) then
-    alter publication supabase_realtime add table public.page_docs;
+    alter publication supabase_realtime drop table public.page_docs;
   end if;
 end
 $$;

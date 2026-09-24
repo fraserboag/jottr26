@@ -551,6 +551,94 @@ describe('local-first sync', () => {
     assert.equal(server.pages.get(id)?.title, 'Suspended mid-request')
   })
 
+  it('has a tab that is not the leader ask the leader to push', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Typed in the other window')
+
+    const sent: unknown[] = []
+    const follower = new SyncEngine(server.client(), 'laptop') as unknown as {
+      isLeader: boolean
+      statusChannel: { postMessage: (message: unknown) => void }
+      flushEdit: () => void
+    }
+    follower.isLeader = false
+    follower.statusChannel = { postMessage: (message) => sent.push(message) }
+    follower.flushEdit()
+    assert.deepEqual(sent, [{ type: 'nudge' }], 'the other window should ask rather than wait')
+
+    await laptop.focus()
+    const leader = laptop.engine as unknown as {
+      onStatusMessage: (message: unknown) => void
+      current: Promise<void> | null
+    }
+    leader.onStatusMessage({ type: 'nudge' })
+    assert.ok(leader.current, 'the leader should start a sync on the nudge')
+    await leader.current
+    assert.equal(server.pages.get(id)?.title, 'Typed in the other window')
+  })
+
+  it('polls every 10 seconds while realtime is down, and every 45 once it is up', async () => {
+    const internals = laptop.engine as unknown as {
+      realtimeUp: boolean
+      lastRunAt: number
+      poll: () => void
+      request?: () => void
+    }
+    let asked = 0
+    internals.request = () => {
+      asked += 1
+    }
+    try {
+      internals.realtimeUp = false
+      internals.lastRunAt = Date.now() - 10_000
+      internals.poll()
+      assert.equal(asked, 1, 'nothing else will announce a write while realtime is down')
+
+      internals.realtimeUp = true
+      internals.poll()
+      assert.equal(asked, 1, 'realtime is up and a sync ran 10 seconds ago')
+
+      internals.lastRunAt = Date.now() - 45_000
+      internals.poll()
+      assert.equal(asked, 2, 'the backstop poll still runs')
+    } finally {
+      delete internals.request
+      internals.realtimeUp = false
+    }
+  })
+
+  it('pushes several documents at once, and stops cleanly when one fails', async () => {
+    await laptop.focus()
+    const ids: string[] = []
+    for (let i = 0; i < 6; i += 1) ids.push(await createPage())
+
+    server.rpcDelayMs = 20
+    server.maxRpcInFlight = 0
+    try {
+      await laptop.sync()
+      assert.ok(server.maxRpcInFlight > 1, 'documents should go up side by side')
+      assert.ok(server.maxRpcInFlight <= 4, 'but only a few at a time')
+      for (const id of ids) assert.ok(server.docs.has(id))
+
+      for (const id of ids) await laptop.type(id, 'more')
+      server.failDocPush = ids[0]
+      await laptop.sync()
+      assert.equal(laptop.phase(), 'error')
+      const internals = laptop.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    } finally {
+      server.failDocPush = null
+      server.rpcDelayMs = 0
+    }
+
+    await laptop.sync()
+    assert.equal(laptop.phase(), 'synced')
+    assert.equal(await laptop.pendingCount(), 0)
+    await phone.sync()
+    for (const id of ids) assert.match(await phone.text(id), /more/, 'every document should reach the phone')
+  })
+
   it('does not start a cancelled manual sync that was queued behind another', async () => {
     await laptop.focus()
     const id = await createPage()

@@ -11,6 +11,7 @@ import {
   META_LAST_SYNCED,
   META_PAGES_CURSOR,
   PAGE_FIELDS,
+  type DocStateRow,
   type PageRow,
 } from '@/lib/db/schema'
 import { forgetPages } from '@/lib/db/pages'
@@ -36,6 +37,12 @@ const OVERLAP_MS = 30_000
 const PAGE_SIZE = 500
 const BLOB_CHUNK = 20
 const POLL_INTERVAL_MS = 45_000
+/** How often to check with the server while realtime is not connected, since
+ *  nothing else will say when another device has written. */
+const OFFLINE_REALTIME_POLL_MS = 10_000
+/** Documents pushed at once. Catching up after a day offline should not mean
+ *  one round trip per note, one after another. */
+const PUSH_CONCURRENCY = 4
 const EDIT_DEBOUNCE_MS = 1_200
 /** Trashing, moving, creating or deleting a page. Short enough to feel
  *  immediate, long enough to gather a whole emptied trash into one push. */
@@ -73,7 +80,12 @@ type Listener = (status: SyncStatus) => void
 /** What tabs tell each other about sync. Only the leader talks to the server,
  *  so it is the only tab that knows how the last sync went; every other tab
  *  shows what it reports. */
-type StatusMessage = { type: 'status'; status: SyncStatus } | { type: 'ask' }
+type StatusMessage =
+  | { type: 'status'; status: SyncStatus }
+  | { type: 'ask' }
+  /** Sent by a tab that is not the leader when it has changed something, so
+   *  the leader pushes now instead of on its next poll. */
+  | { type: 'nudge' }
 
 export class SyncEngine {
   private readonly supabase: SupabaseClient
@@ -107,6 +119,11 @@ export class SyncEngine {
   private leaderWaiters: Array<() => void> = []
 
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  /** The realtime channel is joined, so another device's write will announce
+   *  itself and the poll can stay slow. */
+  private realtimeUp = false
+  /** When the last sync started, for pacing the poll. */
+  private lastRunAt = 0
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private announceTimer: ReturnType<typeof setTimeout> | null = null
   private editTimer: ReturnType<typeof setTimeout> | null = null
@@ -151,7 +168,7 @@ export class SyncEngine {
 
     // A dropped socket, a sleeping laptop and a throttled background tab all
     // look the same from here, so never rely on events alone.
-    this.pollTimer = setInterval(() => this.request(), POLL_INTERVAL_MS)
+    this.pollTimer = setInterval(() => this.poll(), OFFLINE_REALTIME_POLL_MS)
 
     this.cleanups.push(
       onLocalEdit((kind) => {
@@ -165,7 +182,7 @@ export class SyncEngine {
           () => {
             this.editTimer = null
             this.editUrgent = false
-            this.request()
+            this.flushEdit()
           },
           this.editUrgent ? STRUCTURE_DEBOUNCE_MS : EDIT_DEBOUNCE_MS,
         )
@@ -184,6 +201,7 @@ export class SyncEngine {
     for (const resolve of this.leaderWaiters.splice(0)) resolve()
     if (this.channel) void this.supabase.removeChannel(this.channel)
     this.channel = null
+    this.realtimeUp = false
     this.statusChannel?.close()
     this.statusChannel = null
     if (this.pollTimer) clearInterval(this.pollTimer)
@@ -242,6 +260,20 @@ export class SyncEngine {
       if (manual.signal.aborted) return this.status
     } while (!(await this.run()))
     return this.status
+  }
+
+  /** Syncs often while realtime is down, and only as a backstop while it is up. */
+  private poll() {
+    const interval = this.realtimeUp ? POLL_INTERVAL_MS : OFFLINE_REALTIME_POLL_MS
+    // A little slack, so a timer that fires a few ms early does not skip a turn.
+    if (Date.now() - this.lastRunAt >= interval - 1_000) this.request()
+  }
+
+  /** The edit is on disk, which every tab shares. Only the leader talks to the
+   *  server, so any other tab asks it to push rather than waiting for its poll. */
+  private flushEdit() {
+    if (this.isLeader) this.request()
+    else this.statusChannel?.postMessage({ type: 'nudge' } satisfies StatusMessage)
   }
 
   /** Used by the retry affordance in the status menu. */
@@ -317,6 +349,7 @@ export class SyncEngine {
       this.isLeader = false
       if (this.channel) void this.supabase.removeChannel(this.channel)
       this.channel = null
+      this.realtimeUp = false
       void this.electLeader()
     }
   }
@@ -332,17 +365,21 @@ export class SyncEngine {
   private openStatusChannel() {
     if (typeof BroadcastChannel === 'undefined') return
     const channel = new BroadcastChannel(`jottr:sync-status:${this.userId}`)
-    channel.onmessage = (event: MessageEvent<StatusMessage>) => {
-      const message = event.data
-      if (message?.type === 'ask') {
-        if (this.isLeader) channel.postMessage({ type: 'status', status: this.status })
-      } else if (message?.type === 'status' && !this.isLeader) {
-        this.status = message.status
-        for (const listener of this.listeners) listener(this.status)
-      }
-    }
+    channel.onmessage = (event: MessageEvent<StatusMessage>) => this.onStatusMessage(event.data)
     this.statusChannel = channel
     channel.postMessage({ type: 'ask' } satisfies StatusMessage)
+  }
+
+  private onStatusMessage(message: StatusMessage | undefined) {
+    if (message?.type === 'ask') {
+      if (this.isLeader) this.statusChannel?.postMessage({ type: 'status', status: this.status })
+    } else if (message?.type === 'nudge') {
+      // The sending tab already waited out its own debounce.
+      if (this.isLeader) this.request()
+    } else if (message?.type === 'status' && !this.isLeader) {
+      this.status = message.status
+      for (const listener of this.listeners) listener(this.status)
+    }
   }
 
   private subscribeRealtime() {
@@ -352,23 +389,25 @@ export class SyncEngine {
       this.realtimeTimer = setTimeout(() => this.request(), REALTIME_DEBOUNCE_MS)
     }
 
-    this.channel = this.supabase
+    // Only pages. A saved document stamps its page row on the server, so this
+    // one small row stands in for the blob, which realtime would otherwise
+    // carry in full, twice over, to every device on every save.
+    const channel = this.supabase
       .channel(`jottr:${this.userId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pages', filter: `user_id=eq.${this.userId}` },
         bump,
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'page_docs', filter: `user_id=eq.${this.userId}` },
-        bump,
-      )
-      .subscribe((state) => {
-        // Realtime is a hint, never the truth: every event turns into a REST
-        // pull, and a reconnect just means pulling again from the cursor.
-        if (state === 'SUBSCRIBED') this.request()
-      })
+    this.channel = channel
+    channel.subscribe((state) => {
+      // A leftover callback from a channel this tab has since let go of.
+      if (this.channel !== channel) return
+      // Realtime is a hint, never the truth: every event turns into a REST
+      // pull, and a reconnect just means pulling again from the cursor.
+      this.realtimeUp = state === 'SUBSCRIBED'
+      if (state === 'SUBSCRIBED') this.request()
+    })
   }
 
   // --- status -------------------------------------------------------------
@@ -417,6 +456,7 @@ export class SyncEngine {
     }
 
     this.inFlight = true
+    this.lastRunAt = Date.now()
     const job = this.cycle()
     this.current = job
     try {
@@ -771,70 +811,86 @@ export class SyncEngine {
   }
 
   private async pushDocs(signal: AbortSignal) {
-    const dirty = await this.db.docStates.where('dirty').equals(1).toArray()
+    const queue = await this.db.docStates.where('dirty').equals(1).toArray()
+    const errors: unknown[] = []
 
-    for (const state of dirty) {
-      // Its page was dropped from this device; the document went with it on
-      // the server too, so there is nowhere to push it.
-      const page = await this.db.pages.get(state.pageId)
-      if (!page) {
-        await forgetPages(this.db, [state.pageId])
-        continue
+    // A few at a time. Each document is its own compare-and-swap, so they are
+    // independent; one failing stops the others taking new work, and the
+    // cycle reports it only once every request already sent has settled.
+    const worker = async () => {
+      for (let state = queue.shift(); state && errors.length === 0; state = queue.shift()) {
+        try {
+          await this.pushDoc(state, signal)
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(PUSH_CONCURRENCY, queue.length) }, worker))
+    if (errors.length) throw errors[0]
+  }
+
+  private async pushDoc(state: DocStateRow, signal: AbortSignal) {
+    // Its page was dropped from this device; the document went with it on
+    // the server too, so there is nowhere to push it.
+    const page = await this.db.pages.get(state.pageId)
+    if (!page) {
+      await forgetPages(this.db, [state.pageId])
+      return
+    }
+
+    let base = state.version
+
+    for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
+      const before = stateVector(state.pageId)
+      const bytes = await encodeState(state.pageId)
+
+      const { data, error } = await this.supabase
+        .rpc('push_page_doc', {
+          p_page_id: state.pageId,
+          p_ydoc: bytesToBase64(bytes),
+          p_base_version: base,
+        })
+        .abortSignal(signal)
+
+      if (error) throw new Error(error.message)
+
+      const result = (data as Array<{ ydoc: string; version: number; applied: boolean }>)?.[0]
+      if (!result) throw new Error('push_page_doc returned nothing')
+
+      // The server has no live page for this document. If it once did, the
+      // page was deleted for good on another device before this one heard,
+      // so drop it now. If it never did, the row has yet to be uploaded:
+      // leave the document dirty for the next sync.
+      if (result.applied && result.version === 0) {
+        if (page.serverUpdatedAt > 0) await forgetPages(this.db, [state.pageId])
+        break
       }
 
-      let base = state.version
+      if (result.applied) {
+        const after = stateVector(state.pageId)
+        const movedWhileInFlight = before !== null && !sameBytes(before, after)
+        const current = await this.db.docStates.get(state.pageId)
+        await this.db.docStates.put({
+          pageId: state.pageId,
+          snapshot: current?.snapshot ?? new Uint8Array(),
+          version: result.version,
+          dirty: movedWhileInFlight ? 1 : 0,
+          updateCount: current?.updateCount ?? 0,
+        })
+        await this.syncTitleFromDoc(state.pageId)
+        break
+      }
 
-      for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
-        const before = stateVector(state.pageId)
-        const bytes = await encodeState(state.pageId)
+      // The server moved on. Merge what it has — Yjs guarantees the union of
+      // both edits, so nothing anyone typed is dropped — then retry at the
+      // version we were just told about.
+      await applyRemoteUpdate(state.pageId, base64ToBytes(result.ydoc))
+      base = result.version
+      await this.recordServerVersion(state.pageId, result.version)
 
-        const { data, error } = await this.supabase
-          .rpc('push_page_doc', {
-            p_page_id: state.pageId,
-            p_ydoc: bytesToBase64(bytes),
-            p_base_version: base,
-          })
-          .abortSignal(signal)
-
-        if (error) throw new Error(error.message)
-
-        const result = (data as Array<{ ydoc: string; version: number; applied: boolean }>)?.[0]
-        if (!result) throw new Error('push_page_doc returned nothing')
-
-        // The server has no live page for this document. If it once did, the
-        // page was deleted for good on another device before this one heard,
-        // so drop it now. If it never did, the row has yet to be uploaded:
-        // leave the document dirty for the next sync.
-        if (result.applied && result.version === 0) {
-          if (page.serverUpdatedAt > 0) await forgetPages(this.db, [state.pageId])
-          break
-        }
-
-        if (result.applied) {
-          const after = stateVector(state.pageId)
-          const movedWhileInFlight = before !== null && !sameBytes(before, after)
-          const current = await this.db.docStates.get(state.pageId)
-          await this.db.docStates.put({
-            pageId: state.pageId,
-            snapshot: current?.snapshot ?? new Uint8Array(),
-            version: result.version,
-            dirty: movedWhileInFlight ? 1 : 0,
-            updateCount: current?.updateCount ?? 0,
-          })
-          await this.syncTitleFromDoc(state.pageId)
-          break
-        }
-
-        // The server moved on. Merge what it has — Yjs guarantees the union of
-        // both edits, so nothing anyone typed is dropped — then retry at the
-        // version we were just told about.
-        await applyRemoteUpdate(state.pageId, base64ToBytes(result.ydoc))
-        base = result.version
-        await this.recordServerVersion(state.pageId, result.version)
-
-        if (attempt === MAX_CAS_ATTEMPTS - 1) {
-          throw new Error('Could not settle a document after several attempts')
-        }
+      if (attempt === MAX_CAS_ATTEMPTS - 1) {
+        throw new Error('Could not settle a document after several attempts')
       }
     }
   }
