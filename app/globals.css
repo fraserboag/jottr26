@@ -298,7 +298,9 @@ h1.page-title {
 /* A subpage list, laid out like an accordion but not written in: a bold
    heading line on the page itself, over a callout's box holding the page's
    children, one to a line, each with the sidebar's page icon in place of a
-   bullet. The spacing is the accordion's, so the two sit alike on a page. */
+   bullet. The spacing is the accordion's, so the two sit alike on a page.
+   It does the sidebar's job, so the box is drawn in the sidebar's colours
+   rather than a callout's: its shade, and its entries in its muted text. */
 .ProseMirror div[data-type="subpages"] {
   margin: 2px 0 8px;
 }
@@ -350,6 +352,7 @@ h1.page-title {
 }
 .ProseMirror div[data-type="subpages"] > .subpages-box {
   margin: 6px 0 0;
+  background: var(--sidebar);
 }
 .ProseMirror div[data-type="subpages"] ul {
   list-style: none;
@@ -385,6 +388,11 @@ h1.page-title {
 }
 .ProseMirror div[data-type="subpages"] li > svg {
   flex-shrink: 0;
+}
+.ProseMirror div[data-type="subpages"] li > a {
+  color: var(--text-muted);
+  font-weight: var(--body-weight);
+  text-decoration: none;
 }
 /* The sidebar's three-dot menu, at the far end of the entry. The slot is one
    line tall, so a touch screen's taller button overhangs the line rather than
@@ -441,8 +449,9 @@ h1.page-title {
 }
 /* At a depth of two: each child a heading line with its own menu, over its
    children, a blank line clear of the next child's. The heading follows its
-   link like any other, but is drawn as plain bold text, like the block's own
-   heading, rather than as a link. */
+   link like any other, but is drawn as one of the sidebar's section labels —
+   small faint capitals — rather than as a link. Only the text is shrunk, so
+   the line keeps its height and its menu slot. */
 .ProseMirror div[data-type="subpages"] .subpages-group + .subpages-group {
   margin-top: calc(var(--list-leading) * 1em);
 }
@@ -455,10 +464,18 @@ h1.page-title {
   margin-top: 4px;
 }
 .ProseMirror div[data-type="subpages"] .subpages-group-head > a {
-  color: inherit;
-  font-weight: 620;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
+}
+@media (pointer: coarse) {
+  .ProseMirror div[data-type="subpages"] .subpages-group-head > a {
+    font-size: 12.5px;
+  }
 }
 
 /* An accordion: a heading line — ordinary body text, formatted however it is
