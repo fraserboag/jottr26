@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -10,6 +10,7 @@ import { TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
+import { Subpages } from './extensions/subpages'
 import { ListItem, TaskItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
 import { FinanceTable } from './extensions/finance'
@@ -18,6 +19,7 @@ import { JottrDocument, Title } from './extensions/title'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
 import { SlashList, SlashMenu, type SlashMenuState } from './SlashMenu'
+import { SubpageList } from './SubpageList'
 import { FormatMenu } from './FormatMenu'
 import { MobileToolbar } from './MobileToolbar'
 import { TableMenu } from './TableMenu'
@@ -176,6 +178,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         TaskList,
         TaskItem,
         Callout,
+        Subpages.extend({
+          addNodeView: () =>
+            ReactNodeViewRenderer(SubpageList, {
+              // A click on a link is the list's to follow; anywhere else in the
+              // box, ProseMirror selects the block so it can be deleted.
+              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('a'),
+            }),
+        }).configure({ pageId }),
         ...AccordionKit,
         // Rows, cells and headers come from the kit; the table node itself is
         // the finance-aware one, so its extra attribute and plugin are in the

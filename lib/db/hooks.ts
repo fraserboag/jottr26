@@ -34,6 +34,18 @@ export function usePage(pageId: string | null, userId: string | null): PageRow |
   }, [pageId, userId])
 }
 
+/** A page's live subpages, in sidebar order. Live so that a page added, moved
+ *  or trashed anywhere — the sidebar, another tab, another device — shows up
+ *  in a list of them without a reload. */
+export function useChildPages(parentId: string): PageRow[] | undefined {
+  return useLiveQuery(async () => {
+    const db = activeDatabase()
+    if (!db || !parentId) return []
+    const rows = await db.pages.where('parentId').equals(parentId).toArray()
+    return rows.filter((page) => !page.deletedAt).sort(bySortKey)
+  }, [parentId])
+}
+
 /** Whether a page's document is on this device yet.
  *
  *  A page created here owns its own initial content. A page that arrived from

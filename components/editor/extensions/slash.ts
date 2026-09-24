@@ -10,6 +10,7 @@ import type {} from '@tiptap/extension-list'
 import type {} from '@tiptap/extension-table'
 import type {} from './callout'
 import type {} from './accordion'
+import type {} from './subpages'
 
 export interface SlashItem {
   id: string
@@ -72,6 +73,14 @@ export const slashItems: SlashItem[] = [
     icon: 'accordion',
     keywords: ['toggle', 'collapse', 'fold', 'expand', 'dropdown', 'section', 'details'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleAccordion().run(),
+  },
+  {
+    id: 'subpages',
+    title: 'Subpages',
+    hint: 'A list of the pages inside this one',
+    icon: 'subpages',
+    keywords: ['sub', 'children', 'pages', 'index', 'contents', 'toc'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).insertSubpages().run(),
   },
   {
     id: 'code',
