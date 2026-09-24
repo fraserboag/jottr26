@@ -56,8 +56,9 @@ export function Sidebar({
         >
           {(close) => (
             <>
-              <p className="px-2.5 py-1.5 text-ink [overflow-wrap:anywhere] pointer-coarse:py-2.5">
-                Signed in as {session?.user.email}
+              <p className="flex items-center gap-1.5 px-2.5 py-1.5 text-ink pointer-coarse:py-2.5">
+                <Icon name="user" size={14} className="shrink-0 text-muted" />
+                <span className="min-w-0 [overflow-wrap:anywhere]">{session?.user.email}</span>
               </p>
               <MenuSeparator />
               <SyncStatusRow
