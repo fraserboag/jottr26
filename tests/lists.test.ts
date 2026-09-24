@@ -6,7 +6,7 @@ import { TaskList } from '@tiptap/extension-list'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
-import { enterNestedList, ListItem, TaskItem } from '@/components/editor/extensions/lists'
+import { backspaceNestedItem, enterNestedList, ListItem, TaskItem } from '@/components/editor/extensions/lists'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 
 const schema = getSchema([
@@ -83,5 +83,53 @@ describe('Enter in a list', () => {
     assert.equal(run(caretAfter('par', nested), enterNestedList()).applied, false)
     // Not in a list at all.
     assert.equal(run(caretAfter('text', paragraph('text')), enterNestedList()).applied, false)
+  })
+})
+
+/** The same page with the caret on its first empty line. */
+function onEmptyLine(state: EditorState) {
+  let at = -1
+  state.doc.descendants((node, pos) => {
+    if (at < 0 && node.type.name === 'paragraph' && node.content.size === 0) at = pos + 1
+    return at < 0
+  })
+  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, at)))
+}
+
+describe('Backspace in a nested list', () => {
+  it('takes back the item Enter made, leaving the ones under it where they were', () => {
+    for (const type of ['bulletList', 'orderedList', 'taskList']) {
+      const start = caretAfter('parent', list(type, [paragraph('parent'), list(type, [paragraph('one')], [paragraph('two')])]))
+      const made = run(start, enterNestedList()).state
+      const { state, applied } = run(made, backspaceNestedItem())
+      assert.equal(applied, true)
+      state.doc.check()
+      assert.ok(state.doc.eq(start.doc), 'back to how it was')
+      assert.equal(state.selection.from, start.selection.from, 'at the end of the parent line')
+    }
+  })
+
+  it('goes to the end of the line above from an empty item further down', () => {
+    const start = onEmptyLine(
+      caretAfter('parent', list('bulletList', [paragraph('parent'), list('bulletList', [paragraph('one')], [paragraph()], [paragraph('two')])])),
+    )
+    const { state, applied } = run(start, backspaceNestedItem())
+    assert.equal(applied, true)
+    const sub = state.doc.child(1).child(0).child(1)
+    assert.deepEqual(sub.content.content.map((item) => item.textContent), ['one', 'two'])
+    assert.equal(state.selection.$from.parent.textContent, 'one')
+    assert.equal(state.selection.$from.parentOffset, 3)
+  })
+
+  it('leaves Backspace to lift the item out everywhere else', () => {
+    // The last nested item: nothing after it to carry along.
+    const last = onEmptyLine(caretAfter('parent', list('bulletList', [paragraph('parent'), list('bulletList', [paragraph('one')], [paragraph()])])))
+    assert.equal(run(last, backspaceNestedItem()).applied, false)
+    // An item at the top level.
+    const top = onEmptyLine(caretAfter('one', list('bulletList', [paragraph()], [paragraph('one')])))
+    assert.equal(run(top, backspaceNestedItem()).applied, false)
+    // A line with words on it.
+    const words = caretAfter('one', list('bulletList', [paragraph('parent'), list('bulletList', [paragraph('one')], [paragraph('two')])]))
+    assert.equal(run(words, backspaceNestedItem()).applied, false)
   })
 })

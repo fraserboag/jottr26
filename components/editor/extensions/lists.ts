@@ -1,6 +1,6 @@
 import { ListItem as BaseListItem, TaskItem as BaseTaskItem } from '@tiptap/extension-list'
 import type { Node } from '@tiptap/pm/model'
-import { TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 
 /** List items whose first line can be an accordion as well as a paragraph.
  *
@@ -46,7 +46,33 @@ export function enterNestedList(): Command {
   }
 }
 
+/** Backspace, at the start of an empty item nested under another, when more
+ *  items follow it: the line goes, and the caret to the end of the line above
+ *  — undoing the Enter that made it. Lifting it out a level, as Backspace does
+ *  elsewhere, would take the items after it along, nested under it. The last
+ *  item still lifts out, the way out of a nested list. */
+export function backspaceNestedItem(): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.depth < 4 || !$from.parent.isTextblock || $from.parent.content.size > 0) return false
+    const item = $from.node(-1)
+    const list = $from.node(-2)
+    if (!LIST_ITEMS.includes(item.type.name) || item.childCount !== 1) return false
+    if (!LISTS.includes(list.type.name) || !LIST_ITEMS.includes($from.node(-3).type.name)) return false
+    if ($from.index(-2) === list.childCount - 1) return false
+
+    if (dispatch) {
+      const start = $from.before(-1)
+      const tr = state.tr.delete(start, $from.after(-1))
+      tr.setSelection(Selection.near(tr.doc.resolve(start), -1))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
 const enter = enterNestedList()
+const backspace = backspaceNestedItem()
 
 export const ListItem = BaseListItem.extend({
   content,
@@ -57,6 +83,7 @@ export const ListItem = BaseListItem.extend({
       Enter: () =>
         this.editor.commands.command(({ state, dispatch }) => enter(state, dispatch)) ||
         this.editor.commands.splitListItem(this.name),
+      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
     }
   },
 })
@@ -70,6 +97,7 @@ export const TaskItem = BaseTaskItem.extend({
       Enter: () =>
         this.editor.commands.command(({ state, dispatch }) => enter(state, dispatch)) ||
         this.editor.commands.splitListItem(this.name),
+      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
     }
   },
 }).configure({ nested: true })
