@@ -181,9 +181,11 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         Subpages.extend({
           addNodeView: () =>
             ReactNodeViewRenderer(SubpageList, {
-              // A click on a link is the list's to follow; anywhere else in the
-              // box, ProseMirror selects the block so it can be deleted.
-              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('a'),
+              // The entries are the list's own: a click follows a link and a
+              // drag reorders them, and ProseMirror would read either as an
+              // edit to the document. Anywhere else in the box, it selects
+              // the block so it can be deleted.
+              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('li'),
             }),
         }).configure({ pageId }),
         ...AccordionKit,

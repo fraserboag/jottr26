@@ -300,9 +300,31 @@ h1.page-title {
   margin: 0;
 }
 .ProseMirror div[data-type="subpages"] li {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+/* Dragging to reorder, drawn the way the sidebar draws it: the entry being
+   carried fades, and a line marks the gap it will land in. */
+.ProseMirror div[data-type="subpages"] li[data-dragging] {
+  opacity: 0.4;
+}
+.ProseMirror div[data-type="subpages"] li[data-drop]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.ProseMirror div[data-type="subpages"] li[data-drop="before"]::after {
+  top: -3px;
+}
+.ProseMirror div[data-type="subpages"] li[data-drop="after"]::after {
+  bottom: -3px;
 }
 .ProseMirror div[data-type="subpages"] li > svg {
   flex-shrink: 0;
