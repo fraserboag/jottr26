@@ -260,7 +260,7 @@ $$;
 -- signInWithOtp creates the auth.users row as soon as a code is requested, so
 -- this waits for email_confirmed_at to be set. Typos and abandoned attempts
 -- never confirm, so they don't send an alert. The email itself is sent by the notify-signup
--- Edge Function (supabase/functions); the setup is in the README.
+-- Edge Function (supabase/functions).
 --
 -- Nothing in here may ever raise: this runs inside sign-in, and an error
 -- would stop anyone signing in. With the Vault secrets missing it does
