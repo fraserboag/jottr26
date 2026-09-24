@@ -11,7 +11,7 @@ import type { PageRow } from '@/lib/db/schema'
 export function PageMenu({ page }: { page: PageRow }) {
   return (
     <Popover
-      width={208}
+      width="auto"
       align="end"
       trigger={({ open, toggle, ref }) => (
         <button
