@@ -10,9 +10,9 @@
      clear step darker, so the two panes read apart. Menus stay pure white,
      lifted off the page. */
   --surface: #fcfbf7;
-  --surface-sunken: #f4f3ee;
+  --surface-sunken: #f7f6f2;
   --surface-raised: #ffffff;
-  --sidebar: #f1f0ea;
+  --sidebar: #f5f4ef;
   --overlay: rgb(23 23 22 / 0.28);
 
   /* The darkest any text goes, in the notes and the UI alike: a soft
