@@ -2,10 +2,10 @@
 
 import { useCallback, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
-import { MenuItem, Popover } from '@/components/ui/Popover'
-import { createPage, dropRelative, trashPage, type DropZone } from '@/lib/db/pages'
+import { createPage, dropRelative, type DropZone } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { TreeNode } from '@/lib/db/hooks'
+import { PageMenu } from './PageMenu'
 
 interface TreeProps {
   nodes: TreeNode[]
@@ -148,41 +148,7 @@ function Row({
 
         {/* Shown on hover, which a touch screen never has, so there they stay. */}
         <div className="flex shrink-0 items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-          <Popover
-            width={208}
-            align="end"
-            trigger={({ open, toggle, ref }) => (
-              <button
-                type="button"
-                ref={ref}
-                aria-label={`Actions for ${page.title || 'Untitled'}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  toggle()
-                }}
-                className={`grid size-6 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:[&_svg]:size-5 ${
-                  open ? 'bg-[var(--active)] text-muted' : 'text-faint pointer-coarse:text-muted'
-                }`}
-              >
-                <Icon name="more" size={16} strokeWidth={2.4} />
-              </button>
-            )}
-          >
-            {(close) => (
-              <>
-                <MenuItem
-                  icon={<Icon name="trash" size={14} />}
-                  tone="danger"
-                  onClick={() => {
-                    void trashPage(page.id)
-                    close()
-                  }}
-                >
-                  Move to trash
-                </MenuItem>
-              </>
-            )}
-          </Popover>
+          <PageMenu page={page} />
 
           <button
             type="button"

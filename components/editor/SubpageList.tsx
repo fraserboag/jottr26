@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
+import { PageMenu } from '@/components/workspace/PageMenu'
 import { useChildPages } from '@/lib/db/hooks'
 import { createPage, dropRelative } from '@/lib/db/pages'
 import { expandPage } from '@/lib/util/expanded'
@@ -23,9 +24,10 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  device. Only above or below another entry — dropping one page into another
  *  would take it out of this list, which is the sidebar's job.
  *
- *  The plus in the corner is the sidebar's own plus for this page: a new, empty
- *  subpage at the end of the list, opened straight away, with this page's
- *  branch in the sidebar opened to show it. */
+ *  Each entry has the sidebar's three-dot menu, and the plus in the corner is
+ *  the sidebar's own plus for this page: a new, empty subpage at the end of
+ *  the list, opened straight away, with this page's branch in the sidebar
+ *  opened to show it. */
 
 type Drop = { id: string; zone: 'before' | 'after' }
 
@@ -159,6 +161,11 @@ export function SubpageList({ editor, extension }: ReactNodeViewProps) {
                 >
                   {page.title || 'Untitled'}
                 </a>
+                {/* Shown on hover, which a touch screen never has, so there
+                    it stays. */}
+                <span className="subpages-menu">
+                  <PageMenu page={page} />
+                </span>
               </li>
             ))}
           </ul>
