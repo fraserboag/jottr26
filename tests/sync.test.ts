@@ -447,6 +447,31 @@ describe('local-first sync', () => {
     assert.equal(await phone.title(id), 'Using <b> tags')
   })
 
+  it('pushes a title that reached the server inside the document before the row caught up', async () => {
+    // A new page syncs at once, blank, and the title typed straight after
+    // goes up with the document before the editor's debounce has mirrored it
+    // onto the row.
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.sync()
+    const handle = await openDoc(id)
+    const title = handle.doc.getXmlFragment(DOC_FIELD).get(0) as Y.XmlElement
+    handle.doc.transact(() => {
+      title.insert(0, [new Y.XmlText('Holiday')])
+    })
+    await settle()
+    await laptop.sync()
+
+    // The debounce lands after the push, and the next pull must not put the
+    // blank title from the server back.
+    await refreshDerived(id)
+    await laptop.sync()
+    await laptop.sync()
+
+    assert.equal(server.pages.get(id)?.title, 'Holiday')
+    assert.equal((await laptop.page(id))?.title, 'Holiday')
+  })
+
   it('marks a page pulled from the server as not yet carrying its document', async () => {
     await laptop.focus()
     const id = await createPage()

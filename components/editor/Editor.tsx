@@ -135,11 +135,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
     return () => releaseSlashBridge(handlers)
   })
 
-  const syncTitle = useMemo(
-    () => debounce(() => void refreshDerived(pageId), 400),
-    [pageId],
-  )
+  // Two timers, both mirroring the document onto the page row. A title edit
+  // gets its own, so typing on into the body straight after naming a page
+  // cannot hold the new name back from the sidebar until the typing stops.
+  const syncTitle = useMemo(() => debounce(() => void refreshDerived(pageId), 400), [pageId])
+  const syncBody = useMemo(() => debounce(() => void refreshDerived(pageId), 400), [pageId])
   useEffect(() => () => syncTitle.flush(), [syncTitle])
+  useEffect(() => () => syncBody.flush(), [syncBody])
+  const lastTitle = useRef<string | null>(null)
 
   const editor = useEditor(
     {
@@ -260,7 +263,12 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           return true
         },
       },
-      onUpdate: () => syncTitle(),
+      onUpdate: ({ editor: instance }) => {
+        const title = instance.state.doc.firstChild?.textContent ?? ''
+        if (title === lastTitle.current) return syncBody()
+        lastTitle.current = title
+        syncTitle()
+      },
     },
     [doc],
   )

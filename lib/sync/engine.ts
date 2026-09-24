@@ -14,7 +14,7 @@ import {
   type DocStateRow,
   type PageRow,
 } from '@/lib/db/schema'
-import { forgetPages } from '@/lib/db/pages'
+import { forgetPages, touch } from '@/lib/db/pages'
 import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
   applyRemoteUpdate,
@@ -585,7 +585,7 @@ export class SyncEngine {
 
           // A locally dirty row keeps the fields its own edit changed, which
           // the push that follows sends back, and takes the server's value for
-          // the rest. Titles self-heal regardless: they live inside the CRDT.
+          // the rest.
           if (local?.dirty) {
             const mine = new Set(local.dirtyFields ?? PAGE_FIELDS)
             const patch: Partial<PageRow> = { serverUpdatedAt }
@@ -687,8 +687,14 @@ export class SyncEngine {
 
   /** The sidebar reads titles from the page row, but the truth is node 0 of the
    *  document. After a pull, bring the row back in line — without flagging it
-   *  dirty, or every incoming edit would bounce straight back as a push. */
-  private async syncTitleFromDoc(pageId: string) {
+   *  dirty, or every incoming edit would bounce straight back as a push.
+   *
+   *  After this device's own push it is flagged: the title in that document
+   *  may be one typed moments ago that the editor has yet to copy onto the
+   *  row, and once the row matches, the editor sees nothing to copy. Left
+   *  clean, the server's row keeps its old title and the next pull puts it
+   *  back. */
+  private async syncTitleFromDoc(pageId: string, pushed = false) {
     const handle = loadedDoc(pageId)
     if (!handle) return
     const page = await this.db.pages.get(pageId)
@@ -697,6 +703,11 @@ export class SyncEngine {
     const title = readTitle(handle.doc)
     const searchText = readPlainText(handle.doc)
     if (page.title === title && page.searchText === searchText) return
+    if (pushed && page.title !== title) {
+      await touch(pageId, { title }, this.db)
+      await this.db.pages.update(pageId, { searchText })
+      return
+    }
     await this.db.pages.update(pageId, { title, searchText })
   }
 
@@ -878,7 +889,7 @@ export class SyncEngine {
           dirty: movedWhileInFlight ? 1 : 0,
           updateCount: current?.updateCount ?? 0,
         })
-        await this.syncTitleFromDoc(state.pageId)
+        await this.syncTitleFromDoc(state.pageId, true)
         break
       }
 

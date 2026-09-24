@@ -12,10 +12,15 @@ function db() {
 }
 
 /** Every local write goes through here: it stamps the edit time and flags the
- *  row for the sync engine in one place, so no mutation can forget to. */
-async function touch(id: string, patch: Partial<Pick<PageRow, PageField>>) {
+ *  row for the sync engine in one place, so no mutation can forget to. The
+ *  engine passes the database it was started against. */
+export async function touch(
+  id: string,
+  patch: Partial<Pick<PageRow, PageField>>,
+  database: JottrDB = db(),
+) {
   const fields = Object.keys(patch) as PageField[]
-  await db()
+  await database
     .pages.where('id')
     .equals(id)
     .modify((page) => {
