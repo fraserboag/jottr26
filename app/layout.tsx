@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     'A fast, private notebook. Your pages are stored on your device and synced to your account, so writing never waits for the network.',
   applicationName: 'Jottr',
-  appleWebApp: { capable: true, title: 'Jottr', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'Jottr', statusBarStyle: 'default' },
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
