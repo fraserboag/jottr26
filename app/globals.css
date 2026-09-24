@@ -382,8 +382,9 @@ h1.page-title {
   margin-top: 4px;
 }
 /* Its box would hide the usual selection tint, so a selected list is ringed
-   instead, ready to be deleted or cut. */
-.ProseMirror .ProseMirror-selectednode > div[data-type="subpages"] > .subpages-box {
+   instead, ready to be deleted or cut. Only while the editor has focus, like
+   the selection tint below. */
+.ProseMirror-focused .ProseMirror-selectednode > div[data-type="subpages"] > .subpages-box {
   box-shadow: 0 0 0 2px var(--accent);
 }
 .ProseMirror div[data-type="subpages"] .subpages-empty {
@@ -699,7 +700,11 @@ h1.page-title {
   pointer-events: none;
 }
 
-.ProseMirror-selectednode {
+/* A selected block is tinted only while the editor has focus, so a click
+   anywhere off it — the margins included — clears it the way it clears
+   selected text. ProseMirror keeps the selection itself, as it does for text;
+   it just stops being drawn. */
+.ProseMirror-focused .ProseMirror-selectednode {
   background: var(--accent-soft);
   border-radius: 4px;
 }
