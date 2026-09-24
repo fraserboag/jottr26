@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { SignedInRedirect } from "@/components/SignedInRedirect";
 
 export default function LandingPage() {
@@ -38,6 +39,14 @@ export default function LandingPage() {
             Open Jottr
           </a>
         </div>
+        <Image
+          src="/screenshot.webp"
+          alt="Jottr open on a desktop, showing the page sidebar and a note with subpages, a checklist and a callout"
+          width={1400}
+          height={909}
+          sizes="(min-width: 34rem) 34rem, 100vw"
+          className="mt-10 h-auto w-full rounded-xl"
+        />
       </main>
     </div>
   );
