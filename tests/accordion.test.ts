@@ -313,7 +313,7 @@ describe('accordion as a list item', () => {
     assert.equal(state.selection.$from.node(-1), list.child(1), 'on the new item')
   })
 
-  it('moves what is nested under the item down with the new one, as Enter does', () => {
+  it('starts a new first item of what is nested under the item, as Enter does', () => {
     const nested = bullets([paragraph('child')])
     const start = page(bullets([accordion('Details', [paragraph()], false), nested]))
     const at = caretAt(start, inside(start, 'accordionTitle', 7))
@@ -321,10 +321,12 @@ describe('accordion as a list item', () => {
     assert.equal(applied, true)
     state.doc.check()
     const list = state.doc.child(1)
-    assert.equal(list.childCount, 2)
-    assert.equal(list.child(0).childCount, 1)
-    assert.equal(list.child(1).child(1).textContent, 'child')
-    assert.equal(state.selection.$from.node(-1), list.child(1))
+    assert.equal(list.childCount, 1)
+    const sub = list.child(0).child(1)
+    assert.equal(sub.childCount, 2)
+    assert.equal(sub.child(0).textContent, '')
+    assert.equal(sub.child(1).textContent, 'child')
+    assert.equal(state.selection.$from.node(-1), sub.child(0))
   })
 
   it('starts a new, unticked item after a ticked one', () => {

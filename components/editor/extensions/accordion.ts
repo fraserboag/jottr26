@@ -10,6 +10,7 @@ import {
   type Transaction,
 } from '@tiptap/pm/state'
 import type { EditorView, NodeView, ViewMutationRecord } from '@tiptap/pm/view'
+import { nestedList, newFirstItem } from './lists'
 
 /** An accordion: a heading line that owns a box beneath it, which folds away.
  *
@@ -94,14 +95,19 @@ export function unwrapAccordion(): Command {
 const LIST_ITEMS = ['listItem', 'taskItem']
 
 /** Onto a new line straight after an accordion. When the accordion is the
- *  first line of a list item, that is the next item of the list, split off
- *  the way Enter splits one at the end of its first line: whatever is nested
- *  under the item moves down with the new one. Anywhere else it is a new line
+ *  first line of a list item, that is what Enter makes at the end of an
+ *  item's first line: a new first item of the ones nested under it, or the
+ *  next item of the list when there are none. Anywhere else it is a new line
  *  below. False where no line can go. */
 function newLineAfter(tr: Transaction, after: number) {
   const $after = tr.doc.resolve(after)
   const parent = $after.parent
   const paragraph = tr.doc.type.schema.nodes.paragraph
+
+  if ($after.index() === 1 && nestedList(parent)) {
+    newFirstItem(tr, after)
+    return true
+  }
 
   if (LIST_ITEMS.includes(parent.type.name) && $after.index() === 1) {
     const attrs = parent.type.name === 'taskItem' ? { ...parent.attrs, checked: false } : parent.attrs
