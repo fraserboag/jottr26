@@ -165,7 +165,7 @@ function Favourite({
     <li>
       <div
         className={`group flex items-center gap-1.5 rounded-md pl-1.5 pr-1 transition-colors ${
-          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+          isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
         <span className="size-5 shrink-0 pointer-coarse:size-7" />
@@ -236,7 +236,7 @@ function SidebarAction({
       onClick={onClick}
       aria-current={current ? 'page' : undefined}
       className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-muted transition-colors pointer-coarse:py-2.5 ${
-        current ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+        current ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
       }`}
     >
       <Icon name={icon} size={16} className="text-faint" />

@@ -30,6 +30,9 @@
 
   --hover: rgb(23 23 22 / 0.045);
   --active: rgb(23 23 22 / 0.075);
+  /* The open page's row in the sidebar: lighter than --active, which also
+     marks pressed buttons and menu items, but still a step past hover. */
+  --selected: rgb(23 23 22 / 0.058);
 
   /* Jottr's own ink: a muted indigo, bluer than violet, rather than the stock
      link blue. Kept dusty so it sits with the warm greys instead of shouting

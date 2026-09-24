@@ -111,7 +111,7 @@ function Row({
         // tree reads in clean columns. The chevron is wider on a touch
         // screen, and the step follows it.
         className={`group relative flex items-center gap-1.5 rounded-md pl-[calc(var(--depth)*24px+6px)] pr-1 transition-colors pointer-coarse:pl-[calc(var(--depth)*28px+6px)] ${
-          isOpen ? 'bg-[var(--active)]' : 'hover:bg-[var(--hover)]'
+          isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         } ${dragId === page.id ? 'opacity-40' : ''} ${
           active === 'inside' ? 'ring-1 ring-inset ring-[var(--accent)]' : ''
         }`}
