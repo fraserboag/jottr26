@@ -337,6 +337,11 @@ h1.page-title {
     height: 32px;
     color: var(--text-muted);
   }
+  /* The same size as the entries' menus below and the sidebar's buttons. */
+  .ProseMirror div[data-type="subpages"] .subpages-button svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 .ProseMirror div[data-type="subpages"] > .subpages-box {
   margin: 6px 0 0;
