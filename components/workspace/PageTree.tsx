@@ -101,9 +101,7 @@ function Row({
           event.preventDefault()
           const zone = drop?.zone
           if (dragId && zone) {
-            void dropRelative(dragId, page.id, zone).then(() => {
-              if (zone === 'inside') onToggleExpand(page.id)
-            })
+            void dropRelative(dragId, page.id, zone)
           }
           setDragId(null)
           setDrop(null)
