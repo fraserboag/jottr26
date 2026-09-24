@@ -131,7 +131,7 @@ export function Sidebar({
         />
 
         {favourites.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-3">
             <SectionLabel>Favourites</SectionLabel>
             <ul className="min-w-0">
               {favourites.map((page) => (
