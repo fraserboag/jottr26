@@ -218,7 +218,6 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
           >
             {(close) => (
               <>
-                <p className="px-2.5 pt-1 pb-0.5 text-xs text-faint">Depth</p>
                 {DEPTHS.map((value) => (
                   <MenuItem
                     key={value}
@@ -228,7 +227,7 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
                       close()
                     }}
                   >
-                    {value === 1 ? '1 level' : '2 levels'}
+                    {value === 1 ? '1 level deep' : '2 levels deep'}
                   </MenuItem>
                 ))}
               </>
