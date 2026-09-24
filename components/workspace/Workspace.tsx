@@ -248,18 +248,27 @@ export function Workspace() {
         )}
 
         {/* The top-right counterpart of the sidebar button, with the same
-            backdrop for the same reason. */}
+            backdrop for the same reason. It sits where the settings button
+            sits in the sidebar's header: that button is centred on the Jottr
+            wordmark's line, which puts it a few pixels below the header's
+            padding — 3.6px, and 3.2px with a touch screen's larger text. */}
         {page && (
           <button
             type="button"
             onClick={() => void toggleFavorite(page.id)}
             aria-label={page.isFavorite ? 'Remove from favourites' : 'Add to favourites'}
             aria-pressed={page.isFavorite === 1}
-            className={`absolute right-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 grid size-8 place-items-center rounded-md bg-surface/85 backdrop-blur-md transition-colors hover:bg-[var(--hover)] pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 ${
+            className={`absolute right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 grid size-8 place-items-center rounded-md bg-surface/85 backdrop-blur-md transition-colors hover:bg-[var(--hover)] pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 ${
               page.isFavorite ? 'text-star' : 'text-faint hover:text-muted pointer-coarse:text-muted'
             }`}
           >
-            <Icon name="star" size={18} filled={page.isFavorite === 1} />
+            <Icon
+              name="star"
+              size={18}
+              className="pointer-coarse:size-5"
+              strokeWidth={1.8}
+              filled={page.isFavorite === 1}
+            />
           </button>
         )}
 
