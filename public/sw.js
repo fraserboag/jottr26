@@ -7,7 +7,7 @@
  * opens offline.
  */
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL_CACHE = `jottr-shell-${VERSION}`
 const ASSET_CACHE = `jottr-assets-${VERSION}`
 const KEEP = new Set([SHELL_CACHE, ASSET_CACHE])
