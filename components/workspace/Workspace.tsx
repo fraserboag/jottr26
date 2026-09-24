@@ -40,7 +40,13 @@ export function Workspace() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [dragging, setDragging] = useState(false)
-  const drag = useRef<{ x: number; width: number; last: number } | null>(null)
+  const drag = useRef<{
+    x: number
+    width: number
+    last: number
+    pointerId: number
+    handle: HTMLElement
+  } | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 880px)')
@@ -133,7 +139,13 @@ export function Workspace() {
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     event.preventDefault()
-    drag.current = { x: event.clientX, width, last: width }
+    drag.current = {
+      x: event.clientX,
+      width,
+      last: width,
+      pointerId: event.pointerId,
+      handle: event.currentTarget,
+    }
     setDragging(true)
     // Only keeps hover effects elsewhere from lighting up on the way past.
     try {
@@ -151,6 +163,15 @@ export function Workspace() {
     if (!from) return
     drag.current = null
     setDragging(false)
+    // A drag given up on rather than released can leave the handle holding
+    // the pointer, which would steer every later click back onto it.
+    try {
+      if (from.handle.hasPointerCapture(from.pointerId)) {
+        from.handle.releasePointerCapture(from.pointerId)
+      }
+    } catch {
+      /* Ignore. */
+    }
     // Worked out from the release rather than read off `width`: releasing is a
     // discrete event and can land before the last move has rendered, which
     // would otherwise store a width a few pixels behind the one on screen.
@@ -168,12 +189,14 @@ export function Workspace() {
   // dropped along the way — and a drag that never hears it would otherwise
   // leave the whole app stuck showing the resize cursor until a reload. So
   // besides the release itself, a move with the button already up, the
-  // window losing focus and the tab being hidden all end it too.
+  // window losing focus and the tab being hidden all end it too. Listened for
+  // on the way down, so nothing in the page stopping an event can hide it,
+  // and only for the pointer that started the drag.
   useEffect(() => {
     if (!dragging) return
     const move = (event: PointerEvent) => {
       const from = drag.current
-      if (!from) return
+      if (!from || event.pointerId !== from.pointerId) return
       if ((event.buttons & 1) === 0) {
         endResize()
         return
@@ -181,17 +204,22 @@ export function Workspace() {
       from.last = clampWidth(from.width + event.clientX - from.x)
       setWidth(from.last)
     }
-    const release = (event: PointerEvent) => endResize(event.clientX)
+    const release = (event: PointerEvent) => {
+      if (event.pointerId === drag.current?.pointerId) endResize(event.clientX)
+    }
+    const cancel = (event: PointerEvent) => {
+      if (event.pointerId === drag.current?.pointerId) endResize()
+    }
     const abandon = () => endResize()
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', release)
-    window.addEventListener('pointercancel', abandon)
+    window.addEventListener('pointermove', move, true)
+    window.addEventListener('pointerup', release, true)
+    window.addEventListener('pointercancel', cancel, true)
     window.addEventListener('blur', abandon)
     document.addEventListener('visibilitychange', abandon)
     return () => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', release)
-      window.removeEventListener('pointercancel', abandon)
+      window.removeEventListener('pointermove', move, true)
+      window.removeEventListener('pointerup', release, true)
+      window.removeEventListener('pointercancel', cancel, true)
       window.removeEventListener('blur', abandon)
       document.removeEventListener('visibilitychange', abandon)
     }
