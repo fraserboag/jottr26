@@ -6,10 +6,13 @@
    even on a device set to dark.
    --------------------------------------------------------------------------- */
 :root {
-  --surface: #ffffff;
-  --surface-sunken: #f7f7f5;
+  /* Paper on a desk: the page is a faintly warm off-white, and the sidebar a
+     clear step darker, so the two panes read apart. Menus stay pure white,
+     lifted off the page. */
+  --surface: #fdfcf9;
+  --surface-sunken: #f5f4f0;
   --surface-raised: #ffffff;
-  --sidebar: #fafaf9;
+  --sidebar: #f3f2ed;
   --overlay: rgb(23 23 22 / 0.28);
 
   --text: #1f1f1e;
@@ -23,9 +26,11 @@
   --hover: rgb(23 23 22 / 0.045);
   --active: rgb(23 23 22 / 0.075);
 
-  --accent: #2f6fed;
+  /* Jottr's own ink: a deep indigo, bluer than violet, rather than the stock
+     link blue. */
+  --accent: #4b58d0;
   --accent-contrast: #ffffff;
-  --accent-soft: rgb(47 111 237 / 0.1);
+  --accent-soft: rgb(75 88 208 / 0.12);
 
   --ok: #2f9e44;
   --warn: #d97706;
@@ -62,6 +67,10 @@
      first paint of a local-first app should not wait on a download. */
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Page titles only, so a page has a face of its own. Still the device's
+     own: New York on Apple, Georgia elsewhere. */
+  --font-serif: ui-serif, "New York", "Iowan Old Style", Georgia, Cambria,
+    "Times New Roman", serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
 }
@@ -186,10 +195,11 @@ body {
 /* The trash's heading takes the same shape, so it reads as a page too. */
 .ProseMirror h1.jottr-title,
 h1.page-title {
+  font-family: var(--font-serif);
   font-size: clamp(2rem, 6vw, 2.5rem);
   line-height: 1.15;
-  font-weight: 700;
-  letter-spacing: -0.022em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   /* A blank body line between the name of the page and the page itself: the
      body's own line height above — not an em of this heading — plus the 2px
      that sits above and below any block, which an actual empty line would
