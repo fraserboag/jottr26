@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
+import { Icon } from '@/components/ui/Icon'
 import { useChildPages } from '@/lib/db/hooks'
 import { pageHref } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
@@ -26,12 +27,14 @@ export function SubpageList({ extension }: ReactNodeViewProps) {
 
   return (
     <NodeViewWrapper data-type="subpages" contentEditable={false}>
+      <p className="subpages-title">Subpages</p>
       {pages === undefined ? null : pages.length === 0 ? (
         <p className="subpages-empty">No subpages yet</p>
       ) : (
         <ul>
           {pages.map((page) => (
             <li key={page.id}>
+              <Icon name="file" size={15} className="text-faint" />
               <a href={pageHref(page.id)} onClick={(event) => follow(event, page.id)}>
                 {page.title || 'Untitled'}
               </a>

@@ -286,13 +286,26 @@ h1.page-title {
   min-height: calc(var(--list-leading) * 1em);
 }
 
-/* A subpage list: drawn in a callout's box, but not written in. The links
-   are the page's children, one to a line with no bullets; the box already
-   says they belong together. */
+/* A subpage list: drawn in a callout's box, but not written in. A bold line
+   names it, the way a section is headed anywhere else on a page, and under it
+   are the page's children, one to a line, each with the sidebar's page icon
+   in place of a bullet. */
+.ProseMirror div[data-type="subpages"] .subpages-title {
+  margin: 0 0 6px;
+  font-weight: 620;
+}
 .ProseMirror div[data-type="subpages"] ul {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+.ProseMirror div[data-type="subpages"] li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ProseMirror div[data-type="subpages"] li > svg {
+  flex-shrink: 0;
 }
 .ProseMirror div[data-type="subpages"] li + li {
   margin-top: 4px;
