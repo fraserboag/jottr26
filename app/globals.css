@@ -636,6 +636,10 @@ h1.page-title {
   margin-right: -1.5px;
   animation: code-caret-blink 1.06s steps(1) infinite;
 }
+.ProseMirror-focused .code-caret-before {
+  margin-right: 1px;
+  margin-left: -2.5px;
+}
 @keyframes code-caret-blink {
   50% {
     border-left-color: transparent;

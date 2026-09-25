@@ -101,15 +101,18 @@ export function codeEdgePlugin(type: MarkType) {
         if (!selection.empty) return null
         const edge = edgeAt(state, type)
         if (!edge) return null
+        // Just outside the start, the caret sits against the code's border
+        // and has to hang the other way to stay clear of it.
+        const beforeCode = !edge.inside && !edge.codeBefore
         const caret = Decoration.widget(
           selection.head,
           () => {
             const el = document.createElement('span')
-            el.className = 'code-caret'
+            el.className = beforeCode ? 'code-caret code-caret-before' : 'code-caret'
             return el
           },
           {
-            key: edge.inside ? 'code-caret-in' : 'code-caret-out',
+            key: edge.inside ? 'code-caret-in' : beforeCode ? 'code-caret-before' : 'code-caret-after',
             marks: edge.inside ? [type.create()] : [],
             side: edge.inside === edge.codeBefore ? -1 : 1,
             ignoreSelection: true,
