@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core'
+import { newlineInCode } from '@tiptap/pm/commands'
 import { type Command, TextSelection } from '@tiptap/pm/state'
 
 /** Enter, on an empty last line of a code block: out of the block, onto a new
@@ -43,6 +44,9 @@ export const CodeBlockExit = Extension.create({
   addKeyboardShortcuts() {
     return {
       Enter: () => this.editor.commands.command(({ state, dispatch }) => leaveCodeBlock(state, dispatch)),
+      // A new line in the code, as Shift-Enter is a new line in a callout.
+      // The hard-break binding would otherwise take it out of the block.
+      'Shift-Enter': () => this.editor.commands.command(({ state, dispatch }) => newlineInCode(state, dispatch)),
     }
   },
 })

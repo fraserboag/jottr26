@@ -80,3 +80,13 @@ describe('code block Enter', () => {
     assert.equal(run(start, leaveCodeBlock).applied, false)
   })
 })
+
+describe('code block Shift-Enter', () => {
+  it('is a new line in the code, even on a blank last line', async () => {
+    const { newlineInCode } = await import('@tiptap/pm/commands')
+    const { state, applied } = run(page(code('x = 1\n')), newlineInCode)
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'codeBlock'])
+    assert.equal(state.doc.child(1).textContent, 'x = 1\n\n')
+  })
+})
