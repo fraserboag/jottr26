@@ -100,9 +100,12 @@ export const SubpagesTitle = Node.create({
 export const Subpages = Node.create<SubpagesOptions>({
   name: SUBPAGES,
   group: 'block',
-  // Exactly the heading, so a Title, a list or a code block can't be made of
-  // it: each of those would have to replace the node this block has to hold.
-  content: SUBPAGES_TITLE,
+  // Only the heading, so a Title, a list or a code block can't be made of it:
+  // each of those would have to replace it with a node this block can't hold.
+  // Optional, though it is always written: a copy of the app from before the
+  // heading, still open somewhere, deletes one it doesn't know, and a block
+  // that had to have it would then be deleted whole, on every device.
+  content: `${SUBPAGES_TITLE}?`,
   // Backspace on the line after it selects the block, as it did when there
   // was no text in it, rather than pulling that line up into the heading.
   isolating: true,

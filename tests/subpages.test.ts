@@ -229,6 +229,15 @@ describe('subpage lists left in old pages', () => {
     assert.equal(page.child(1).child(0).child(1).textContent, 'Subpages')
   })
 
+  it('survive losing their heading to an old copy of the app, rather than being deleted', () => {
+    const list = titled('Projects')
+    const doc = saved(list)
+    list.delete(0, 1)
+    const page = read(doc)
+    assert.equal(page.child(1).type.name, 'subpages')
+    assert.equal(page.child(1).childCount, 0)
+  })
+
   it('keep only the first heading when two devices each gave one', () => {
     const list = titled('Mine')
     const doc = saved(list)
