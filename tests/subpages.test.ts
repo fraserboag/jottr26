@@ -162,6 +162,10 @@ describe('subpage list', () => {
       )
     }
   })
+
+  it("is the only item '/sub' finds", () => {
+    assert.deepEqual(filterSlashItems('sub').map((item) => item.id), ['subpages'])
+  })
 })
 
 const schema = getSchema([
