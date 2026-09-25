@@ -205,8 +205,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
               // opens a page or adds one and a drag reorders, and
               // ProseMirror would read any of them as an edit to the
               // document. The block's own heading is written in like any other
-              // line. Anywhere else in the block, a click selects the block so
-              // it can be deleted.
+              // line.
               stopEvent: ({ event }) =>
                 event.target instanceof Element &&
                 !event.target.closest('.subpages-title') &&

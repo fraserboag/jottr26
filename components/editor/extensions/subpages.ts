@@ -74,7 +74,8 @@ export const SubpagesTitle = Node.create({
   isolating: true,
 
   parseHTML() {
-    return [{ tag: 'p.subpages-title' }]
+    // Ahead of the paragraph's rule, which any p would otherwise match first.
+    return [{ tag: 'p.subpages-title', priority: 51 }]
   },
 
   renderHTML({ HTMLAttributes }) {

@@ -47,7 +47,7 @@ type Drop = { id: string; zone: 'before' | 'after' | 'inside' }
 
 const DEPTHS = [1, 2] as const
 
-export function SubpageList({ editor, extension, node, updateAttributes }: ReactNodeViewProps) {
+export function SubpageList({ editor, extension, node, getPos, updateAttributes }: ReactNodeViewProps) {
   const { pageId } = extension.options as SubpagesOptions
   const depth = node.attrs.depth === 2 ? 2 : 1
   const pages = useChildPages(pageId)
@@ -74,10 +74,21 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
   // tap still clicks. Not for a mouse press on an entry, which is how a drag
   // starts. A touch press is safe to refuse there: its mousedown only comes
   // once the finger has lifted, after any drag.
-  const keepFocus = (event: MouseEvent) => {
+  //
+  // Anywhere else but the heading, a press selects the whole block, so it can
+  // be deleted. ProseMirror only does that itself for a block with no text in
+  // it, which this one no longer is.
+  const pressDown = (event: MouseEvent) => {
     const target = event.target
-    if (!(target instanceof Element) || target.closest('.subpages-title')) return
-    if (!target.closest('li, .subpages-group-head, button, a')) return
+    // The heading is written in, and the menus' presses, bubbled up here by
+    // React from the portals they're drawn in, are the menus' own.
+    if (!(target instanceof Element) || !event.currentTarget.contains(target) || target.closest('.subpages-title')) return
+    if (!target.closest('li, .subpages-group-head, button, a')) {
+      event.preventDefault()
+      const pos = getPos()
+      if (typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run()
+      return
+    }
     if (pointerType.current === 'mouse' && target.closest('li') && !target.closest('.subpages-menu')) return
     event.preventDefault()
   }
@@ -244,7 +255,7 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
       onPointerDown={(event: PointerEvent) => {
         pointerType.current = event.pointerType
       }}
-      onMouseDown={keepFocus}
+      onMouseDown={pressDown}
     >
       <div className="subpages-head">
         <NodeViewContent className="subpages-heading" />
