@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { createChainableState, Editor, getExtensionField, type InputRule, type JSONContent } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
-import { backspaceAfterDivider, Divider } from '@/components/editor/extensions/divider'
+import { backspaceAfterDivider, Divider, textPastDivider } from '@/components/editor/extensions/divider'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 
 /** A headless editor with the page's divider, the caret at `caret`. */
@@ -140,5 +140,31 @@ describe('divider', () => {
       return true
     })
     assert.equal(backspaceAfterDivider(instance.state), false)
+  })
+
+  it('an arrow off the edge of a line lands on the text past the divider, not on it', () => {
+    // 'above' takes 7..14, the rule 14..15, 'below' 15..22.
+    const blocks = [paragraph('above'), { type: 'horizontalRule' }, paragraph('below')]
+    const down = editor(firstBody + 3, ...blocks)
+    assert.equal(textPastDivider(down.state, 1)?.from, 16)
+    const up = editor(18, ...blocks)
+    assert.equal(textPastDivider(up.state, -1)?.from, 13)
+  })
+
+  it('an arrow past two dividers in a row lands on the text past both', () => {
+    const instance = editor(firstBody, paragraph('a'), { type: 'horizontalRule' }, { type: 'horizontalRule' }, paragraph())
+    // 'a' takes 7..10, the rules 10..11 and 11..12, the blank line opens at 13.
+    assert.equal(textPastDivider(instance.state, 1)?.from, 13)
+  })
+
+  it('an arrow toward a divider with no text past it goes nowhere', () => {
+    const instance = editor(firstBody, paragraph('a'), { type: 'horizontalRule' })
+    assert.equal(textPastDivider(instance.state, 1), null)
+  })
+
+  it('an arrow with no divider in the way is left alone', () => {
+    const instance = editor(firstBody, paragraph('a'), paragraph('b'))
+    assert.equal(textPastDivider(instance.state, 1), undefined)
+    assert.equal(textPastDivider(instance.state, -1), undefined)
   })
 })
