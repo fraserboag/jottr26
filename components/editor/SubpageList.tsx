@@ -7,7 +7,6 @@ import { MenuItem, Popover } from '@/components/ui/Popover'
 import { PageMenu } from '@/components/workspace/PageMenu'
 import { useChildPages, useGrandchildPages } from '@/lib/db/hooks'
 import { createPage, dropRelative } from '@/lib/db/pages'
-import { expandPage } from '@/lib/util/expanded'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import { pageHref } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
@@ -85,11 +84,9 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
     // Before anything is awaited, or a phone won't raise its keyboard for the
     // new page's title.
     raiseKeyboard()
-    void createPage({ parentId }).then((id) => {
-      expandPage(pageId)
-      expandPage(parentId)
-      openPage(id)
-    })
+    // The sidebar is left as it was: which of its branches are open is the
+    // user's to decide there, not something the editor changes.
+    void createPage({ parentId }).then(openPage)
   }
 
   const end = () => {
