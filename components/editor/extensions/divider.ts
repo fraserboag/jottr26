@@ -20,15 +20,19 @@ export const backspaceAfterDivider: Command = (state, dispatch) => {
 
 /** Where the caret lands when an arrow key carries it off the top (`dir` -1)
  *  or bottom (1) of its line and the next stop that way is a divider: the
- *  nearest line of text past it, or `null` when there is none. `undefined`
+ *  next stop past it, or `null` when there is none. `undefined`
  *  when there is no divider in the way and the arrow should do what it does. */
 export function textPastDivider(state: EditorState, dir: -1 | 1): Selection | null | undefined {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty || !selection.$from.depth) return undefined
   const { $from } = selection
-  const next = Selection.findFrom(state.doc.resolve(dir > 0 ? $from.after() : $from.before()), dir)
-  if (!(next instanceof NodeSelection) || next.node.type.name !== 'horizontalRule') return undefined
-  return Selection.findFrom(state.doc.resolve(dir > 0 ? next.to : next.from), dir, true)
+  const isRule = (stop: Selection | null): stop is NodeSelection =>
+    stop instanceof NodeSelection && stop.node.type.name === 'horizontalRule'
+  let next = Selection.findFrom(state.doc.resolve(dir > 0 ? $from.after() : $from.before()), dir)
+  if (!isRule(next)) return undefined
+  // Past every divider in a row, to whatever an arrow would stop on there.
+  while (isRule(next)) next = Selection.findFrom(state.doc.resolve(dir > 0 ? next.to : next.from), dir)
+  return next
 }
 
 /** Up or down, over a divider rather than onto it: ProseMirror would select
@@ -41,6 +45,10 @@ function arrowOverDivider(view: EditorView, dir: -1 | 1) {
   if (target === undefined) return false
   if (target === null) return true
 
+  if (!(target instanceof TextSelection)) {
+    view.dispatch(view.state.tr.setSelection(target).scrollIntoView())
+    return true
+  }
   let pos = target.from
   const { $from } = target
   // The first line of the block below, or the last of the one above.
