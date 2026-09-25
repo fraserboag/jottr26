@@ -116,20 +116,37 @@ export function Workspace() {
     setEntry({ id: openId, up })
   }
 
-  const openPage = useCallback(
-    (id: string | null) => {
-      open(id)
-      // Opening a page on a narrow screen gets the drawer out of the way.
-      // Closing one leaves it up: the list is what you came back to.
-      if (id && !wide) setSidebarOpen(false)
+  // Leaving for another page from the open drawer waits for the drawer to
+  // finish sliding shut. iOS takes the picture it shows during a swipe back at
+  // the moment the history entry is pushed, so pushing any earlier would have
+  // the drawer reappear on the page being swiped back to.
+  const pending = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(pending.current), [])
+  const afterDrawerShuts = useCallback(
+    (go: () => void) => {
+      window.clearTimeout(pending.current)
+      if (wide || !sidebarOpen) {
+        go()
+        return
+      }
+      setSidebarOpen(false)
+      // The slide's 200ms, and a little over for its last frame to be shown.
+      pending.current = window.setTimeout(go, 250)
     },
-    [open, wide],
+    [wide, sidebarOpen],
   )
 
-  const showTrash = useCallback(() => {
-    openTrash()
-    if (!wide) setSidebarOpen(false)
-  }, [openTrash, wide])
+  const openPage = useCallback(
+    (id: string | null) => {
+      // Opening a page on a narrow screen gets the drawer out of the way.
+      // Closing one leaves it up: the list is what you came back to.
+      if (id) afterDrawerShuts(() => open(id))
+      else open(id)
+    },
+    [open, afterDrawerShuts],
+  )
+
+  const showTrash = useCallback(() => afterDrawerShuts(openTrash), [openTrash, afterDrawerShuts])
 
   // Dragging the sidebar's edge works like dragging a table column. Once the
   // press lands on the handle, the rest of the drag is followed on the window
