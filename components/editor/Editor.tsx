@@ -15,6 +15,7 @@ import { FormattingMarks } from './extensions/marks'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
+import { SelectLine } from './extensions/selectLine'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
 import { SlashList, SlashMenu, type SlashMenuState } from './SlashMenu'
@@ -183,6 +184,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           dropcursor: { color: 'var(--accent)' },
         }),
         ...FormattingMarks,
+        SelectLine,
         ListItem,
         Callout,
         Subpages.extend({
