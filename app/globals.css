@@ -831,9 +831,21 @@ h1.page-title {
 .ProseMirror.ProseMirror-focused :is(div[data-type="callout"].ProseMirror-selectednode, .ProseMirror-selectednode > .accordion-content > div[data-type="accordionBody"]) {
   box-shadow: 0 0 0 2px var(--accent);
 }
-/* A code block keeps its own corners under the tint. */
-.ProseMirror pre.ProseMirror-selectednode {
+/* A code block too, keeping its own shade and corners rather than the tint. */
+.ProseMirror.ProseMirror-focused pre.ProseMirror-selectednode {
+  background: var(--surface-sunken);
   border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+/* And a table with every cell selected, which is a table selected whole. The
+   ring is drawn just inside its edge, as its wrapper scrolls and would clip
+   one outside, and the cells go untinted under it. */
+.ProseMirror.ProseMirror-focused .tableWrapper.table-selected > table {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ProseMirror .tableWrapper.table-selected .selectedCell::after {
+  content: none;
 }
 
 /* A selected block is tinted only while the editor has focus, so a click

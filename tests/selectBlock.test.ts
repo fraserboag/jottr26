@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
-import { onEdge, type Box } from '@/components/editor/extensions/selectBlock'
+import { onEdge, wholeTable, type Box } from '@/components/editor/extensions/selectBlock'
 
 /** A callout's box: 200 by 100 at the origin, padded 20 by 22. */
 const box: Box = { left: 0, top: 0, width: 200, height: 100, padding: { top: 20, right: 22, bottom: 20, left: 22 } }
@@ -107,5 +107,24 @@ describe('a block selected whole', () => {
       state.doc.content.content.map((block) => block.type.name),
       ['paragraph', 'paragraph'],
     )
+  })
+
+  it('is marked as a table selected whole, and a few of its cells are not', () => {
+    const cell = (value: string): JSONContent => ({ type: 'tableCell', content: [text(value)] })
+    const row = (...values: string[]): JSONContent => ({ type: 'tableRow', content: values.map(cell) })
+    const { doc, schema } = editor({ type: 'table', content: [row('a', 'b'), row('c', 'd')] }).state
+    const tablePos = doc.child(0).nodeSize
+    let state = EditorState.create({ schema, doc, plugins: [tableEditing()] })
+    state = state.apply(state.tr.setSelection(NodeSelection.create(doc, tablePos)))
+    const marked = wholeTable(state).find()
+    assert.equal(marked.length, 1)
+    assert.equal(marked[0].from, tablePos)
+    assert.equal(marked[0].to, tablePos + doc.child(1).nodeSize)
+
+    // Just the first cell, which is at the table's start, past the table and
+    // row openings.
+    const firstCell = tablePos + 2
+    state = state.apply(state.tr.setSelection(CellSelection.create(state.doc, firstCell)))
+    assert.equal(wholeTable(state).find().length, 0)
   })
 })

@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
-import { NodeSelection, Plugin, PluginKey } from '@tiptap/pm/state'
-import type { EditorView } from '@tiptap/pm/view'
+import { NodeSelection, Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
+import { CellSelection } from '@tiptap/pm/tables'
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 /** A click on the edge of a boxed block selects the block whole, ready to be
  *  deleted or cut, the way a click on a subpage list does. The edge is the
@@ -9,7 +10,12 @@ import type { EditorView } from '@tiptap/pm/view'
  *
  *  A table's cells run right to its border, so its edge is the strip just
  *  above and below it, and the border itself. A folded accordion has no box
- *  showing, and so no edge to click. */
+ *  showing, and so no edge to click.
+ *
+ *  A table selected whole comes out as every one of its cells selected, which
+ *  is how the table editing is built, so a table in that state is marked, and
+ *  ringed like any other block selected whole rather than tinted cell by
+ *  cell. */
 
 export interface Box {
   left: number
@@ -81,6 +87,19 @@ function posOf(view: EditorView, element: Element) {
   return null
 }
 
+/** The table whose cells are all selected, marked `table-selected`. */
+export function wholeTable(state: EditorState) {
+  const { selection } = state
+  if (!(selection instanceof CellSelection) || !selection.isRowSelection() || !selection.isColSelection()) {
+    return DecorationSet.empty
+  }
+  // The cell's row, then the row's table.
+  const $cell = selection.$anchorCell
+  const pos = $cell.before($cell.depth - 1)
+  const table = $cell.node($cell.depth - 1)
+  return DecorationSet.create(state.doc, [Decoration.node(pos, pos + table.nodeSize, { class: 'table-selected' })])
+}
+
 export const SelectBlock = Extension.create({
   name: 'selectBlock',
 
@@ -89,6 +108,7 @@ export const SelectBlock = Extension.create({
       new Plugin({
         key: new PluginKey('selectBlock'),
         props: {
+          decorations: wholeTable,
           handleDOMEvents: {
             mousedown(view, event) {
               // A held key is the editor's own: extending a selection, or
