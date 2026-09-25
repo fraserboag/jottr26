@@ -54,6 +54,13 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
+    id: 'divider',
+    title: 'Divider',
+    icon: 'divider',
+    keywords: ['hr', 'rule', 'separator', 'line'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+  },
+  {
     id: 'callout',
     title: 'Callout',
     icon: 'callout',
@@ -75,13 +82,6 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).insertSubpages().run(),
   },
   {
-    id: 'code',
-    title: 'Code block',
-    icon: 'code',
-    keywords: ['pre', 'snippet', 'monospace'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
-  },
-  {
     id: 'table',
     title: 'Table',
     icon: 'table',
@@ -98,11 +98,11 @@ export const slashItems: SlashItem[] = [
         .run(),
   },
   {
-    id: 'divider',
-    title: 'Divider',
-    icon: 'divider',
-    keywords: ['hr', 'rule', 'separator', 'line'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+    id: 'code',
+    title: 'Code block',
+    icon: 'code',
+    keywords: ['pre', 'snippet', 'monospace'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
 ]
 
