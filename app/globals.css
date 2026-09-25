@@ -839,10 +839,21 @@ h1.page-title {
 }
 /* And a table with every cell selected, which is a table selected whole. The
    ring is drawn just inside its edge, as its wrapper scrolls and would clip
-   one outside, and the cells go untinted under it. */
-.ProseMirror.ProseMirror-focused .tableWrapper.table-selected > table {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+   one outside, and the cells go untinted under it. It is a layer of its own
+   over the cells, since a shaded header or totals row would otherwise paint
+   over half of it. */
+.ProseMirror .tableWrapper.table-selected > table {
+  position: relative;
+}
+.ProseMirror.ProseMirror-focused .tableWrapper.table-selected > table::after {
+  content: "";
+  position: absolute;
+  /* Over the table's own 1px border, and a pixel in from it. */
+  inset: -1px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 2;
 }
 .ProseMirror .tableWrapper.table-selected .selectedCell::after {
   content: none;
