@@ -9,6 +9,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
+import { CodeBlockExit } from './extensions/codeBlock'
 import { Divider } from './extensions/divider'
 import { Subpages, SubpagesTitle } from './extensions/subpages'
 import { ListItem } from './extensions/lists'
@@ -184,7 +185,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           strike: false,
           code: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
-          codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
+          // Enter's way out is CodeBlockExit's, below, rather than Tiptap's
+          // two blank lines.
+          codeBlock: { HTMLAttributes: { spellcheck: 'false' }, exitOnTripleEnter: false },
           // Added below instead, as a version whose '---' reuses a blank line
           // already under it.
           horizontalRule: false,
@@ -197,6 +200,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         SelectLine,
         ListItem,
         Callout,
+        CodeBlockExit,
         Divider,
         Subpages.extend({
           addNodeView: () =>
