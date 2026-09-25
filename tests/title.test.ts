@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
@@ -15,8 +14,6 @@ const schema = getSchema([
   JottrDocument,
   Title,
   StarterKit.configure({ document: false, undoRedo: false, heading: false }),
-  TaskList,
-  TaskItem.configure({ nested: true }),
   Callout,
   TableKit.configure({ table: false }),
   FinanceTable.configure({ renderWrapper: true }),

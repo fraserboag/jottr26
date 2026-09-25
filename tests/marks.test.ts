@@ -3,7 +3,6 @@ import { describe, it } from 'node:test'
 import { Editor, type JSONContent } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { FormattingMarks } from '@/components/editor/extensions/marks'
 
 /** A headless editor with the page's marks, the caret at the end of `blocks`.
@@ -24,8 +23,6 @@ function editor(...blocks: JSONContent[]) {
         code: false,
       }),
       ...FormattingMarks,
-      TaskList,
-      TaskItem.configure({ nested: true }),
     ],
     content: { type: 'doc', content: blocks },
   })
@@ -100,17 +97,6 @@ describe('Enter and formatting', () => {
       content: [{ type: 'listItem', content: [paragraph(text('First', 'bold'))] }],
     })
     instance.commands.splitListItem('listItem')
-    type(instance, 'plain')
-    assert.deepEqual(marksBehindCaret(instance), [])
-    instance.destroy()
-  })
-
-  it('starts the next to-do plain', () => {
-    const instance = editor({
-      type: 'taskList',
-      content: [{ type: 'taskItem', attrs: { checked: false }, content: [paragraph(text('First', 'italic'))] }],
-    })
-    instance.commands.splitListItem('taskItem')
     type(instance, 'plain')
     assert.deepEqual(marksBehindCaret(instance), [])
     instance.destroy()

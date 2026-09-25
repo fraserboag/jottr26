@@ -35,7 +35,6 @@ const paths = {
   text: 'M5 6V5h14v1M12 5v14M9.5 19h5',
   list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
   listOrdered: 'M10 6h10M10 12h10M10 18h10M4 10h2M4 6h1v4M6 18H4c0-1 2-2 2-3s-1-1.5-2-1',
-  checkSquare: 'M9 11l2 2 4-4M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z',
   callout:
     'M5 5h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 10.5h8M8 14.5h5',
   subpages:

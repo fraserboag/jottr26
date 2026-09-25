@@ -3,7 +3,6 @@ import { describe, it } from 'node:test'
 import * as Y from 'yjs'
 import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { lift, wrapIn } from '@tiptap/pm/commands'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
@@ -19,8 +18,6 @@ const schema = getSchema([
   JottrDocument,
   Title,
   StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
-  TaskList,
-  TaskItem.configure({ nested: true }),
   Callout,
   TableKit.configure({ table: false }),
   FinanceTable.configure({ renderWrapper: true }),

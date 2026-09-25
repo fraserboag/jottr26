@@ -1,19 +1,19 @@
-import { ListItem as BaseListItem, TaskItem as BaseTaskItem } from '@tiptap/extension-list'
+import { ListItem as BaseListItem } from '@tiptap/extension-list'
 import type { Node } from '@tiptap/pm/model'
 import { Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 
-/** List items whose first line can be an accordion as well as a paragraph.
+/** A list item whose first line can be an accordion as well as a paragraph.
  *
  *  Paragraph comes first in the choice: that is what a new item is filled
  *  with, so Enter and Tab keep making plain bullets. */
 const content = '(paragraph | accordion) block*'
 
-const LIST_ITEMS = ['listItem', 'taskItem']
-const LISTS = ['bulletList', 'orderedList', 'taskList']
+const LIST_ITEM = 'listItem'
+const LISTS = ['bulletList', 'orderedList']
 
 /** The list nested straight under an item's first line, if it has one. */
 export function nestedList(item: Node) {
-  if (!LIST_ITEMS.includes(item.type.name)) return null
+  if (item.type.name !== LIST_ITEM) return null
   const next = item.maybeChild(1)
   return next && LISTS.includes(next.type.name) ? next : null
 }
@@ -57,8 +57,8 @@ export function backspaceNestedItem(): Command {
     if (!empty || $from.depth < 4 || !$from.parent.isTextblock || $from.parent.content.size > 0) return false
     const item = $from.node(-1)
     const list = $from.node(-2)
-    if (!LIST_ITEMS.includes(item.type.name) || item.childCount !== 1) return false
-    if (!LISTS.includes(list.type.name) || !LIST_ITEMS.includes($from.node(-3).type.name)) return false
+    if (item.type.name !== LIST_ITEM || item.childCount !== 1) return false
+    if (!LISTS.includes(list.type.name) || $from.node(-3).type.name !== LIST_ITEM) return false
     if ($from.index(-2) === list.childCount - 1) return false
 
     if (dispatch) {
@@ -114,17 +114,3 @@ export const ListItem = BaseListItem.extend({
     }
   },
 })
-
-export const TaskItem = BaseTaskItem.extend({
-  content,
-
-  addKeyboardShortcuts() {
-    return {
-      ...this.parent?.(),
-      Enter: () =>
-        this.editor.commands.command(({ state, dispatch }) => enter(state, dispatch)) ||
-        this.editor.commands.splitListItem(this.name),
-      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
-    }
-  },
-}).configure({ nested: true })

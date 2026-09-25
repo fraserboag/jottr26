@@ -55,7 +55,6 @@ export function MobileToolbar({
       link: instance.isActive('link'),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
-      task: instance.isActive('taskList'),
       canUndo: instance.can().undo(),
       canRedo: instance.can().redo(),
     }),
@@ -284,7 +283,6 @@ export function MobileToolbar({
               <span className="mx-1 h-7 w-px shrink-0 bg-line" />
               <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
               <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-              <ToolButton icon="checkSquare" label="Checkbox list" active={state.task} onClick={() => editor.chain().focus().toggleTaskList().run()} />
             </div>
             <span className="mx-1 h-7 w-px shrink-0 bg-line" />
             <ToolButton icon="undo" label="Undo" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />

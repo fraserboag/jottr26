@@ -3,7 +3,6 @@ import { describe, it } from 'node:test'
 import * as Y from 'yjs'
 import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { EditorState, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 import { liftListItem, sinkListItem, splitListItem } from '@tiptap/pm/schema-list'
@@ -20,7 +19,7 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
-import { backspaceAfterList, ListItem, TaskItem } from '@/components/editor/extensions/lists'
+import { backspaceAfterList, ListItem } from '@/components/editor/extensions/lists'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -31,8 +30,6 @@ const schema = getSchema([
   Title,
   StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false, listItem: false }),
   ListItem,
-  TaskList,
-  TaskItem,
   Callout,
   ...AccordionKit,
   TableKit.configure({ table: false }),
@@ -263,31 +260,20 @@ function bullets(...items: Node[][]) {
   return schema.node('bulletList', null, items.map((content) => schema.node('listItem', null, content)))
 }
 
-function tasks(...items: [boolean, Node[]][]) {
-  return schema.node(
-    'taskList',
-    null,
-    items.map(([checked, content]) => schema.node('taskItem', { checked }, content)),
-  )
-}
-
 describe('accordion as a list item', () => {
-  it('turns the first line of a bullet or a checkbox item into an accordion', () => {
-    for (const list of [bullets([paragraph('one')]), tasks([true, [paragraph('one')]])]) {
-      const start = page(list)
-      const { state, applied } = run(start, makeAccordion())
-      assert.equal(applied, true)
-      state.doc.check()
-      const item = state.doc.child(1).child(0)
-      assert.equal(item.child(0).type.name, 'accordion')
-      assert.equal(item.child(0).child(0).textContent, 'one')
-      assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
-    }
+  it('turns the first line of an item into an accordion', () => {
+    const start = page(bullets([paragraph('one')]))
+    const { state, applied } = run(start, makeAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    const item = state.doc.child(1).child(0)
+    assert.equal(item.child(0).type.name, 'accordion')
+    assert.equal(item.child(0).child(0).textContent, 'one')
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
   })
 
   it('keeps making plain lines for new items', () => {
     assert.equal(schema.nodes.listItem.createAndFill()!.child(0).type.name, 'paragraph')
-    assert.equal(schema.nodes.taskItem.createAndFill()!.child(0).type.name, 'paragraph')
 
     const start = page(bullets([accordion('Details')], [paragraph('two')]))
     const { state, applied } = run(start, splitListItem(schema.nodes.listItem))
@@ -329,16 +315,16 @@ describe('accordion as a list item', () => {
     assert.equal(state.selection.$from.node(-1), sub.child(0))
   })
 
-  it('starts a new, unticked item after a ticked one', () => {
-    const start = page(tasks([true, [accordion('Details', [paragraph()], false)]]))
+  it('starts the next item on Enter from a folded heading', () => {
+    const start = page(bullets([accordion('Details', [paragraph()], false)]))
     const at = caretAt(start, inside(start, 'accordionTitle', 7))
     const { state, applied } = run(at, enterAccordionBody())
     assert.equal(applied, true)
     state.doc.check()
     const list = state.doc.child(1)
     assert.equal(list.childCount, 2)
-    assert.equal(list.child(0).attrs.checked, true)
-    assert.equal(list.child(1).attrs.checked, false)
+    assert.equal(list.child(1).textContent, '')
+    assert.equal(state.selection.$from.node(-1), list.child(1), 'on the new item')
   })
 
   it('goes back to a plain item on Backspace at the start of the heading', () => {

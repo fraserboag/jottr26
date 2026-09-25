@@ -6,12 +6,11 @@ import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { TaskList } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
 import { Subpages } from './extensions/subpages'
-import { ListItem, TaskItem } from './extensions/lists'
+import { ListItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
@@ -24,6 +23,7 @@ import { FormatMenu } from './FormatMenu'
 import { MobileToolbar } from './MobileToolbar'
 import { TableMenu } from './TableMenu'
 import { openDoc, type DocHandle } from '@/lib/db/ydoc'
+import { convertChecklists } from '@/lib/db/checklists'
 import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
@@ -143,6 +143,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
   useEffect(() => () => syncTitle.flush(), [syncTitle])
   useEffect(() => () => syncBody.flush(), [syncBody])
   const lastTitle = useRef<string | null>(null)
+  // Before the editor binds to the page, which would delete any checkbox list
+  // still in it outright.
+  useState(() => convertChecklists(doc))
 
   const editor = useEditor(
     {
@@ -181,8 +184,6 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         }),
         ...FormattingMarks,
         ListItem,
-        TaskList,
-        TaskItem,
         Callout,
         Subpages.extend({
           addNodeView: () =>

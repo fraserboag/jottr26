@@ -2,11 +2,10 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { TaskList } from '@tiptap/extension-list'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
-import { backspaceNestedItem, enterNestedList, ListItem, TaskItem } from '@/components/editor/extensions/lists'
+import { backspaceNestedItem, enterNestedList, ListItem } from '@/components/editor/extensions/lists'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 
 const schema = getSchema([
@@ -14,8 +13,6 @@ const schema = getSchema([
   Title,
   StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false, listItem: false }),
   ListItem,
-  TaskList,
-  TaskItem,
   ...AccordionKit,
 ])
 
@@ -24,8 +21,7 @@ function paragraph(text?: string) {
 }
 
 function list(type: string, ...items: Node[][]) {
-  const item = type === 'taskList' ? 'taskItem' : 'listItem'
-  return schema.node(type, null, items.map((content) => schema.node(item, null, content)))
+  return schema.node(type, null, items.map((content) => schema.node('listItem', null, content)))
 }
 
 /** A page holding the given body blocks, with the caret just after `text`. */
@@ -50,7 +46,7 @@ function run(state: EditorState, command: Command) {
 
 describe('Enter in a list', () => {
   it('starts a new first item of the ones nested under this item, at their level', () => {
-    for (const type of ['bulletList', 'orderedList', 'taskList']) {
+    for (const type of ['bulletList', 'orderedList']) {
       const start = caretAfter('parent', list(type, [paragraph('parent'), list(type, [paragraph('one')], [paragraph('two')])]))
       const { state, applied } = run(start, enterNestedList())
       assert.equal(applied, true)
@@ -64,15 +60,6 @@ describe('Enter in a list', () => {
       )
       assert.equal(state.selection.$from.node(-1), sub.child(0), 'on the new item')
     }
-  })
-
-  it('makes the new item the kind already nested there', () => {
-    const start = caretAfter('parent', list('bulletList', [paragraph('parent'), list('taskList', [paragraph('todo')])]))
-    const { state } = run(start, enterNestedList())
-    state.doc.check()
-    const first = state.doc.child(1).child(0).child(1).child(0)
-    assert.equal(first.type.name, 'taskItem')
-    assert.equal(first.attrs.checked, false)
   })
 
   it('leaves Enter to split the item everywhere else', () => {
@@ -98,7 +85,7 @@ function onEmptyLine(state: EditorState) {
 
 describe('Backspace in a nested list', () => {
   it('takes back the item Enter made, leaving the ones under it where they were', () => {
-    for (const type of ['bulletList', 'orderedList', 'taskList']) {
+    for (const type of ['bulletList', 'orderedList']) {
       const start = caretAfter('parent', list(type, [paragraph('parent'), list(type, [paragraph('one')], [paragraph('two')])]))
       const made = run(start, enterNestedList()).state
       const { state, applied } = run(made, backspaceNestedItem())

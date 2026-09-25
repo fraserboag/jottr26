@@ -51,14 +51,6 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
-    id: 'todo',
-    title: 'To-do list',
-    hint: 'Track things to tick off',
-    icon: 'checkSquare',
-    keywords: ['task', 'checkbox', 'check'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
-  },
-  {
     id: 'callout',
     title: 'Callout',
     hint: 'A shaded box for an aside',

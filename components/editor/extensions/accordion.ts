@@ -92,8 +92,6 @@ export function unwrapAccordion(): Command {
   }
 }
 
-const LIST_ITEMS = ['listItem', 'taskItem']
-
 /** Onto a new line straight after an accordion. When the accordion is the
  *  first line of a list item, that is what Enter makes at the end of an
  *  item's first line: a new first item of the ones nested under it, or the
@@ -109,9 +107,8 @@ function newLineAfter(tr: Transaction, after: number) {
     return true
   }
 
-  if (LIST_ITEMS.includes(parent.type.name) && $after.index() === 1) {
-    const attrs = parent.type.name === 'taskItem' ? { ...parent.attrs, checked: false } : parent.attrs
-    tr.insert(after, paragraph.create()).split(after, 1, [{ type: parent.type, attrs }])
+  if (parent.type.name === 'listItem' && $after.index() === 1) {
+    tr.insert(after, paragraph.create()).split(after, 1, [{ type: parent.type, attrs: parent.attrs }])
     // Past the item's close, the new item's open and the paragraph's.
     tr.setSelection(TextSelection.create(tr.doc, after + 3))
     return true
