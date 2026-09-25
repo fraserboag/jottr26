@@ -225,10 +225,15 @@ h1.page-title {
   color: var(--text);
 }
 
+/* A list's lines sit on the tighter list leading, so its outer margin makes
+   up the half-leading each edge loses, plus the paragraph's 1px: a one-line
+   item then takes the same height as a one-line paragraph, and turning one
+   into the other moves nothing below it. 1lh is the leading around the list,
+   the page's or a callout's. */
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.6em;
-  margin: 2px 0;
+  margin: calc((1lh - var(--list-leading) * 1em) / 2 + 1px) 0;
 }
 .ProseMirror ul {
   list-style: disc;
@@ -250,6 +255,19 @@ h1.page-title {
 .ProseMirror li {
   line-height: var(--list-leading);
   margin: 0.35em 0;
+}
+/* The gap between items stays inside the list, rather than collapsing out
+   past the list's own margin. A subpage list spaces its entries itself. */
+.ProseMirror :is(ul, ol):not(div[data-type="subpages"] ul) > li:first-child {
+  margin-top: 0;
+}
+.ProseMirror :is(ul, ol):not(div[data-type="subpages"] ul) > li:last-child {
+  margin-bottom: 0;
+}
+/* A nested list starts an item's gap below its parent's line, and leaves the
+   gap after it to the next item. */
+.ProseMirror :is(li > ul, li > ol, li > div > ul, li > div > ol) {
+  margin: 0.35em 0 0;
 }
 
 .ProseMirror ul[data-type="taskList"] {
