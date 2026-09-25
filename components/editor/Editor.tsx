@@ -222,17 +222,16 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Looks inside blocks too, which is where an accordion's heading is.
           includeChildren: true,
           emptyNodeClass: 'is-empty',
-          placeholder: ({ editor: instance, node, pos, hasAnchor }) => {
+          placeholder: ({ editor: instance, node, hasAnchor }) => {
             if (node.type.name === 'title') return 'Untitled'
             // An empty heading would leave a chevron with nothing beside it.
             if (node.type.name === 'accordionTitle') return 'Heading'
             if (!hasAnchor) return ''
-            // Every cell holds an empty paragraph, and prompting in each one
-            // would fill the grid with the same sentence.
-            if (instance.isActive('table')) return ''
-            // Only on the page itself, not in a list, a callout or a box.
-            const topLevel = instance.state.doc.resolve(pos).depth === 0
-            if (node.type.name === 'paragraph' && topLevel) return "Write something, or press '/' for blocks"
+            // Only while the page has no body yet: the title followed by this
+            // one empty paragraph. A blank line on a page with content gets none.
+            const { doc: page } = instance.state
+            const emptyBody = page.childCount === 2 && page.lastChild === node
+            if (node.type.name === 'paragraph' && emptyBody) return "Write something, or press '/' for blocks"
             return ''
           },
         }),
