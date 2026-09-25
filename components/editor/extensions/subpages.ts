@@ -18,8 +18,9 @@ import { NodeSelection, TextSelection, type Command, type Transaction } from '@t
 
 export const SUBPAGES = 'subpages'
 export const SUBPAGES_TITLE = 'subpagesTitle'
-/** What a new list's heading says, and an older one's, written before the
- *  heading could be changed. */
+/** What a list's heading says to start with: in bold on a new one, and as a
+ *  Title on one written before the heading could be changed, which is how it
+ *  was drawn then. */
 export const SUBPAGES_DEFAULT_TITLE = 'Subpages'
 
 export interface SubpagesOptions {
@@ -72,6 +73,19 @@ export const SubpagesTitle = Node.create({
   // Backspace at its start, or Delete at its end, would otherwise pull text
   // in from the lines around the block, or push this one out to them.
   isolating: true,
+
+  addAttributes() {
+    return {
+      /** Drawn as a Title, as an accordion's heading can be, and for the same
+       *  reason: the list has to hold exactly this node, so it can't become a
+       *  Title block. */
+      title: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-title') === 'true',
+        renderHTML: (attributes) => (attributes.title ? { 'data-title': 'true' } : {}),
+      },
+    }
+  },
 
   parseHTML() {
     // Ahead of the paragraph's rule, which any p would otherwise match first.
@@ -127,7 +141,12 @@ export const Subpages = Node.create<SubpagesOptions>({
           chain()
             .insertContent({
               type: this.name,
-              content: [{ type: SUBPAGES_TITLE, content: [{ type: 'text', text: SUBPAGES_DEFAULT_TITLE }] }],
+              content: [
+                {
+                  type: SUBPAGES_TITLE,
+                  content: [{ type: 'text', text: SUBPAGES_DEFAULT_TITLE, marks: [{ type: 'bold' }] }],
+                },
+              ],
             })
             .command(({ tr, dispatch }) => {
               if (!dispatch) return true

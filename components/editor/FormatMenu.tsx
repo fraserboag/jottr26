@@ -32,7 +32,10 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
       strike: instance.isActive('strike'),
       code: instance.isActive('code'),
       link: instance.isActive('link'),
-      heading: instance.isActive('heading') || instance.isActive('accordionTitle', { title: true }),
+      heading:
+        instance.isActive('heading') ||
+        instance.isActive('accordionTitle', { title: true }) ||
+        instance.isActive('subpagesTitle', { title: true }),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
     }),

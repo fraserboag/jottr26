@@ -6,7 +6,8 @@ import { DOC_FIELD } from './ydoc'
  *  now the heading is a line in it that can be written in. The editor deletes
  *  any node that doesn't fit its schema, from the document and so from every
  *  device, and a list with no heading doesn't. So the page is put right first:
- *  each list without a heading gets one saying what it always said.
+ *  each list without a heading gets one saying what it always said, drawn as
+ *  the Title it always was.
  *
  *  And a list with more than one keeps only its first. That is two devices
  *  each giving the same old list its heading while apart, then merging, and
@@ -39,6 +40,8 @@ function repairIn(parent: Y.XmlFragment | Y.XmlElement) {
     }
     if (first === -1) {
       const title = new Y.XmlElement(SUBPAGES_TITLE)
+      // It was drawn as a Title, so it stays one.
+      title.setAttribute('title', true as unknown as string)
       title.insert(0, [new Y.XmlText(SUBPAGES_DEFAULT_TITLE)])
       child.insert(0, [title])
     }

@@ -244,7 +244,6 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
             if (node.type.name === 'title') return 'Untitled'
             // An empty heading would leave a chevron with nothing beside it.
             if (node.type.name === 'accordionTitle') return 'Heading'
-            if (node.type.name === 'subpagesTitle') return 'Subpages'
             if (!hasAnchor) return ''
             // Only while the page has no body yet: the title followed by this
             // one empty paragraph. A blank line on a page with content gets none.

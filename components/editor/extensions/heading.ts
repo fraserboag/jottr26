@@ -3,8 +3,9 @@ import { Node, textblockTypeInputRule } from '@tiptap/core'
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     titleBlock: {
-      /** The selected lines between Title and text. In an accordion's
-       *  heading, which has to stay that node, its Title style instead. */
+      /** The selected lines between Title and text. In an accordion's or a
+       *  subpage list's heading, which has to stay that node, its Title style
+       *  instead. */
       toggleTitle: () => ReturnType
     }
   }
@@ -43,10 +44,12 @@ export const Heading = Node.create({
     return {
       toggleTitle:
         () =>
-        ({ editor, commands }) =>
-          editor.isActive('accordionTitle')
-            ? commands.updateAttributes('accordionTitle', { title: !editor.isActive('accordionTitle', { title: true }) })
-            : commands.toggleNode(this.name, 'paragraph'),
+        ({ editor, commands }) => {
+          const own = ['accordionTitle', 'subpagesTitle'].find((name) => editor.isActive(name))
+          return own
+            ? commands.updateAttributes(own, { title: !editor.isActive(own, { title: true }) })
+            : commands.toggleNode(this.name, 'paragraph')
+        },
     }
   },
 

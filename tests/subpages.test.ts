@@ -66,15 +66,39 @@ describe('subpage list', () => {
     assert.equal($from.index(0), 2)
   })
 
-  it('holds its heading, saying Subpages to start with, and its depth', () => {
+  it('holds its heading, saying Subpages in bold to start with, and its depth', () => {
     const instance = editor([paragraph()], 0)
     instance.commands.insertSubpages()
     const node = instance.state.doc.child(0)
     assert.equal(node.type.name, 'subpages')
     assert.equal(node.childCount, 1)
-    assert.equal(node.child(0).type.name, 'subpagesTitle')
-    assert.equal(node.textContent, 'Subpages')
+    const title = node.child(0)
+    assert.equal(title.type.name, 'subpagesTitle')
+    assert.equal(title.attrs.title, false)
+    assert.equal(title.textContent, 'Subpages')
+    assert.deepEqual(title.firstChild!.marks.map((mark) => mark.type.name), ['bold'])
     assert.deepEqual({ ...node.attrs }, { depth: 1 })
+  })
+
+  it('switches its heading between text and a Title, staying a subpage list', () => {
+    const instance = editor([subpages(), paragraph()], 1)
+    inTitle(instance, 0, 2)
+    instance.commands.toggleTitle()
+    assert.deepEqual(blockTypes(instance), ['subpages', 'paragraph'])
+    assert.equal(instance.state.doc.child(0).child(0).attrs.title, true)
+    assert.ok(instance.isActive('subpagesTitle', { title: true }))
+    instance.commands.toggleTitle()
+    assert.equal(instance.state.doc.child(0).child(0).attrs.title, false)
+  })
+
+  it('can have its heading emptied altogether', () => {
+    const instance = editor([subpages(), paragraph()], 1)
+    instance.commands.setTextSelection({ from: 2, to: 2 + 'Subpages'.length })
+    instance.commands.deleteSelection()
+    const node = instance.state.doc.child(0)
+    assert.equal(node.type.name, 'subpages')
+    assert.equal(node.childCount, 1)
+    assert.equal(node.textContent, '')
   })
 
   it('has a heading that is written in like any other line, marks and all', () => {
@@ -181,13 +205,15 @@ function read(doc: Y.Doc) {
 }
 
 describe('subpage lists left in old pages', () => {
-  it('get their heading back, saying Subpages, and keep their depth', () => {
+  it('get their heading back, saying Subpages as the Title it was drawn as, and keep their depth', () => {
     const doc = saved(oldList(2))
     repairSubpageTitles(doc)
     const list = read(doc).child(1)
     assert.equal(list.type.name, 'subpages')
     assert.equal(list.attrs.depth, 2)
     assert.equal(list.textContent, 'Subpages')
+    assert.equal(list.child(0).attrs.title, true)
+    assert.deepEqual(list.child(0).firstChild!.marks, [])
   })
 
   it('are found inside other blocks too', () => {

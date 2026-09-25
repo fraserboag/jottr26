@@ -210,10 +210,10 @@ body {
 
 /* A title in the body: a step up in size and weight, and nothing else. Same
    margins as a paragraph, so turning a line into a title moves nothing
-   around it beyond its own taller line. A block's own heading is drawn as
-   one too, as is an accordion's when it is set as a Title. */
+   around it beyond its own taller line. An accordion's or a subpage list's
+   heading is drawn as one too, when it is set as a Title. */
 .ProseMirror h2,
-.ProseMirror div[data-type="subpages"] .subpages-title,
+.ProseMirror div[data-type="subpages"] .subpages-title[data-title="true"],
 .ProseMirror div[data-type="accordionTitle"][data-title="true"] {
   font-size: calc(var(--title-scale) * 1em);
   font-weight: 650;
