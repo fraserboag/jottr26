@@ -739,7 +739,7 @@ h1.page-title {
 
 .ProseMirror hr {
   border: none;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-strong);
   /* A little under half a body line on each side: enough air to read as a
      break between passages, less than the blank line a full line of room
      would imply in a document whose blocks otherwise sit 2px apart. */
