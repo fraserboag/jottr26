@@ -28,6 +28,7 @@ const WELCOME_BODY: Block[] = [
   ...BREAK,
   '**Formatting**',
   'Pages begin as plain text but can be customised in a few key ways:',
+  null,
   {
     ordered: [
       "**The text formatting toolbar** - highlight any text anywhere and this will pop up, allowing you to create links and format text in all the usual ways. If you're on mobile the toolbar is always visible when your keyboard is open.",
