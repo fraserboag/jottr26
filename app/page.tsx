@@ -33,12 +33,12 @@ export default function LandingPage() {
         />
         <p className="mt-6 text-[15px] leading-relaxed text-muted">
           A notes app with the quality of life features of your favourite editor, and none of the
-          bloat. Jottr is focused on providing a streamlined feature set, fast performance and
-          reliable syncing with offline support.
+          bloat. Jottr is focused on providing a clean UI, streamlined feature set, fast performance
+          and reliable syncing with offline support.
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
-          Jottr is a PWA, so even though it is only deployed as a web app it can be installed and
-          function like a native app on your computer or mobile device.
+          Jottr is a PWA, so even though it&apos;s only deployed as a web app it can be installed
+          and function like a native app on your computer, tablet or phone.
         </p>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           This is a project by{" "}
@@ -49,11 +49,11 @@ export default function LandingPage() {
           >
             Fraser Boag
           </a>
-          , a software developer living in Glasgow, Scotland. As a frequent Notion user for many
-          years I created this for one simple reason - Notion has become a sluggish, bloated mess
-          and I knew I could do better for my needs. I created this entirely for personal use, but
-          it&apos;s secure and production ready so if anyone comes across this and wants to give it
-          a go themselves - be my guest.
+          , a software developer living in Glasgow, Scotland. As a huge Notion user for many years I
+          created this for one simple reason - Notion has become a bloated mess of pointless (to me)
+          features, and I knew I could do better. I created this entirely for personal use, but
+          it&apos;s secure and production ready so if you&apos;ve come across this and want to give
+          it a go yourself - be my guest.
         </p>
         <div className="mt-7">
           <a
