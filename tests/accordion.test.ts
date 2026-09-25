@@ -20,7 +20,7 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
-import { ListItem, TaskItem } from '@/components/editor/extensions/lists'
+import { backspaceAfterList, ListItem, TaskItem } from '@/components/editor/extensions/lists'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -370,6 +370,25 @@ describe('accordion as a list item', () => {
     assert.equal(lifted.applied, true)
     lifted.state.doc.check()
     assert.equal(lifted.state.doc.child(1).child(1).child(0).type.name, 'accordion')
+  })
+
+  it('deletes an empty line lifted out of a list in the box, back to the item above', () => {
+    // Where Backspace on an empty item of the box's list leaves it.
+    const start = page(bullets([accordion('Details', [bullets([paragraph('a')]), paragraph(), bullets([paragraph('c')])])]))
+    let blank = -1
+    start.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.content.size === 0) blank = pos + 1
+    })
+    const { state, applied } = run(caretAt(start, blank), backspaceAfterList())
+    assert.equal(applied, true)
+    state.doc.check()
+    const body = state.doc.child(1).child(0).child(0).child(1)
+    assert.deepEqual(
+      body.children.map((node) => node.type.name),
+      ['bulletList', 'bulletList'],
+    )
+    assert.equal(state.selection.$from.parent.textContent, 'a')
+    assert.equal(state.selection.$from.parentOffset, 1)
   })
 
   it('survives the trip through Yjs', () => {

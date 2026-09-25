@@ -71,8 +71,35 @@ export function backspaceNestedItem(): Command {
   }
 }
 
+/** Backspace, on an empty line straight after a list: the line goes, and the
+ *  caret to the end of the list's last line.
+ *
+ *  Tiptap's list keymap does this already, but not where a list item is
+ *  further out, as in the box of an accordion heading an item: it takes that
+ *  item for the one the caret is in and stands aside. ProseMirror then pulls
+ *  the line into the list as a new item, the next Backspace lifts it back out,
+ *  and the empty item never goes. */
+export function backspaceAfterList(): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.depth < 2 || $from.parent.type.name !== 'paragraph' || $from.parent.content.size > 0) return false
+    const index = $from.index(-1)
+    if (index === 0 || !LISTS.includes($from.node(-1).child(index - 1).type.name)) return false
+
+    if (dispatch) {
+      const start = $from.before()
+      const tr = state.tr.delete(start, $from.after())
+      tr.setSelection(Selection.near(tr.doc.resolve(start), -1))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
 const enter = enterNestedList()
-const backspace = backspaceNestedItem()
+const nestedBackspace = backspaceNestedItem()
+const afterList = backspaceAfterList()
+const backspace: Command = (state, dispatch) => nestedBackspace(state, dispatch) || afterList(state, dispatch)
 
 export const ListItem = BaseListItem.extend({
   content,
