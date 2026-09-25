@@ -10,6 +10,7 @@ import type {} from '@tiptap/extension-list'
 import type {} from '@tiptap/extension-table'
 import type {} from './callout'
 import type {} from './accordion'
+import type {} from './heading'
 import type {} from './subpages'
 
 export interface SlashItem {

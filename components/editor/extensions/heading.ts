@@ -1,5 +1,15 @@
 import { Node, textblockTypeInputRule } from '@tiptap/core'
 
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    titleBlock: {
+      /** The selected lines between Title and text. In an accordion's
+       *  heading, which has to stay that node, its Title style instead. */
+      toggleTitle: () => ReturnType
+    }
+  }
+}
+
 /** A title inside the page body: one size only, a step up from body text.
  *
  *  Not StarterKit's Heading, which stays switched off. That one carries a level
@@ -27,6 +37,17 @@ export const Heading = Node.create({
   // An h2: the page title is the page's h1.
   renderHTML({ HTMLAttributes }) {
     return ['h2', HTMLAttributes, 0]
+  },
+
+  addCommands() {
+    return {
+      toggleTitle:
+        () =>
+        ({ editor, commands }) =>
+          editor.isActive('accordionTitle')
+            ? commands.updateAttributes('accordionTitle', { title: !editor.isActive('accordionTitle', { title: true }) })
+            : commands.toggleNode(this.name, 'paragraph'),
+    }
   },
 
   addInputRules() {

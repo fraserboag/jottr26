@@ -32,22 +32,23 @@ export const ACCORDION_BODY = 'accordionBody'
 
 /** A fresh, open accordion whose heading holds the given inline content, over
  *  a box with one empty line in it. */
-function build(schema: Schema, inline: Fragment) {
+function build(schema: Schema, inline: Fragment, title: boolean) {
   const { accordion, accordionTitle, accordionBody, paragraph } = schema.nodes
-  return accordion.create(null, [accordionTitle.create(null, inline), accordionBody.create(null, paragraph.create())])
+  return accordion.create(null, [accordionTitle.create({ title }, inline), accordionBody.create(null, paragraph.create())])
 }
 
-/** Turn the paragraph the caret is in into an accordion, keeping its text as
- *  the heading and the caret where it was in that text. */
+/** Turn the paragraph or Title the caret is in into an accordion, keeping its
+ *  text as the heading, drawn as a Title if it was one, and the caret where it
+ *  was in that text. */
 export function makeAccordion(): Command {
   return (state, dispatch) => {
     const { $from, $to } = state.selection
     const paragraph = $from.parent
-    if (paragraph.type.name !== 'paragraph' || !$from.sameParent($to)) return false
+    if (!['paragraph', 'heading'].includes(paragraph.type.name) || !$from.sameParent($to)) return false
 
     const start = $from.before()
     const index = $from.index(-1)
-    const node = build(state.schema, paragraph.content)
+    const node = build(state.schema, paragraph.content, paragraph.type.name === 'heading')
     if (!$from.node(-1).canReplaceWith(index, index + 1, node.type)) return false
 
     if (dispatch) {
@@ -80,7 +81,9 @@ export function unwrapAccordion(): Command {
     if (dispatch) {
       const { node, pos } = found
       const [title, body] = [node.child(0), node.child(1)]
-      const blocks: PMNode[] = [state.schema.nodes.paragraph.create(null, title.content)]
+      // A heading drawn as a Title goes back to being one.
+      const { heading, paragraph } = state.schema.nodes
+      const blocks: PMNode[] = [(title.attrs.title && heading ? heading : paragraph).create(null, title.content)]
       const onlyBlank = body.childCount === 1 && body.firstChild!.type.name === 'paragraph' && body.firstChild!.content.size === 0
       if (!onlyBlank) body.forEach((child) => blocks.push(child))
 
@@ -349,6 +352,19 @@ export const AccordionTitle = Node.create({
   // Backspace at the start of the box, or Delete at the end of the heading,
   // would otherwise join the two and pull the accordion apart.
   isolating: true,
+
+  addAttributes() {
+    return {
+      /** Drawn as a Title. The heading can't be swapped for a Title block, as
+       *  an accordion has to hold exactly this node, so it carries the style
+       *  instead. */
+      title: {
+        default: false,
+        parseHTML: (element) => element.getAttribute('data-title') === 'true',
+        renderHTML: (attributes) => (attributes.title ? { 'data-title': 'true' } : {}),
+      },
+    }
+  },
 
   parseHTML() {
     return [{ tag: 'div[data-type="accordionTitle"]' }]

@@ -31,7 +31,7 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
       strike: instance.isActive('strike'),
       code: instance.isActive('code'),
       link: instance.isActive('link'),
-      heading: instance.isActive('heading'),
+      heading: instance.isActive('heading') || instance.isActive('accordionTitle', { title: true }),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
     }),
@@ -105,7 +105,7 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
             icon="title"
             label="Title"
             active={state.heading}
-            onClick={() => editor.chain().focus().toggleNode('heading', 'paragraph').run()}
+            onClick={() => editor.chain().focus().toggleTitle().run()}
           />
           <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
           <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
