@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { createChainableState, Editor, getExtensionField, type InputRule, type JSONContent } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
-import { Divider } from '@/components/editor/extensions/divider'
+import { backspaceAfterDivider, Divider } from '@/components/editor/extensions/divider'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 
 /** A headless editor with the page's divider, the caret at `caret`. */
@@ -115,5 +115,30 @@ describe('divider', () => {
       blocks: ['paragraph:text', 'horizontalRule', 'paragraph', 'paragraph:after'],
       caretIn: 2,
     })
+  })
+
+  it('Backspace at the start of the line under a divider deletes the divider, caret staying put', () => {
+    for (const text of [undefined, 'after']) {
+      const instance = editor(firstBody + 2, paragraph('before'), { type: 'horizontalRule' }, paragraph(text))
+      // 'before' takes 7..15, the rule 15..16, so the line under it opens at 17.
+      instance.commands.command(({ tr }) => {
+        tr.setSelection(TextSelection.create(tr.doc, 17))
+        return true
+      })
+        instance.commands.command(({ state, dispatch }) => backspaceAfterDivider(state, dispatch))
+      const blocks = text ? ['paragraph:before', `paragraph:${text}`] : ['paragraph:before', 'paragraph']
+      assert.deepEqual(outline(instance), { blocks, caretIn: 1 }, String(text))
+      assert.equal(instance.state.selection.empty, true)
+      assert.equal(instance.state.selection.$from.parentOffset, 0)
+    }
+  })
+
+  it('Backspace mid-line under a divider is left to plain Backspace', () => {
+    const instance = editor(firstBody, { type: 'horizontalRule' }, paragraph('after'))
+    instance.commands.command(({ tr }) => {
+      tr.setSelection(TextSelection.create(tr.doc, 11))
+      return true
+    })
+    assert.equal(backspaceAfterDivider(instance.state), false)
   })
 })
