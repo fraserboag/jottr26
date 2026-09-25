@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
+import { Heading } from '@/components/editor/extensions/heading'
 import { ListItem } from '@/components/editor/extensions/lists'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { writeWelcome } from '@/lib/db/welcome'
@@ -18,10 +19,11 @@ const schema = getSchema([
   Callout,
   ListItem,
   ...AccordionKit,
+  Heading,
 ])
 
 describe('the welcome page', () => {
-  it('reads back as a valid page, with its callouts, dividers, list and marks intact', () => {
+  it('reads back as a valid page, with its callouts, dividers, titles, list and marks intact', () => {
     const doc = new Y.Doc()
     seedDocument(doc)
     writeWelcome(doc)
@@ -36,8 +38,11 @@ describe('the welcome page', () => {
     const body = Array.from({ length: page.childCount - 1 }, (_, i) => page.child(i + 1))
     assert.equal(body[0].type.name, 'callout')
     assert.equal(body.at(-1)!.type.name, 'callout')
+    const titles = body.filter((node) => node.type.name === 'heading').map((node) => node.textContent)
+    assert.deepEqual(titles, ['The Basics', 'Formatting', 'Shortcuts', 'Advanced Blocks', 'Install the App', 'Offline Support'])
     const basics = body.find((node) => node.textContent === 'The Basics')!
-    assert.ok(basics.firstChild!.marks.some((mark) => mark.type.name === 'bold'))
+    // The block is the title's weight; bold on top would be a second one.
+    assert.deepEqual(basics.firstChild!.marks, [])
     assert.equal(body[body.indexOf(basics) - 2].type.name, 'horizontalRule')
 
     const list = body.find((node) => node.type.name === 'orderedList')!

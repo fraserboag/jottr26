@@ -8,10 +8,9 @@ const WELCOME_KEY = 'welcomed'
 
 const WELCOME_TITLE = 'Welcome to Jottr'
 
-/** One body block: a paragraph, a blank line, a divider, a numbered list or a
- *  callout. Text takes **bold** and `code`; section headings are bold
- *  paragraphs. */
-type Block = string | null | 'divider' | { ordered: string[] } | { callout: string[] }
+/** One body block: a paragraph, a blank line, a divider, a section title, a
+ *  numbered list or a callout. Text takes **bold** and `code`. */
+type Block = string | null | 'divider' | { title: string } | { ordered: string[] } | { callout: string[] }
 
 /** A section break: a divider with a blank line either side. */
 const BREAK: Block[] = [null, 'divider', null]
@@ -23,10 +22,10 @@ const WELCOME_BODY: Block[] = [
     ],
   },
   ...BREAK,
-  '**The Basics**',
+  { title: 'The Basics' },
   'Create pages in the sidebar, pages can be nested as deeply as you like and can be dragged and dropped to arrange. Click the star in the top-right corner of a page to favourite it - favourites appear in their own section in the sidebar.',
   ...BREAK,
-  '**Formatting**',
+  { title: 'Formatting' },
   'Pages begin as plain text but can be customised in a few key ways:',
   null,
   {
@@ -37,22 +36,22 @@ const WELCOME_BODY: Block[] = [
     ],
   },
   ...BREAK,
-  '**Shortcuts**',
+  { title: 'Shortcuts' },
   "All of the usual text formatting shortcuts you're used to are supported here, as well as undo and redo. Select All works a bit differently to some apps - `Ctrl/Cmd + A` selects all of the current line, tapping `A` twice selects the whole document.",
   ...BREAK,
-  '**Advanced Blocks**',
+  { title: 'Advanced Blocks' },
   "Most blocks simply format text in all of the usual ways you'd expect, but there are a couple of blocks worth going into a little more detail on.",
   null,
   '**Tables** - a table block with its own toolbar to control the number of rows and columns. This also has a couple of extra settings to enable/disable a heading row and to enable/disable finance mode. In finance mode any column containing only numbers will be formatted as monetary values and automatically totaled at the bottom.',
   null,
   "**Subpages** - a fairly unique block to Jottr which allows you to easily create organisational index pages to categorise your notes. The best way to see how this works is to try it out by creating a page with multiple subpages. Add a `/subpages` block to the top level page to show the list of subpages. This gets extra powerful if you have multiple levels, as you can modify the `/subpages` block to show 2 levels of depth, which then categorises your sub-subpages under subpage headings. I realise that sounds insane, but give it a go and you'll understand immediately.",
   ...BREAK,
-  '**Install the App**',
+  { title: 'Install the App' },
   'Jottr follows the PWA standard which means you can install it as an app via your web browser. Most, if not all, devices and operating systems support this - desktop and mobile. Once installed this way, Jottr looks and functions exactly like any other native app.',
   null,
   "A PWA is always installed via a menu in your web browser while accessing the web app you want to install. If you don't know how to do it on your device just do a web search for `How to install PWA {your operating system} {your browser}`, for example `How to install PWA iOS Chrome`.",
   ...BREAK,
-  '**Offline Support**',
+  { title: 'Offline Support' },
   'Jottr was built from the ground up for offline support. Behind the scenes Jottr is always saving your pages locally on your device first and then syncing to the server when possible (so that it can keep your notes in sync across multiple devices).',
   null,
   "Naturally if you modify the same note on 2 different devices with no internet connection, Jottr will have issues merging those. It'll try its best to reconcile, but this can inevitably result in some data loss.",
@@ -64,9 +63,9 @@ const WELCOME_BODY: Block[] = [
   },
 ]
 
-/** A paragraph whose **bold** and `code` runs carry those marks. */
-function paragraph(text: string) {
-  const node = new Y.XmlElement('paragraph')
+/** A textblock whose **bold** and `code` runs carry those marks. */
+function paragraph(text: string, name = 'paragraph') {
+  const node = new Y.XmlElement(name)
   if (!text) return node
   const content = new Y.XmlText()
   let at = 0
@@ -91,10 +90,11 @@ function block(item: Block): Y.XmlElement {
   if (item === null) return paragraph('')
   if (item === 'divider') return new Y.XmlElement('horizontalRule')
   if (typeof item === 'string') return paragraph(item)
+  if ('title' in item) return paragraph(item.title, 'heading')
   if ('ordered' in item) {
     return wrap('orderedList', item.ordered.map((text) => wrap('listItem', [paragraph(text)])))
   }
-  return wrap('callout', item.callout.map(paragraph))
+  return wrap('callout', item.callout.map((text) => paragraph(text)))
 }
 
 /** Replaces a freshly seeded page's empty body with the welcome guide. Built
