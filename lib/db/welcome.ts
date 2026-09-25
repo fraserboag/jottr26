@@ -10,7 +10,7 @@ const WELCOME_TITLE = 'Welcome to Jottr'
 
 /** One body block: a paragraph, a blank line, a divider, a numbered list or a
  *  callout. Text takes **bold** and `code`; section headings are bold
- *  paragraphs, since the editor has no heading block. */
+ *  paragraphs. */
 type Block = string | null | 'divider' | { ordered: string[] } | { callout: string[] }
 
 /** A section break: a divider with a blank line either side. */

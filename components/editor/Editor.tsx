@@ -12,6 +12,7 @@ import { Callout } from './extensions/callout'
 import { Subpages } from './extensions/subpages'
 import { ListItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
+import { Heading } from './extensions/heading'
 import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
@@ -161,8 +162,8 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           // Collaboration brings its own Yjs-aware undo stack. Keeping
           // ProseMirror's would undo other devices' edits along with yours.
           undoRedo: false,
-          // StarterKit brings Heading unless this is exactly false. Section
-          // headings here are bold body text, not their own block.
+          // StarterKit brings Heading unless this is exactly false. Its six
+          // levels give way to the one-size Heading added below.
           heading: false,
           // Same again for Blockquote: without this, '>' and Mod-Shift-B still
           // make quotes. A callout is the block that sets a passage apart, and
@@ -184,6 +185,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           dropcursor: { color: 'var(--accent)' },
         }),
         ...FormattingMarks,
+        Heading,
         SelectLine,
         ListItem,
         Callout,

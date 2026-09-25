@@ -206,6 +206,16 @@ body {
   min-height: calc(var(--body-leading) * 1em);
 }
 
+/* A title in the body: a step up in size and weight, and nothing else. Same
+   margins as a paragraph, so turning a line into a title moves nothing
+   around it beyond its own taller line. */
+.ProseMirror h2 {
+  font-size: 1.2em;
+  font-weight: 650;
+  margin: 1px 0;
+  min-height: calc(var(--body-leading) * 1em);
+}
+
 /* The trash's heading takes the same shape, so it reads as a page too. */
 .ProseMirror h1.jottr-title,
 h1.page-title {

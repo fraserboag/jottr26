@@ -33,6 +33,13 @@ export const slashItems: SlashItem[] = [
     run: (editor, range) => editor.chain().focus().deleteRange(range).setParagraph().run(),
   },
   {
+    id: 'title',
+    title: 'Title',
+    icon: 'title',
+    keywords: ['heading', 'header', 'h1', 'h2', 'h3', 'subtitle', 'section'],
+    run: (editor, range) => editor.chain().focus().deleteRange(range).setNode('heading').run(),
+  },
+  {
     id: 'bullet',
     title: 'Bulleted list',
     icon: 'list',
