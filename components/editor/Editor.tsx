@@ -10,7 +10,7 @@ import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
 import { Divider } from './extensions/divider'
-import { Subpages } from './extensions/subpages'
+import { Subpages, SubpagesTitle } from './extensions/subpages'
 import { ListItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
 import { Heading } from './extensions/heading'
@@ -27,6 +27,7 @@ import { MobileToolbar } from './MobileToolbar'
 import { TableMenu } from './TableMenu'
 import { openDoc, type DocHandle } from '@/lib/db/ydoc'
 import { convertChecklists } from '@/lib/db/checklists'
+import { repairSubpageTitles } from '@/lib/db/subpages'
 import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
@@ -147,8 +148,11 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
   useEffect(() => () => syncBody.flush(), [syncBody])
   const lastTitle = useRef<string | null>(null)
   // Before the editor binds to the page, which would delete any checkbox list
-  // still in it outright.
-  useState(() => convertChecklists(doc))
+  // still in it outright, and any subpage list without its heading.
+  useState(() => {
+    convertChecklists(doc)
+    repairSubpageTitles(doc)
+  })
 
   const editor = useEditor(
     {
@@ -200,11 +204,16 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
               // The entries, headings and buttons are the list's own: a click
               // opens a page or adds one and a drag reorders, and
               // ProseMirror would read any of them as an edit to the
-              // document. Anywhere else in the block, it selects the block so
+              // document. The block's own heading is written in like any other
+              // line. Anywhere else in the block, a click selects the block so
               // it can be deleted.
-              stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest('li, .subpages-group-head, button, a'),
+              stopEvent: ({ event }) =>
+                event.target instanceof Element &&
+                !event.target.closest('.subpages-title') &&
+                !!event.target.closest('li, .subpages-group-head, button, a'),
             }),
         }).configure({ pageId }),
+        SubpagesTitle,
         ...AccordionKit,
         // Rows, cells and headers come from the kit; the table node itself is
         // the finance-aware one, so its extra attribute and plugin are in the
@@ -236,6 +245,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
             if (node.type.name === 'title') return 'Untitled'
             // An empty heading would leave a chevron with nothing beside it.
             if (node.type.name === 'accordionTitle') return 'Heading'
+            if (node.type.name === 'subpagesTitle') return 'Subpages'
             if (!hasAnchor) return ''
             // Only while the page has no body yet: the title followed by this
             // one empty paragraph. A blank line on a page with content gets none.

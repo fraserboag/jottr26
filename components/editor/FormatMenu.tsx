@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
+import { NodeSelection } from '@tiptap/pm/state'
 import { CellSelection } from '@tiptap/pm/tables'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
@@ -70,8 +71,10 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
         // Whole cells selected is a table gesture, not a text one; the table
         // toolbar is already showing for it.
         if (instance.state.selection instanceof CellSelection) return false
-        // A selected subpage list has no text in it to format.
-        if (instance.isActive('subpages')) return false
+        // A subpage list selected whole has no text in it to format, only its
+        // heading has.
+        const { selection } = instance.state
+        if (selection instanceof NodeSelection && selection.node.type.name === 'subpages') return false
         return !instance.isActive('codeBlock')
       }}
       className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pop-in"

@@ -321,6 +321,11 @@ h1.page-title {
   justify-content: space-between;
   gap: 8px;
 }
+/* The heading takes the line, bar the buttons at its end. */
+.ProseMirror div[data-type="subpages"] .subpages-heading {
+  flex: 1;
+  min-width: 0;
+}
 /* The sidebar's plus button and a three-dot menu for the block's settings, at
    the right-hand end of the heading line. */
 .ProseMirror div[data-type="subpages"] .subpages-actions {

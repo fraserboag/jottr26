@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
-import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
+import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { MenuItem, Popover } from '@/components/ui/Popover'
 import { PageMenu } from '@/components/workspace/PageMenu'
@@ -13,7 +13,8 @@ import { useOpenPageId } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 import type { SubpagesOptions } from './extensions/subpages'
 
-/** The subpage block as it is drawn: the open page's children, one link each.
+/** The subpage block as it is drawn: the open page's children, one link each,
+ *  under the block's heading, which is the one part of it written in.
  *
  *  The node view keeps ProseMirror out of clicks on the entries, so following
  *  one is handled here, in place, the same way the editor follows a page link
@@ -75,7 +76,8 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
   // once the finger has lifted, after any drag.
   const keepFocus = (event: MouseEvent) => {
     const target = event.target
-    if (!(target instanceof Element) || !target.closest('li, .subpages-group-head, button, a')) return
+    if (!(target instanceof Element) || target.closest('.subpages-title')) return
+    if (!target.closest('li, .subpages-group-head, button, a')) return
     if (pointerType.current === 'mouse' && target.closest('li') && !target.closest('.subpages-menu')) return
     event.preventDefault()
   }
@@ -239,15 +241,14 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
   return (
     <NodeViewWrapper
       data-type="subpages"
-      contentEditable={false}
       onPointerDown={(event: PointerEvent) => {
         pointerType.current = event.pointerType
       }}
       onMouseDown={keepFocus}
     >
       <div className="subpages-head">
-        <p className="subpages-title">Subpages</p>
-        <div className="subpages-actions">
+        <NodeViewContent className="subpages-heading" />
+        <div className="subpages-actions" contentEditable={false}>
           <Popover
             width="auto"
             align="end"
@@ -286,7 +287,9 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
           </button>
         </div>
       </div>
-      <div className="subpages-box">{list}</div>
+      <div className="subpages-box" contentEditable={false}>
+        {list}
+      </div>
     </NodeViewWrapper>
   )
 }
