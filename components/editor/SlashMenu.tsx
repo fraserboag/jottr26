@@ -62,6 +62,10 @@ export function SlashList({
   className = '',
 }: SlashListProps & { className?: string }) {
   const listRef = useRef<HTMLDivElement>(null)
+  // Where the pointer last was. Arrow keys scroll rows under a still cursor,
+  // which fires enter and move events without the mouse going anywhere, so
+  // only a real change of position picks a row.
+  const pointer = useRef({ x: -1, y: -1 })
 
   // Scrolls the list alone. `scrollIntoView` would scroll every ancestor too,
   // and on a phone that includes the visual viewport, which drags the page
@@ -98,7 +102,12 @@ export function SlashList({
             role="option"
             aria-selected={active}
             data-active={active}
-            onMouseEnter={() => onHover(index)}
+            onMouseMove={(event) => {
+              const { clientX: x, clientY: y } = event
+              if (x === pointer.current.x && y === pointer.current.y) return
+              pointer.current = { x, y }
+              if (!active) onHover(index)
+            }}
             // Mouse down would blur the editor and close the menu first.
             onMouseDown={(event) => {
               event.preventDefault()
