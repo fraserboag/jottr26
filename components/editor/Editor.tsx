@@ -9,6 +9,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { TableKit } from '@tiptap/extension-table'
 import { AccordionKit } from './extensions/accordion'
 import { Callout } from './extensions/callout'
+import { Divider } from './extensions/divider'
 import { Subpages } from './extensions/subpages'
 import { ListItem } from './extensions/lists'
 import { FormattingMarks } from './extensions/marks'
@@ -180,6 +181,9 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           code: false,
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
           codeBlock: { HTMLAttributes: { spellcheck: 'false' } },
+          // Added below instead, as a version whose '---' reuses a blank line
+          // already under it.
+          horizontalRule: false,
           // The accent, like every other drop line and resize handle, rather
           // than the text colour it defaults to.
           dropcursor: { color: 'var(--accent)' },
@@ -189,6 +193,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         SelectLine,
         ListItem,
         Callout,
+        Divider,
         Subpages.extend({
           addNodeView: () =>
             ReactNodeViewRenderer(SubpageList, {
