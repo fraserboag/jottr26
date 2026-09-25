@@ -6,7 +6,7 @@
 export const SITE_URL = new URL(
   process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : 'http://localhost:3000',
-)
+    : "http://localhost:3000",
+);
 
-export const TAGLINE = 'A streamlined notes app with quality of life features'
+export const TAGLINE = "Clean, fast, feature-packed, no-AI notes app";

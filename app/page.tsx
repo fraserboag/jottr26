@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { SignedInRedirect } from "@/components/SignedInRedirect";
 import { TAGLINE } from "@/lib/util/site";
 
-const title = `Jottr – ${TAGLINE.toLowerCase()}`;
+const title = `Jottr - ${TAGLINE.toLowerCase()}`;
 const description =
-  "A notes app with the quality of life features of your favourite editor and none of the bloat: a streamlined feature set, fast performance and reliable syncing with offline support. Installable on desktop and mobile.";
+  "A notes app with the quality of life features of your favourite editor, and none of the bloat. Jottr is focused on providing a clean UI, streamlined feature set, fast performance and reliable syncing with offline support.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
