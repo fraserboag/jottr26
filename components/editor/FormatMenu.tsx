@@ -74,10 +74,9 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
         // Whole cells selected is a table gesture, not a text one; the table
         // toolbar is already showing for it.
         if (instance.state.selection instanceof CellSelection) return false
-        // A subpage list selected whole has no text in it to format, only its
-        // heading has.
-        const { selection } = instance.state
-        if (selection instanceof NodeSelection && selection.node.type.name === 'subpages') return false
+        // A block selected whole, to be deleted or moved, is not text to
+        // format; the text inside it is, selected on its own.
+        if (instance.state.selection instanceof NodeSelection) return false
         return !instance.isActive('codeBlock')
       }}
       className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pop-in"

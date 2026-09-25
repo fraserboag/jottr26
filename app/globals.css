@@ -668,7 +668,9 @@ h1.page-title {
   /* A grid wider than the column scrolls sideways on its own rather than
      stretching the page, which on a phone is most tables. */
   overflow-x: auto;
-  margin: 10px 0;
+  /* Padding rather than margin, so the strip above and below the table is
+     something to click, which selects it whole. */
+  padding: 10px 0;
 }
 
 /* Separate borders rather than collapsed, so the grid can be rounded off like
@@ -821,6 +823,17 @@ h1.page-title {
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* A box's own shade would hide that tint, so a selected callout or accordion
+   is ringed instead, like a subpage list. Outranks the rule that rings a box
+   inside another. */
+.ProseMirror.ProseMirror-focused :is(div[data-type="callout"].ProseMirror-selectednode, .ProseMirror-selectednode > .accordion-content > div[data-type="accordionBody"]) {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+/* A code block keeps its own corners under the tint. */
+.ProseMirror pre.ProseMirror-selectednode {
+  border-radius: 8px;
 }
 
 /* A selected block is tinted only while the editor has focus, so a click

@@ -19,6 +19,7 @@ import { FinanceTable } from './extensions/finance'
 import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
 import { SelectLine } from './extensions/selectLine'
+import { SelectBlock } from './extensions/selectBlock'
 import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
 import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
 import { SlashList, SlashMenu, type SlashMenuState } from './SlashMenu'
@@ -198,6 +199,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         ...FormattingMarks,
         Heading,
         SelectLine,
+        SelectBlock,
         ListItem,
         Callout,
         CodeBlockExit,
