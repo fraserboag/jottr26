@@ -24,8 +24,9 @@ import type { SubpagesOptions } from './extensions/subpages'
  *
  *  The entries drag to reorder, with the sidebar's own move: both lists sort by
  *  the same key, so a page dragged here moves there too, and on every other
- *  device. Only above or below another entry — dropping one page into another
- *  would take it out of this list, which is the sidebar's job.
+ *  device. As in the sidebar, dropped on an entry's top or bottom edge it goes
+ *  above or below it, and on its middle it goes inside, at the end of that
+ *  page's subpages, which takes it out of this list.
  *
  *  Each entry has the sidebar's three-dot menu, and the plus in the corner is
  *  the sidebar's own plus for this page: a new, empty subpage at the end of
@@ -135,8 +136,10 @@ export function SubpageList({ editor, extension, node, updateAttributes }: React
       if (!item) return
       const id = item.dataset.id
       if (!id || id === dragging) return place(null)
+      // The sidebar's split: the edges reorder, the middle nests.
       const rect = item.getBoundingClientRect()
-      place({ id, zone: event.clientY - rect.top < rect.height / 2 ? 'before' : 'after' })
+      const offset = (event.clientY - rect.top) / rect.height
+      place({ id, zone: offset < 0.28 ? 'before' : offset > 0.72 ? 'after' : 'inside' })
     }
     const leave = (event: DragEvent) => {
       event.stopPropagation()
