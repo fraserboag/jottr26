@@ -50,16 +50,25 @@ export function enterNestedList(): Command {
  *  items follow it: the line goes, and the caret to the end of the line above
  *  — undoing the Enter that made it. Lifting it out a level, as Backspace does
  *  elsewhere, would take the items after it along, nested under it. The last
- *  item still lifts out, the way out of a nested list. */
+ *  item still lifts out, the way out of a nested list.
+ *
+ *  A list in an accordion's box counts as nested too, and there every item
+ *  below the first goes the same way, the last included: lifted out, it would
+ *  only leave a bare line in the box for a second Backspace to take. */
 export function backspaceNestedItem(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.depth < 4 || !$from.parent.isTextblock || $from.parent.content.size > 0) return false
     const item = $from.node(-1)
     const list = $from.node(-2)
-    if (item.type.name !== LIST_ITEM || item.childCount !== 1) return false
-    if (!LISTS.includes(list.type.name) || $from.node(-3).type.name !== LIST_ITEM) return false
-    if ($from.index(-2) === list.childCount - 1) return false
+    if (item.type.name !== LIST_ITEM || item.childCount !== 1 || !LISTS.includes(list.type.name)) return false
+    const index = $from.index(-2)
+    const holder = $from.node(-3).type.name
+    if (holder === 'accordionBody') {
+      if (index === 0) return false
+    } else if (holder !== LIST_ITEM || index === list.childCount - 1) {
+      return false
+    }
 
     if (dispatch) {
       const start = $from.before(-1)

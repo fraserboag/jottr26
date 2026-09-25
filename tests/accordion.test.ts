@@ -19,7 +19,7 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { Callout } from '@/components/editor/extensions/callout'
-import { backspaceAfterList, ListItem } from '@/components/editor/extensions/lists'
+import { backspaceAfterList, backspaceNestedItem, ListItem } from '@/components/editor/extensions/lists'
 import { FinanceTable } from '@/components/editor/extensions/finance'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
@@ -356,6 +356,29 @@ describe('accordion as a list item', () => {
     assert.equal(lifted.applied, true)
     lifted.state.doc.check()
     assert.equal(lifted.state.doc.child(1).child(1).child(0).type.name, 'accordion')
+  })
+
+  it('deletes an empty item of a list in the box in one go, up to the item above', () => {
+    for (const rest of [[[paragraph('c')]], []]) {
+      const start = page(bullets([accordion('Details', [bullets([paragraph('a')], [paragraph()], ...rest)])]))
+      let blank = -1
+      start.doc.descendants((node, pos) => {
+        if (node.type.name === 'paragraph' && node.content.size === 0) blank = pos + 1
+      })
+      const { state, applied } = run(caretAt(start, blank), backspaceNestedItem())
+      assert.equal(applied, true)
+      state.doc.check()
+      const list = state.doc.child(1).child(0).child(0).child(1).child(0)
+      assert.deepEqual(list.content.content.map((item) => item.textContent), ['a', ...rest.map(() => 'c')])
+      assert.equal(state.selection.$from.parent.textContent, 'a')
+      assert.equal(state.selection.$from.parentOffset, 1)
+    }
+  })
+
+  it('leaves the first item of a list in the box to lift out, with no item above it', () => {
+    const start = page(accordion('Details', [bullets([paragraph()], [paragraph('b')])]))
+    const at = caretAt(start, inside(start, 'accordionBody', 3))
+    assert.equal(run(at, backspaceNestedItem()).applied, false)
   })
 
   it('deletes an empty line lifted out of a list in the box, back to the item above', () => {
