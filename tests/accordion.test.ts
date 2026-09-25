@@ -114,6 +114,17 @@ describe('accordion block', () => {
     assert.equal(state.selection.$from.parentOffset, 3)
   })
 
+  it('brings the heading in bold on the page', () => {
+    const start = page(paragraph('Travel plans'))
+    const { state } = run(start, makeAccordion())
+    const heading = state.doc.child(1).child(0)
+    heading.forEach((text) => assert.ok(schema.marks.bold.isInSet(text.marks), 'bold throughout'))
+
+    // An empty one types in bold from the first letter.
+    const blank = run(page(paragraph()), makeAccordion()).state
+    assert.ok(blank.storedMarks && schema.marks.bold.isInSet(blank.storedMarks))
+  })
+
   it('refuses where an accordion cannot go, like a line of code', () => {
     const start = page(schema.node('codeBlock', null, [schema.text('x = 1')]))
     assert.equal(run(start, makeAccordion()).applied, false)
@@ -270,6 +281,18 @@ describe('accordion as a list item', () => {
     assert.equal(item.child(0).type.name, 'accordion')
     assert.equal(item.child(0).child(0).textContent, 'one')
     assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+  })
+
+  it('brings the heading in as plain text, not bold', () => {
+    const bolded = schema.text('one', [schema.marks.bold.create()])
+    const start = page(bullets([schema.node('paragraph', null, [bolded])]))
+    const { state } = run(start, makeAccordion())
+    const heading = state.doc.child(1).child(0).child(0).child(0)
+    assert.equal(heading.textContent, 'one')
+    heading.forEach((text) => assert.equal(schema.marks.bold.isInSet(text.marks), undefined))
+
+    const blank = run(page(bullets([paragraph()])), makeAccordion()).state
+    assert.equal(blank.storedMarks, null)
   })
 
   it('keeps making plain lines for new items', () => {

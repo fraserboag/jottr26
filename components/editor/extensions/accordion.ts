@@ -55,6 +55,21 @@ export function makeAccordion(): Command {
       const tr = state.tr.replaceWith(start, $from.after(), node)
       // Into the heading, two levels down: accordion, then its title.
       tr.setSelection(TextSelection.create(tr.doc, start + 2 + $from.parentOffset))
+      // A heading comes in bold on the page, where it heads a section, and
+      // plain as the first line of a list item, where it sits among the other
+      // items' lines. One drawn as a Title is left as it is.
+      const bold = state.schema.marks.bold
+      if (bold && !node.child(0).attrs.title) {
+        const from = start + 2
+        const to = from + node.child(0).content.size
+        if ($from.node(-1).type.name === 'listItem') {
+          tr.removeMark(from, to, bold)
+        } else if (to > from) {
+          tr.addMark(from, to, bold.create())
+        } else {
+          tr.setStoredMarks([bold.create()])
+        }
+      }
       dispatch(tr.scrollIntoView())
     }
     return true
