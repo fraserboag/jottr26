@@ -15,7 +15,6 @@ import type {} from './subpages'
 export interface SlashItem {
   id: string
   title: string
-  hint: string
   icon: IconName
   keywords: string[]
   /** Hides the item in contexts where it would not make sense. */
@@ -29,7 +28,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'text',
     title: 'Text',
-    hint: 'Plain paragraph',
     icon: 'text',
     keywords: ['paragraph', 'body', 'plain'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).setParagraph().run(),
@@ -37,7 +35,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'bullet',
     title: 'Bulleted list',
-    hint: 'An unordered list',
     icon: 'list',
     keywords: ['ul', 'unordered', 'point'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
@@ -45,7 +42,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'ordered',
     title: 'Numbered list',
-    hint: 'A list with numbers',
     icon: 'listOrdered',
     keywords: ['ol', 'ordered', 'number'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
@@ -53,7 +49,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'callout',
     title: 'Callout',
-    hint: 'A shaded box for an aside',
     icon: 'callout',
     keywords: ['note', 'box', 'panel', 'aside', 'info', 'highlight'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCallout().run(),
@@ -61,7 +56,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'accordion',
     title: 'Accordion',
-    hint: 'A heading that folds away what is under it',
     icon: 'accordion',
     keywords: ['toggle', 'collapse', 'fold', 'expand', 'dropdown', 'section', 'details'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleAccordion().run(),
@@ -69,7 +63,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'subpages',
     title: 'Subpages',
-    hint: 'A list of the pages inside this one',
     icon: 'subpages',
     keywords: ['sub', 'children', 'pages', 'index', 'contents', 'toc'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).insertSubpages().run(),
@@ -77,7 +70,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'code',
     title: 'Code block',
-    hint: 'Monospaced, no formatting',
     icon: 'code',
     keywords: ['pre', 'snippet', 'monospace'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
@@ -85,7 +77,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'table',
     title: 'Table',
-    hint: 'A grid of rows and columns',
     icon: 'table',
     keywords: ['grid', 'row', 'column', 'cell', 'spreadsheet'],
     // Nested tables are a mess to edit and nobody asks for them, so this item
@@ -102,7 +93,6 @@ export const slashItems: SlashItem[] = [
   {
     id: 'divider',
     title: 'Divider',
-    hint: 'A horizontal rule',
     icon: 'divider',
     keywords: ['hr', 'rule', 'separator', 'line'],
     run: (editor, range) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),

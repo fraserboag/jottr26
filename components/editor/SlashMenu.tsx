@@ -111,10 +111,7 @@ export function SlashList({
             <span className="grid size-7 shrink-0 place-items-center rounded-md border border-line bg-sunken text-muted">
               <Icon name={item.icon} size={14} />
             </span>
-            <span className="min-w-0">
-              <span className="block truncate font-medium text-ink">{item.title}</span>
-              <span className="block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">{item.hint}</span>
-            </span>
+            <span className="min-w-0 truncate font-medium text-ink">{item.title}</span>
           </button>
         )
       })}
