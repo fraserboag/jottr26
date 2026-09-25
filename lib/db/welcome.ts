@@ -49,10 +49,12 @@ const WELCOME_BODY: Block[] = [
   ...BREAK,
   '**Install the App**',
   'Jottr follows the PWA standard which means you can install it as an app via your web browser. Most, if not all, devices and operating systems support this - desktop and mobile. Once installed this way, Jottr looks and functions exactly like any other native app.',
+  null,
   "A PWA is always installed via a menu in your web browser while accessing the web app you want to install. If you don't know how to do it on your device just do a web search for `How to install PWA {your operating system} {your browser}`, for example `How to install PWA iOS Chrome`.",
   ...BREAK,
   '**Offline Support**',
   'Jottr was built from the ground up for offline support. Behind the scenes Jottr is always saving your pages locally on your device first and then syncing to the server when possible (so that it can keep your notes in sync across multiple devices).',
+  null,
   "Naturally if you modify the same note on 2 different devices with no internet connection, Jottr will have issues merging those. It'll try its best to reconcile, but this can inevitably result in some data loss.",
   null,
   {
