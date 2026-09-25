@@ -212,7 +212,7 @@ body {
    one too. */
 .ProseMirror h2,
 .ProseMirror div[data-type="subpages"] .subpages-title {
-  font-size: 1.2em;
+  font-size: 1.1em;
   font-weight: 650;
   margin: 1px 0;
   min-height: calc(var(--body-leading) * 1em);
