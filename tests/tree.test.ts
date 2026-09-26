@@ -7,9 +7,8 @@ import type { PageRow } from '@/lib/db/schema'
 installBrowserGlobals()
 
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
-const { createPage, deleteForever, emptyTrash, liveChildren, movePage, restorePage, touch, trashPage } = await import(
-  '@/lib/db/pages'
-)
+const { createPage, deleteForever, dropRelative, emptyTrash, liveChildren, movePage, restorePage, touch, trashPage } =
+  await import('@/lib/db/pages')
 const { buildTree, reuseRows } = await import('@/lib/db/hooks')
 const { DOC_FIELD, openDoc, releaseAll, whenPersisted } = await import('@/lib/db/ydoc')
 
@@ -201,6 +200,18 @@ describe('live children', () => {
     assert.deepEqual(rest.at(-1), c)
     const keys = (await liveChildren(db, parent)).map((page) => page.sortKey)
     assert.equal(new Set(keys).size, keys.length)
+  })
+
+  it('leaves a page last when it is dropped inside the parent it is already under', async () => {
+    const parent = await createPage()
+    const a = await createPage({ parentId: parent })
+    const b = await createPage({ parentId: parent })
+    const c = await createPage({ parentId: parent })
+
+    await dropRelative(c, parent, 'inside')
+    const children = await liveChildren(db, parent)
+    assert.deepEqual(children.map((page) => page.id), [a, b, c])
+    assert.equal(new Set(children.map((page) => page.sortKey)).size, 3)
   })
 
   it('restores a page to the end of the root when its parent is in the trash', async () => {

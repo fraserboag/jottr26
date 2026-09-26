@@ -135,6 +135,9 @@ export async function movePage(pageId: string, parentId: string, index: number) 
   if (await isDescendant(parentId, pageId)) return
 
   const siblings = (await siblingsOf(parentId)).filter((p) => p.id !== pageId)
+  // A caller counting the page among its own siblings, as a drop inside the
+  // parent it is already under does, asks for one place past the end.
+  index = Math.min(index, siblings.length)
   const before = siblings[index - 1]?.sortKey ?? null
   const after = siblings[index]?.sortKey ?? null
   if (before === null || before !== after) {
