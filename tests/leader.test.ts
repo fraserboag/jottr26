@@ -68,10 +68,20 @@ const { closeDatabase } = await import('@/lib/db/dexie')
 const { SyncEngine } = await import('@/lib/sync/engine')
 
 const server = new FakeServer()
-const wait = (ms = 60) => new Promise((resolve) => setTimeout(resolve, ms))
+/** Waits until the tabs reach the state a test expects, checking every
+ *  millisecond, rather than guessing how long the election takes. */
+async function until(condition: () => boolean, what: string) {
+  const deadline = Date.now() + 2000
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error(`Timed out waiting until ${what}`)
+    await new Promise((resolve) => setTimeout(resolve, 1))
+  }
+}
 
 type Engine = InstanceType<typeof SyncEngine>
 const leading = (engine: Engine) => (engine as unknown as { isLeader: boolean }).isLeader
+const busy = (engine: Engine) => (engine as unknown as { inFlight: boolean }).inFlight
+const lastSynced = (engine: Engine) => engine.getStatus().lastSyncedAt ?? 0
 
 /** Two tabs of the app open for the same account — or, on a phone, the tab
  *  in use and an older one the browser has frozen in the background. */
@@ -79,18 +89,20 @@ describe('more than one tab', () => {
   const first = new SyncEngine(server.client(), 'tabs')
   const second = new SyncEngine(server.client(), 'tabs')
 
-  after(() => {
+  after(async () => {
     first.stop()
     second.stop()
+    // A sync already under way finishes against the database, so let it.
+    await until(() => !busy(first) && !busy(second), 'both tabs are idle')
     closeDatabase()
   })
 
   it('does not leave the tab that is not syncing stuck on "syncing"', async () => {
     await first.start()
-    await wait()
+    await until(() => lastSynced(first) > 0 && !busy(first), 'the first tab has synced')
     ;(document as unknown as { visibilityState: string }).visibilityState = 'hidden'
     await second.start()
-    await wait()
+    await until(() => lastSynced(second) > 0, 'the second tab hears how the sync went')
 
     assert.equal(leading(first), true)
     assert.equal(leading(second), false)
@@ -101,10 +113,18 @@ describe('more than one tab', () => {
   it('hands syncing to the tab that is brought to the front', async () => {
     ;(document as unknown as { visibilityState: string }).visibilityState = 'visible'
     const before = server.counts.select
+    const syncedBefore = lastSynced(first)
     // Only the second tab is "being looked at"; dispatching reaches both
     // engines, but the leader just syncs again.
     visibility.dispatchEvent(new Event('visibilitychange'))
-    await wait()
+    await until(
+      () =>
+        leading(second) &&
+        server.counts.select > before &&
+        lastSynced(second) >= syncedBefore &&
+        !busy(second),
+      'the second tab has taken over and synced',
+    )
 
     assert.equal(leading(second), true, 'the tab in front took the lock')
     assert.equal(leading(first), false, 'and the other tab queued up behind it')
