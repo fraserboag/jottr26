@@ -1,24 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
+import { EditorState, TextSelection } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
-import { AccordionKit } from '@/components/editor/extensions/accordion'
-import { backspaceNestedItem, enterNestedList, ListItem } from '@/components/editor/extensions/lists'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
-
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false, listItem: false }),
-  ListItem,
-  ...AccordionKit,
-])
-
-function paragraph(text?: string) {
-  return schema.node('paragraph', null, text ? [schema.text(text)] : [])
-}
+import { backspaceNestedItem, enterNestedList } from '@/components/editor/extensions/lists'
+import { pageSchema as schema, paragraph, run } from './editor'
 
 function list(type: string, ...items: Node[][]) {
   return schema.node(type, null, items.map((content) => schema.node('listItem', null, content)))
@@ -34,14 +19,6 @@ function caretAfter(text: string, ...body: Node[]) {
   })
   const state = EditorState.create({ doc, schema })
   return state.apply(state.tr.setSelection(TextSelection.create(doc, at)))
-}
-
-function run(state: EditorState, command: Command) {
-  let next = state
-  const applied = command(state, (tr) => {
-    next = state.apply(tr)
-  })
-  return { state: next, applied }
 }
 
 describe('Enter in a list', () => {

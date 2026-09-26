@@ -1,15 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit } from '@tiptap/extension-table'
-import { EditorState, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 import { liftListItem, sinkListItem, splitListItem } from '@tiptap/pm/schema-list'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import {
-  AccordionKit,
   backspaceAccordion,
   backspaceIntoHeading,
   enterAccordionBody,
@@ -18,69 +13,15 @@ import {
   setAccordionOpen,
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
-import { Callout } from '@/components/editor/extensions/callout'
-import { backspaceAfterList, backspaceNestedItem, ListItem } from '@/components/editor/extensions/lists'
-import { FinanceTable } from '@/components/editor/extensions/finance'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
+import { backspaceAfterList, backspaceNestedItem } from '@/components/editor/extensions/lists'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
-
-/** The editor's real extension list, minus the ones that need a browser. */
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false, listItem: false }),
-  ListItem,
-  Callout,
-  ...AccordionKit,
-  TableKit.configure({ table: false }),
-  FinanceTable.configure({ renderWrapper: true }),
-])
-
-function paragraph(text?: string) {
-  return schema.node('paragraph', null, text ? [schema.text(text)] : [])
-}
+import { caretAt, inside, outline, page, pageSchema as schema, paragraph, run } from './editor'
 
 function accordion(title: string, body: Node[] = [paragraph()], open = true) {
   return schema.node('accordion', { open }, [
     schema.node('accordionTitle', null, title ? [schema.text(title)] : []),
     schema.node('accordionBody', null, body),
   ])
-}
-
-/** A page holding the given body blocks, with the caret at the end. */
-function page(...body: Node[]) {
-  const doc = schema.node('doc', null, [schema.node('title', null, schema.text('Notes')), ...body])
-  const state = EditorState.create({ doc, schema })
-  return state.apply(state.tr.setSelection(TextSelection.near(doc.resolve(doc.content.size), -1)))
-}
-
-function caretAt(state: EditorState, pos: number) {
-  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)))
-}
-
-/** The position of the first textblock of the given type, plus an offset. */
-function inside(state: EditorState, type: string, offset = 0) {
-  let found = -1
-  state.doc.descendants((node, pos) => {
-    if (found < 0 && node.type.name === type) found = pos + 1 + offset
-    return found < 0
-  })
-  assert.notEqual(found, -1, `no ${type} in the document`)
-  return found
-}
-
-function run(state: EditorState, command: Command) {
-  let next = state
-  let transaction: Transaction | null = null
-  const applied = command(state, (tr) => {
-    transaction = tr
-    next = state.apply(tr)
-  })
-  return { state: next, applied, tr: transaction as Transaction | null }
-}
-
-function outline(state: EditorState) {
-  return state.doc.children.map((node) => node.type.name)
 }
 
 describe('accordion block', () => {

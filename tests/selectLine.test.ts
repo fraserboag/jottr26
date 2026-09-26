@@ -1,16 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
 import { EditorState, TextSelection, type Transaction } from '@tiptap/pm/state'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { BodySelection, selectBody, selectLine } from '@/components/editor/extensions/selectLine'
-
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false }),
-])
+import { pageSchema as schema } from './editor'
 
 function page(...lines: string[]) {
   const doc = schema.node('doc', null, [

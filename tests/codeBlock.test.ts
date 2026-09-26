@@ -1,42 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
-import type { Node } from '@tiptap/pm/model'
-import { Callout } from '@/components/editor/extensions/callout'
+import { TextSelection } from '@tiptap/pm/state'
 import { leaveCodeBlock } from '@/components/editor/extensions/codeBlock'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
-
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
-  Callout,
-])
-
-/** A page holding the given body blocks, with the caret in the last text
- *  position — which is where someone typing has just arrived. */
-function page(...body: Node[]) {
-  const doc = schema.node('doc', null, [schema.node('title', null, schema.text('Notes')), ...body])
-  const state = EditorState.create({ doc, schema })
-  return state.apply(state.tr.setSelection(TextSelection.near(doc.resolve(doc.content.size), -1)))
-}
+import { outline, page, pageSchema as schema, run } from './editor'
 
 function code(text: string) {
   return schema.node('codeBlock', null, text ? [schema.text(text)] : [])
-}
-
-function run(state: EditorState, command: Command) {
-  let next = state
-  const applied = command(state, (tr) => {
-    next = state.apply(tr)
-  })
-  return { state: next, applied }
-}
-
-function outline(state: EditorState) {
-  return state.doc.children.map((node) => node.type.name)
 }
 
 describe('code block Enter', () => {

@@ -1,20 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit, createTable } from '@tiptap/extension-table'
+import { createColGroup, createTable } from '@tiptap/extension-table'
 import { EditorState } from '@tiptap/pm/state'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
-import { FinanceTable } from '@/components/editor/extensions/finance'
+import type { Node } from '@tiptap/pm/model'
 import { planTrade, setColumnWidths, storedWidths } from '@/components/editor/extensions/tableResize'
+import { pageSchema } from './editor'
 
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false }),
-  TableKit.configure({ table: false }),
-  FinanceTable,
-])
+const schema = pageSchema
 
 function tableState(cols: number) {
   const doc = schema.node('doc', null, [
@@ -84,5 +76,39 @@ describe('setColumnWidths', () => {
         [0, 180, 120],
       )
     })
+  })
+})
+
+describe('an unsized table', () => {
+  it('keeps the table fluid until every column has been sized', () => {
+    // The stylesheet gives the table `width: 100%`, which an inline `width`
+    // would beat. createColGroup only emits one once every column is sized, so
+    // a half-resized table still stretches to the page rather than freezing at
+    // the sum of its columns.
+    const unsized = createTable(schema, 2, 2, true)
+    assert.equal(createColGroup(unsized, 40).tableWidth, '')
+    assert.equal(createColGroup(unsized, 40).tableMinWidth, '80px')
+
+    const sizeRow = (node: Node, cols: number[]) =>
+      schema.node(
+        'table',
+        node.attrs,
+        Array.from({ length: node.childCount }, (_, row) =>
+          schema.node(
+            'tableRow',
+            node.child(row).attrs,
+            cols.map((width, col) => {
+              const cell = node.child(row).child(col)
+              return cell.type.create({ ...cell.attrs, colwidth: [width] }, cell.content)
+            }),
+          ),
+        ),
+      )
+
+    const half = sizeRow(unsized, [150, 0])
+    assert.equal(createColGroup(half, 40).tableWidth, '', 'one column sized is still fluid')
+
+    const whole = sizeRow(unsized, [150, 90])
+    assert.equal(createColGroup(whole, 40).tableWidth, '240px')
   })
 })

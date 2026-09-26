@@ -1,28 +1,16 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createChainableState, Editor, getExtensionField, type InputRule, type JSONContent } from '@tiptap/core'
-import { TextSelection } from '@tiptap/pm/state'
-import StarterKit from '@tiptap/starter-kit'
 import { backspaceAfterDivider, Divider, textPastDivider } from '@/components/editor/extensions/divider'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
+import { TextSelection } from '@tiptap/pm/state'
+import { headlessEditor } from './editor'
 
-/** A headless editor with the page's divider, the caret at `caret`. */
+/** A headless editor on a page titled 'Notes', the caret at `caret`. */
 function editor(caret: number, ...body: JSONContent[]) {
-  const instance = new Editor({
-    element: null,
-    extensions: [
-      JottrDocument,
-      Title,
-      StarterKit.configure({ document: false, undoRedo: false, horizontalRule: false }),
-      Divider,
-    ],
-    content: { type: 'doc', content: [{ type: 'title', content: [{ type: 'text', text: 'Notes' }] }, ...body] },
-  })
-  instance.commands.command(({ tr }) => {
-    tr.setSelection(TextSelection.create(tr.doc, caret))
-    return true
-  })
-  return instance
+  return headlessEditor(
+    { type: 'doc', content: [{ type: 'title', content: [{ type: 'text', text: 'Notes' }] }, ...body] },
+    caret,
+  )
 }
 
 function paragraph(text?: string): JSONContent {

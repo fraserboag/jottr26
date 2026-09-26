@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
-import { getExtensionField, getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit, createTable } from '@tiptap/extension-table'
-import { TableMap } from '@tiptap/pm/tables'
+import { getExtensionField } from '@tiptap/core'
+import { createTable } from '@tiptap/extension-table'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
 import type { DecorationSet } from '@tiptap/pm/view'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, ySyncPluginKey } from 'y-prosemirror'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import {
   FinanceTable,
   columnTotals,
@@ -18,14 +15,7 @@ import {
   formatTableCells,
   parseMoney,
 } from '@/components/editor/extensions/finance'
-
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false }),
-  TableKit.configure({ table: false }),
-  FinanceTable,
-])
+import { caretIn, cellAt, locate, pageSchema as schema } from './editor'
 
 /** A page whose table is in finance mode, with `values` laid into the body
  *  rows. The header row is left as it comes, which is to say empty. */
@@ -54,31 +44,10 @@ function financePage(values: string[][]) {
   return state
 }
 
-function locate(state: EditorState) {
-  let pos = -1
-  let node: Node | null = null
-  state.doc.descendants((candidate, at) => {
-    if (node || candidate.type.name !== 'table') return !node
-    pos = at
-    node = candidate
-    return false
-  })
-  assert.ok(node, 'no table in the document')
-  return { node: node as Node, map: TableMap.get(node), start: pos + 1 }
-}
-
-function cellAt(state: EditorState, row: number, col: number) {
-  const { map, start } = locate(state)
-  return start + map.map[row * map.width + col]
-}
-
 function textAt(state: EditorState, row: number, col: number) {
   const cell = state.doc.nodeAt(cellAt(state, row, col)) as Node
   return cell.textBetween(0, cell.content.size, '\n')
 }
-
-const caretIn = (state: EditorState, row: number, col: number) =>
-  state.apply(state.tr.setSelection(TextSelection.create(state.doc, cellAt(state, row, col) + 2)))
 
 /** The caret after the last character of a cell, where typing actually happens. */
 const caretAfter = (state: EditorState, row: number, col: number) =>

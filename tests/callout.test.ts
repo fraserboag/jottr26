@@ -1,68 +1,17 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit } from '@tiptap/extension-table'
 import { lift, wrapIn } from '@tiptap/pm/commands'
-import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
-import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
-import { Callout, leaveCallout } from '@/components/editor/extensions/callout'
-import { FinanceTable } from '@/components/editor/extensions/finance'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
+import type { Node } from '@tiptap/pm/model'
+import { leaveCallout } from '@/components/editor/extensions/callout'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
-
-/** The editor's real extension list, minus the ones that need a browser. */
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
-  Callout,
-  TableKit.configure({ table: false }),
-  FinanceTable.configure({ renderWrapper: true }),
-])
+import { caretAt, outline, page, pageSchema as schema, paragraph, run } from './editor'
 
 const callout = schema.nodes.callout
 
-/** A page holding the given body blocks, with the caret in the last text
- *  position — which is where someone typing has just arrived. */
-function page(...body: Node[]) {
-  const doc = schema.node('doc', null, [
-    schema.node('title', null, schema.text('Notes')),
-    ...body,
-  ])
-  const state = EditorState.create({ doc, schema })
-  return state.apply(
-    state.tr.setSelection(TextSelection.near(doc.resolve(doc.content.size), -1)),
-  )
-}
-
-function paragraph(text?: string) {
-  return schema.node('paragraph', null, text ? [schema.text(text)] : [])
-}
-
-/** The same document with the caret parked at an exact position. */
-function caretAt(state: EditorState, pos: number) {
-  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)))
-}
-
 /** The key the callout binds, as the extension binds it. */
 const enter = leaveCallout('callout')
-
-/** Run a ProseMirror command the way the editor's chain does. */
-function run(state: EditorState, command: Command) {
-  let next = state
-  const applied = command(state, (tr) => {
-    next = state.apply(tr)
-  })
-  return { state: next, applied }
-}
-
-/** The names of the document's top-level blocks, title included. */
-function outline(state: EditorState) {
-  return state.doc.children.map((node) => node.type.name)
-}
 
 describe('callout block', () => {
   it('fits the page schema, which requires a title followed by blocks', () => {

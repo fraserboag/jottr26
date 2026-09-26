@@ -1,27 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit } from '@tiptap/extension-table'
-import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
+import { EditorState, TextSelection } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
-import { Callout } from '@/components/editor/extensions/callout'
-import { FinanceTable } from '@/components/editor/extensions/finance'
-import { JottrDocument, Title, backspaceIntoTitle, leaveTitle, openBodyLine } from '@/components/editor/extensions/title'
-
-/** The editor's real extension list, minus the ones that need a browser. */
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false }),
-  Callout,
-  TableKit.configure({ table: false }),
-  FinanceTable.configure({ renderWrapper: true }),
-])
-
-function paragraph(text?: string) {
-  return schema.node('paragraph', null, text ? [schema.text(text)] : [])
-}
+import { backspaceIntoTitle, leaveTitle, openBodyLine } from '@/components/editor/extensions/title'
+import { caretAt, outline, pageSchema as schema, paragraph, run } from './editor'
 
 /** A page whose caret sits at the end of the title — where someone who has
  *  just finished naming the page is. */
@@ -34,29 +16,10 @@ function page(...body: Node[]) {
   return caretAt(state, doc.child(0).nodeSize - 1)
 }
 
-/** The same document with the caret parked at an exact position. */
-function caretAt(state: EditorState, pos: number) {
-  return state.apply(state.tr.setSelection(TextSelection.create(state.doc, pos)))
-}
-
 /** The two keys the title binds, as the extension binds them. */
 const enter = openBodyLine('title')
 const tab = leaveTitle('title')
 const backspace = backspaceIntoTitle('title')
-
-/** Run a ProseMirror command the way the editor's chain does. */
-function run(state: EditorState, command: Command) {
-  let next = state
-  const applied = command(state, (tr) => {
-    next = state.apply(tr)
-  })
-  return { state: next, applied }
-}
-
-/** The names of the document's top-level blocks, title included. */
-function outline(state: EditorState) {
-  return state.doc.children.map((node) => node.type.name)
-}
 
 /** Where the caret landed: the block it is in, and whether that block is empty. */
 function caret(state: EditorState) {
@@ -96,11 +59,11 @@ describe('leaving the title', () => {
   })
 
   it('opens a line above a body that starts with something other than a paragraph', () => {
-    const start = page(schema.node('blockquote', null, [paragraph('Quoted')]))
+    const start = page(schema.node('callout', null, [paragraph('Quoted')]))
     const { state, applied } = run(start, enter)
     assert.equal(applied, true)
     state.doc.check()
-    assert.deepEqual(outline(state), ['title', 'paragraph', 'blockquote'])
+    assert.deepEqual(outline(state), ['title', 'paragraph', 'callout'])
     assert.deepEqual(caret(state), { depth: 1, block: 'paragraph', empty: true, index: 1 })
   })
 
@@ -173,7 +136,7 @@ describe('backspacing into the title', () => {
   })
 
   it('leaves Backspace alone inside a block that starts the body', () => {
-    const start = page(schema.node('blockquote', null, [paragraph('Quoted')]))
+    const start = page(schema.node('callout', null, [paragraph('Quoted')]))
     assert.equal(run(caretAt(start, titleEnd(start) + 3), backspace).applied, false)
   })
 })

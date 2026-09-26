@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { Editor, getExtensionField, getSchema, type InputRule, type JSONContent } from '@tiptap/core'
+import { Editor, getExtensionField, type InputRule, type JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import * as Y from 'yjs'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
 import { Heading } from '@/components/editor/extensions/heading'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
+import { pageSchema } from './editor'
 
-const schema = getSchema([JottrDocument, Title, StarterKit.configure({ document: false, undoRedo: false, heading: false }), Heading])
+const schema = pageSchema
 const heading = schema.nodes.heading
 
 /** The markdown shortcut's pattern, as the editor would install it. */

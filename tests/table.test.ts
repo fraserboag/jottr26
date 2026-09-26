@@ -1,14 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
-import { getSchema } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
-import { TableKit, createColGroup, createTable } from '@tiptap/extension-table'
-import { Callout } from '@/components/editor/extensions/callout'
-import { FinanceTable, addRowBelow, deleteEmptyRow, gapBelowTable } from '@/components/editor/extensions/finance'
+import { createTable } from '@tiptap/extension-table'
+import { addRowBelow, deleteEmptyRow, gapBelowTable } from '@/components/editor/extensions/finance'
 import {
   CellSelection,
-  TableMap,
   addColumnAfter,
   addRowAfter,
   deleteColumn,
@@ -20,20 +16,8 @@ import { EditorState, TextSelection } from '@tiptap/pm/state'
 import { GapCursor } from '@tiptap/pm/gapcursor'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
-import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
-
-/** The editor's real extension list, minus the ones that need a browser. The
- *  schema is what the table has to fit into, so it is built from the source of
- *  truth rather than a convenient subset. */
-const schema = getSchema([
-  JottrDocument,
-  Title,
-  StarterKit.configure({ document: false, undoRedo: false, heading: false, blockquote: false }),
-  Callout,
-  TableKit.configure({ table: false }),
-  FinanceTable.configure({ renderWrapper: true }),
-])
+import { caretIn, cellAt, locate, pageSchema as schema, run } from './editor'
 
 /** A document shaped like a real page: title, paragraph, table. */
 function page(rows: number, cols: number) {
@@ -45,35 +29,6 @@ function page(rows: number, cols: number) {
   return EditorState.create({ doc, schema })
 }
 
-/** Ask the document where the table is rather than deriving it from node sizes,
- *  which silently slides by one as soon as the surrounding content changes. */
-function locate(state: EditorState) {
-  let pos = -1
-  let node: Node | null = null
-  state.doc.descendants((candidate, at) => {
-    if (node || candidate.type.name !== 'table') return !node
-    pos = at
-    node = candidate
-    return false
-  })
-  assert.ok(node, 'no table in the document')
-  return { node: node as Node, map: TableMap.get(node), start: pos + 1 }
-}
-
-/** The position of the cell at `row`/`col` — the cell node itself, which is
- *  what CellSelection wants; +2 lands in the paragraph inside it. */
-function cellAt(state: EditorState, row: number, col: number) {
-  const { map, start } = locate(state)
-  return start + map.map[row * map.width + col]
-}
-
-/** The same document with the caret parked inside one cell. */
-function caretIn(state: EditorState, row = 0, col = 0) {
-  return state.apply(
-    state.tr.setSelection(TextSelection.create(state.doc, cellAt(state, row, col) + 2)),
-  )
-}
-
 function pageWithTable(rows: number, cols: number, row = 0, col = 0) {
   return caretIn(page(rows, cols), row, col)
 }
@@ -81,18 +36,6 @@ function pageWithTable(rows: number, cols: number, row = 0, col = 0) {
 function dimensions(state: EditorState) {
   const rect = selectedRect(state)
   return { rows: rect.map.height, cols: rect.map.width }
-}
-
-/** Run a prosemirror-tables command the way the toolbar's chain does. */
-function run(
-  state: EditorState,
-  command: (s: EditorState, d?: (tr: ReturnType<EditorState['tr']['setMeta']>) => void) => boolean,
-) {
-  let next = state
-  const applied = command(state, (tr) => {
-    next = state.apply(tr)
-  })
-  return { state: next, applied }
 }
 
 describe('table block', () => {
@@ -210,58 +153,6 @@ describe('table block', () => {
     // Search and page previews read this, so text inside a cell has to survive
     // the trip into the CRDT rather than being skipped as an unknown node.
     assert.match(readPlainText(ydoc), /findme/)
-  })
-
-  it('writes a resized width down one column, leaving the others alone', () => {
-    // What a drag does, minus the mouse: prosemirror-tables sets colwidth on
-    // every cell of the dragged column and touches no other column.
-    let state = page(3, 3)
-    const { map, start } = locate(state)
-    for (let row = 0; row < map.height; row += 1) {
-      const pos = start + map.map[row * map.width + 1]
-      const cell = state.doc.nodeAt(pos) as Node
-      state = state.apply(
-        state.tr.setNodeMarkup(pos, null, { ...cell.attrs, colwidth: [220] }),
-      )
-    }
-
-    const table = locate(state).node
-    const widths = (row: number) =>
-      [0, 1, 2].map((col) => table.child(row).child(col).attrs.colwidth)
-    assert.deepEqual(widths(0), [null, [220], null])
-    assert.deepEqual(widths(2), [null, [220], null], 'the width applies all the way down')
-  })
-
-  it('keeps the table fluid until every column has been sized', () => {
-    // The stylesheet gives the table `width: 100%`, which an inline `width`
-    // would beat. createColGroup only emits one once every column is sized, so
-    // a half-resized table still stretches to the page rather than freezing at
-    // the sum of its columns.
-    const unsized = createTable(schema, 2, 2, true)
-    assert.equal(createColGroup(unsized, 40).tableWidth, '')
-    assert.equal(createColGroup(unsized, 40).tableMinWidth, '80px')
-
-    const sizeRow = (node: Node, cols: number[]) =>
-      schema.node(
-        'table',
-        node.attrs,
-        Array.from({ length: node.childCount }, (_, row) =>
-          schema.node(
-            'tableRow',
-            node.child(row).attrs,
-            cols.map((width, col) => {
-              const cell = node.child(row).child(col)
-              return cell.type.create({ ...cell.attrs, colwidth: [width] }, cell.content)
-            }),
-          ),
-        ),
-      )
-
-    const half = sizeRow(unsized, [150, 0])
-    assert.equal(createColGroup(half, 40).tableWidth, '', 'one column sized is still fluid')
-
-    const whole = sizeRow(unsized, [150, 90])
-    assert.equal(createColGroup(whole, 40).tableWidth, '240px')
   })
 
   it('carries a column width to the other device', async () => {
