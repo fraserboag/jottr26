@@ -21,6 +21,7 @@ import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
   applyRemoteUpdate,
   onLocalEdit,
+  onSaveFailure,
   openDoc,
   patchDocState,
   readPlainText,
@@ -28,6 +29,8 @@ import {
   refreshFromDisk,
   loadedDoc,
   sameBytes,
+  saveFailure,
+  unsavedPages,
 } from '@/lib/db/ydoc'
 import { base64ToBytes, bytesToBase64 } from '@/lib/util/base64'
 import { initialStatus, type SyncStatus } from './types'
@@ -104,7 +107,9 @@ export async function countPending(db: JottrDB) {
     db.docStates.where('dirty').equals(1).primaryKeys(),
     db.purges.toCollection().primaryKeys(),
   ])
-  return new Set([...pages, ...docs, ...purges] as string[]).size
+  // An edit that never reached the disk is only in this tab's memory, and is
+  // lost for good if the database is erased.
+  return new Set([...pages, ...docs, ...purges, ...unsavedPages()] as string[]).size
 }
 
 /** A server timestamp as an exact key, down to the microsecond Postgres keeps
@@ -179,6 +184,11 @@ export class SyncEngine {
    *  starts one. */
   private ownStamps = new Set<string>()
   private cleanups: Array<() => void> = []
+  /** Lets go of the leader lock this tab holds. */
+  private releaseLock: (() => void) | null = null
+  /** Documents whose last push failed. They go to the back of the queue, so
+   *  one that keeps failing cannot hold every document behind it. */
+  private failedDocs = new Set<string>()
 
   constructor(supabase: SupabaseClient, userId: string) {
     this.supabase = supabase
@@ -237,6 +247,8 @@ export class SyncEngine {
       }),
     )
 
+    this.cleanups.push(onSaveFailure(() => void this.refreshPending().then(() => this.notify())))
+
     void this.electLeader(document.visibilityState === 'visible')
   }
 
@@ -245,6 +257,8 @@ export class SyncEngine {
     this.isLeader = false
     this.lockAbort?.abort()
     this.lockAbort = null
+    this.releaseLock?.()
+    this.releaseLock = null
     this.runAbort?.abort()
     for (const resolve of this.leaderWaiters.splice(0)) resolve()
     this.dropRealtime()
@@ -262,12 +276,12 @@ export class SyncEngine {
 
   subscribe(listener: Listener) {
     this.listeners.add(listener)
-    listener(this.status)
+    listener(this.shown())
     return () => this.listeners.delete(listener)
   }
 
   getStatus() {
-    return this.status
+    return this.shown()
   }
 
   /** Ask for a sync now. Safe to call as often as you like. */
@@ -285,7 +299,7 @@ export class SyncEngine {
    *  a sync that started after the click has finished, and with how it went —
    *  one already in flight may have begun before the edit that prompted it. */
   async syncNow(): Promise<SyncStatus> {
-    if (!this.running) return this.status
+    if (!this.running) return this.shown()
     const manual = new AbortController()
     this.manualAbort = manual
 
@@ -303,13 +317,15 @@ export class SyncEngine {
       while (this.current) await this.current
       // Cancelled while queued: starting now would be the very request the
       // person just gave up on.
-      if (manual.signal.aborted) return this.status
+      if (manual.signal.aborted) return this.shown()
     } while (!(await this.run()))
-    return this.status
+    return this.shown()
   }
 
   /** Syncs often while realtime is down, and only as a backstop while it is up. */
   private poll() {
+    // A failed sync has its retry scheduled already, backing off.
+    if (this.status.phase === 'error' && (this.status.retryAt ?? 0) > Date.now()) return
     const interval = this.realtimeUp ? POLL_INTERVAL_MS : OFFLINE_REALTIME_POLL_MS
     // A little slack, so a timer that fires a few ms early does not skip a turn.
     if (Date.now() - this.lastRunAt >= interval - 1_000) this.request()
@@ -381,7 +397,7 @@ export class SyncEngine {
           this.becomeLeader(attempt)
           // Hold the lock for as long as this tab is the leader.
           await new Promise<void>((resolve) => {
-            this.cleanups.push(resolve)
+            this.releaseLock = resolve
           })
         },
       )
@@ -488,7 +504,21 @@ export class SyncEngine {
   }
 
   private notify() {
-    for (const listener of this.listeners) listener(this.status)
+    const shown = this.shown()
+    for (const listener of this.listeners) listener(shown)
+  }
+
+  /** The status with this tab's own failure to save laid over it. It is not
+   *  sent to other tabs, whose edits may be saving fine. */
+  private shown(): SyncStatus {
+    const failure = saveFailure()
+    if (!failure) return this.status
+    return {
+      ...this.status,
+      phase: 'error',
+      error: `A change couldn't be saved on this device: ${failure}`,
+      retryAt: null,
+    }
   }
 
   private async refreshPending(patch: Partial<SyncStatus> = {}) {
@@ -528,6 +558,14 @@ export class SyncEngine {
     this.current = job
     try {
       await job
+    } catch (error) {
+      // The cycle handles its own failures; this is it failing to record one,
+      // e.g. the disk refusing the status write.
+      this.emit({
+        phase: 'error',
+        error: error instanceof Error ? error.message : 'Sync failed',
+        retryAt: null,
+      })
     } finally {
       if (this.current === job) this.current = null
     }
@@ -933,7 +971,11 @@ export class SyncEngine {
   }
 
   private async pushDocs(signal: AbortSignal) {
-    const queue = await this.db.docStates.where('dirty').equals(1).toArray()
+    const dirty = await this.db.docStates.where('dirty').equals(1).toArray()
+    const queue = [
+      ...dirty.filter((state) => !this.failedDocs.has(state.pageId)),
+      ...dirty.filter((state) => this.failedDocs.has(state.pageId)),
+    ]
     const errors: unknown[] = []
 
     // A few at a time. Each document is its own compare-and-swap, so they are
@@ -943,7 +985,9 @@ export class SyncEngine {
       for (let state = queue.shift(); state && errors.length === 0; state = queue.shift()) {
         try {
           await this.pushDoc(state, signal)
+          this.failedDocs.delete(state.pageId)
         } catch (error) {
+          if (!signal.aborted) this.failedDocs.add(state.pageId)
           errors.push(error)
         }
       }

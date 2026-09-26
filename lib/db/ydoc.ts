@@ -118,11 +118,13 @@ export async function refreshFromDisk(handle: DocHandle) {
  *  both rewrite the snapshot and both clear the delta table. */
 const compacting = new Set<string>()
 
+/** False when another compaction of the page was already running. */
 async function compact(db: JottrDB, pageId: string, doc: Y.Doc) {
-  if (compacting.has(pageId)) return
+  if (compacting.has(pageId)) return false
   compacting.add(pageId)
   try {
     await compactNow(db, pageId, doc)
+    return true
   } finally {
     compacting.delete(pageId)
   }
@@ -166,6 +168,61 @@ const persisting = new Set<Promise<void>>()
 
 export async function whenPersisted() {
   while (persisting.size > 0) await Promise.all(persisting)
+}
+
+/** Pages with an edit in memory that failed to reach the disk (a full disk,
+ *  most likely), and why. Until it is saved the edit is not marked dirty, so
+ *  nothing would push it, and a status of "synced" would be a lie. */
+const unsaved = new Map<string, string>()
+const resaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const saveListeners = new Set<() => void>()
+const RESAVE_MS = 5_000
+
+/** Called whenever a page starts or stops having an unsaved edit. */
+export function onSaveFailure(listener: () => void) {
+  saveListeners.add(listener)
+  return () => saveListeners.delete(listener)
+}
+
+/** Why an edit could not be saved on this device, or null if every edit was. */
+export function saveFailure(): string | null {
+  return unsaved.values().next().value ?? null
+}
+
+export function unsavedPages(): string[] {
+  return [...unsaved.keys()]
+}
+
+function markUnsaved(db: JottrDB, handle: DocHandle, error: unknown) {
+  const { pageId } = handle
+  unsaved.set(pageId, error instanceof Error ? error.message : String(error))
+  for (const listener of saveListeners) listener()
+  // Retried on its own as well as on the next edit, since the edit that
+  // failed may have been the last one.
+  if (resaveTimers.has(pageId)) return
+  resaveTimers.set(
+    pageId,
+    setTimeout(() => {
+      resaveTimers.delete(pageId)
+      if (!unsaved.has(pageId) || handles.get(pageId) !== handle || !db.isOpen()) return
+      const retry = resave(db, handle).catch((error) => markUnsaved(db, handle, error))
+      persisting.add(retry)
+      void retry.finally(() => persisting.delete(retry))
+    }, RESAVE_MS),
+  )
+}
+
+/** Save the whole document after a delta failed to. A compaction writes it
+ *  from memory, which still holds the lost edit, so this covers it without
+ *  knowing which one it was. */
+async function resave(db: JottrDB, handle: DocHandle) {
+  if (!(await compact(db, handle.pageId, handle.doc))) {
+    throw new Error('Could not save this page yet')
+  }
+  await patchDocState(db, handle.pageId, (current) => ({ dirty: 1, edits: current.edits + 1 }))
+  unsaved.delete(handle.pageId)
+  for (const listener of saveListeners) listener()
+  notifyLocalEdit()
 }
 
 export async function openDoc(pageId: string, options?: { seed?: boolean }): Promise<DocHandle> {
@@ -213,6 +270,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
       // must never end up in the next account's database.
       const write = (async () => {
         if (!db.isOpen()) return
+        if (unsaved.has(pageId)) await resave(db, handle)
         await db.docUpdates.add({ pageId, update })
         pending += 1
 
@@ -229,7 +287,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
           pending = 0
           await compact(db, pageId, doc)
         }
-      })()
+      })().catch((error) => markUnsaved(db, handle, error))
       persisting.add(write)
       void write.finally(() => persisting.delete(write))
     })
@@ -328,6 +386,12 @@ function collectText(node: Y.XmlElement | Y.XmlFragment): string {
 }
 
 export function releaseAll() {
+  for (const timer of resaveTimers.values()) clearTimeout(timer)
+  resaveTimers.clear()
+  if (unsaved.size) {
+    unsaved.clear()
+    for (const listener of saveListeners) listener()
+  }
   for (const handle of handles.values()) handle.doc.destroy()
   handles.clear()
   loading.clear()

@@ -893,6 +893,95 @@ describe('local-first sync', () => {
     for (const id of ids) assert.match(await phone.text(id), /more/, 'every document should reach the phone')
   })
 
+  it('pushes every other document while one keeps failing', async () => {
+    await laptop.focus()
+    const ids: string[] = []
+    for (let i = 0; i < 12; i += 1) ids.push(await createPage())
+    await laptop.sync()
+    for (const id of ids) await laptop.type(id, 'blocked?')
+
+    // The first in the queue, so it is the first to fail every cycle.
+    const [stuck, ...rest] = [...ids].sort()
+    server.failDocPush = stuck
+    const internals = laptop.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+    try {
+      await laptop.sync()
+      await laptop.sync()
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+      assert.equal(laptop.phase(), 'error')
+      assert.equal(await laptop.pendingCount(), 1, 'only the failing document is left')
+      for (const id of rest) {
+        const pushed = new Y.Doc()
+        Y.applyUpdate(pushed, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+        assert.match(readPlainText(pushed), /blocked\?/)
+      }
+    } finally {
+      server.failDocPush = null
+    }
+    await laptop.sync()
+    assert.equal(await laptop.pendingCount(), 0)
+  })
+
+  it('does not poll through the backoff after a failed sync', async () => {
+    const internals = laptop.engine as unknown as {
+      realtimeUp: boolean
+      lastRunAt: number
+      status: { phase: string; retryAt: number | null }
+      poll: () => void
+      request?: () => void
+    }
+    let asked = 0
+    internals.request = () => {
+      asked += 1
+    }
+    const status = internals.status
+    try {
+      internals.realtimeUp = false
+      internals.lastRunAt = Date.now() - 10_000
+      internals.status = { ...status, phase: 'error', retryAt: Date.now() + 20_000 }
+      internals.poll()
+      assert.equal(asked, 0, 'the retry is already scheduled')
+
+      internals.status = { ...status, phase: 'error', retryAt: Date.now() - 1 }
+      internals.poll()
+      assert.equal(asked, 1)
+    } finally {
+      delete internals.request
+      internals.status = status
+    }
+  })
+
+  it('shows a change that could not be saved on this device as an error, and counts it', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.sync()
+    assert.equal(laptop.phase(), 'synced')
+
+    const db = activeDatabase()!
+    const table = db.docUpdates as unknown as { add: (...args: unknown[]) => Promise<unknown> }
+    table.add = () => Promise.reject(new Error('QuotaExceededError'))
+    try {
+      await laptop.type(id, 'nowhere to go')
+    } finally {
+      delete (table as { add?: unknown }).add
+    }
+    assert.equal(laptop.phase(), 'error')
+    assert.equal(await countPending(db), 1, 'sign-out must warn about it')
+
+    // Straight into the open document: focus() would release it, and the
+    // unsaved edit with it.
+    const handle = await openDoc(id)
+    const paragraph = handle.doc.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement
+    handle.doc.transact(() => paragraph.insert(paragraph.length, [new Y.XmlText(' until now')]))
+    await settle()
+    assert.equal(await countPending(db), 1, 'saved, and waiting to push')
+    await laptop.engine.syncOnce()
+    assert.equal(laptop.phase(), 'synced')
+    const pushed = new Y.Doc()
+    Y.applyUpdate(pushed, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(pushed), /nowhere to go until now/)
+  })
+
   it('does not start a cancelled manual sync that was queued behind another', async () => {
     await laptop.focus()
     const id = await createPage()
