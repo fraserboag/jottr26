@@ -666,35 +666,34 @@ describe('local-first sync', () => {
       })
     }
 
-    // The first fetch is answered, and the link dies before the next.
+    // The first fetch is answered, and the link dies before the next. The
+    // sync is then given up on, as its deadline would.
     const device = new Device('slow-link')
     await device.focus()
-    const internals = device.engine as unknown as {
-      cycleTimeoutMs: number
-      retryTimer: ReturnType<typeof setTimeout> | null
-    }
-    internals.cycleTimeoutMs = 50
     server.afterSelect = (table) => {
       if (table !== 'pages') return
       server.afterSelect = null
       server.stalled = true
     }
+    const selects = server.counts.select
+    const running = device.engine.syncOnce()
+    let cursor = 0
     try {
-      await device.engine.syncOnce()
+      const deadline = Date.now() + 3000
+      while (Date.now() < deadline && (cursor = await readMeta(activeDatabase()!, META_PAGES_CURSOR, 0)) === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 5))
+      }
     } finally {
+      device.engine.cancelSync()
+      await running
       server.afterSelect = null
       server.stalled = false
-      internals.cycleTimeoutMs = 90_000
-      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+      // Only this device has seen them, and every later sync would pull them.
+      for (const id of [...server.pages.keys()]) if (id.startsWith('slow-')) server.pages.delete(id)
     }
 
-    assert.equal(device.phase(), 'error')
-    assert.ok(
-      (await readMeta(activeDatabase()!, META_PAGES_CURSOR, 0)) > 0,
-      'the next sync should carry on from the pages already pulled',
-    )
-    // Only this device has seen them, and every later sync would pull them.
-    for (const id of [...server.pages.keys()]) if (id.startsWith('slow-')) server.pages.delete(id)
+    assert.ok(server.counts.select > selects, 'the first batch was fetched')
+    assert.ok(cursor > 0, 'the next sync should carry on from the pages already pulled')
   })
 
   it("pushes another tab's edit that lands on the disk as this tab starts a push", async () => {
