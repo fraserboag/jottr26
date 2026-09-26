@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isStaticAsset(url)) {
-    event.respondWith(cacheFirst(request, ASSET_CACHE))
+    event.respondWith(cacheFirst(event, ASSET_CACHE))
     return
   }
 
@@ -90,36 +90,59 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
+/** How long opening the app waits on the network before using the copy on the
+ *  device. Offline fails at once; this is for the connection that is there
+ *  but barely — one bar, a captive portal — which would otherwise hold a blank
+ *  screen until the browser gave up, though every note is already local. */
+const NAVIGATION_TIMEOUT_MS = 3000
+
 /** Network first, so a deploy is picked up on the next load; cache second, so
- *  being offline is unremarkable. */
+ *  being offline, or nearly, is unremarkable. */
 async function handleNavigation(event, url) {
-  let response
+  const network = fetch(event.request)
+  // Registered now, while the event is live: an answer that arrives after the
+  // cached copy was shown still refreshes it for next time.
+  event.waitUntil(
+    network
+      .then((response) => (response.ok ? storeShell(url.pathname, response.clone()) : undefined))
+      .catch(() => undefined),
+  )
+
+  const slow = new Promise((resolve) => setTimeout(resolve, NAVIGATION_TIMEOUT_MS, null))
   try {
-    response = await fetch(event.request)
+    const response = await Promise.race([network, slow])
+    if (response) return response
   } catch {
-    const cache = await caches.open(SHELL_CACHE)
-    const exact = await cache.match(url.pathname)
-    if (exact) return exact
-
-    // Any workspace URL falls back to the workspace shell: it is a client
-    // component that reads the page id from the query string itself, so the
-    // cached document is correct for every /app URL.
-    if (url.pathname === '/app' || url.pathname.startsWith('/app/')) {
-      const shell = await cache.match('/app')
-      if (shell) return shell
-    }
-
-    const root = await cache.match('/')
-    if (root) return root
-
-    return new Response(OFFLINE_FALLBACK, {
-      status: 200,
-      headers: { 'content-type': 'text/html; charset=utf-8' },
-    })
+    return (await cachedPage(url)) ?? offlinePage()
   }
 
-  if (response.ok) event.waitUntil(storeShell(url.pathname, response.clone()).catch(() => undefined))
-  return response
+  // Still waiting: the copy on the device if there is one, else the network.
+  const cached = await cachedPage(url)
+  if (cached) return cached
+  return network.catch(() => offlinePage())
+}
+
+async function cachedPage(url) {
+  const cache = await caches.open(SHELL_CACHE)
+  const exact = await cache.match(url.pathname)
+  if (exact) return exact
+
+  // Any workspace URL falls back to the workspace shell: it is a client
+  // component that reads the page id from the query string itself, so the
+  // cached document is correct for every /app URL.
+  if (url.pathname === '/app' || url.pathname.startsWith('/app/')) {
+    const shell = await cache.match('/app')
+    if (shell) return shell
+  }
+
+  return (await cache.match('/')) ?? null
+}
+
+function offlinePage() {
+  return new Response(OFFLINE_FALLBACK, {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  })
 }
 
 async function cachePage(path) {
@@ -150,12 +173,14 @@ async function storeShell(path, response) {
 }
 
 /** Safe because these URLs are content-hashed by the build. */
-async function cacheFirst(request, cacheName) {
+async function cacheFirst(event, cacheName) {
+  const { request } = event
   const cache = await caches.open(cacheName)
   const hit = await cache.match(request)
   if (hit) return hit
   const response = await fetch(request)
-  if (response.ok) cache.put(request, response.clone())
+  // Kept alive until written: the worker can be stopped once it has answered.
+  if (response.ok) event.waitUntil(cache.put(request, response.clone()))
   return response
 }
 
