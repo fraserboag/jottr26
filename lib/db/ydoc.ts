@@ -84,6 +84,12 @@ async function readFromDisk(db: JottrDB, pageId: string) {
   })
 }
 
+/** The delta rows each open document already holds, by seq: ones it read
+ *  and ones it wrote. Only ever added to once the row's content is in the
+ *  document, so a row missing from here is at worst read again, never
+ *  skipped. */
+const held = new WeakMap<Y.Doc, Set<number>>()
+
 async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc, origin: symbol = LOAD_ORIGIN) {
   const { state, updates } = await readFromDisk(db, pageId)
 
@@ -95,6 +101,7 @@ async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc, origin: sym
       for (const row of updates) Y.applyUpdate(doc, row.update, origin)
     }, origin),
   )
+  held.set(doc, new Set(updates.map((row) => row.seq!)))
 
   return { state, deltaCount: updates.length }
 }
@@ -109,9 +116,22 @@ async function catchUp(db: JottrDB, pageId: string, doc: Y.Doc) {
   await loadFromDisk(db, pageId, doc, PEER_ORIGIN)
 }
 
+/** Skips the read when every row on disk is one the document already holds,
+ *  as it is for a page typed in only in this tab. A push runs this on every
+ *  pause in typing, and reading and applying the whole page each time cost
+ *  more the longer the page. A snapshot in the doc state row was written by
+ *  an older build, which folds rows into it, so that is always read. */
 export async function refreshFromDisk(handle: DocHandle) {
   const db = activeDatabase()
-  if (db) await catchUp(db, handle.pageId, handle.doc)
+  if (!db) return
+  const { pageId, doc } = handle
+  const holdsAll = await db.transaction('r', db.docStates, db.docUpdates, async () => {
+    if ((await db.docStates.get(pageId))?.snapshot?.byteLength) return false
+    const known = held.get(doc)
+    const seqs = await db.docUpdates.where('pageId').equals(pageId).primaryKeys()
+    return Boolean(known) && seqs.every((seq) => known!.has(seq as number))
+  })
+  if (!holdsAll) await catchUp(db, pageId, doc)
 }
 
 /** One compaction at a time per page: two crossing the threshold together would
@@ -144,7 +164,8 @@ async function compactNow(db: JottrDB, pageId: string, doc: Y.Doc) {
     await catchUp(db, pageId, doc)
     const update = Y.encodeStateAsUpdate(doc)
     await db.docUpdates.where('pageId').equals(pageId).delete()
-    await db.docUpdates.add({ pageId, update })
+    const seq = await db.docUpdates.add({ pageId, update })
+    held.set(doc, new Set([seq as number]))
     const existing = await db.docStates.get(pageId)
     if (existing?.snapshot?.byteLength) await db.docStates.put({ ...existing, snapshot: new Uint8Array() })
   })
@@ -295,7 +316,8 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
         // while the status read synced.
         if (closedByApp(db)) return
         if (unsaved.has(pageId)) await resave(db, handle)
-        await db.docUpdates.add({ pageId, update })
+        const seq = await db.docUpdates.add({ pageId, update })
+        held.get(doc)?.add(seq as number)
         pending += 1
 
         // Pulls too: only the leader tab pulls, and without this every other

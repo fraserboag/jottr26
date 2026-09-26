@@ -719,6 +719,54 @@ describe('local-first sync', () => {
     assert.ok(cursor > 0, 'the next sync should carry on from the pages already pulled')
   })
 
+  it('pushes a page typed only here without reading it back off the disk, but not one another tab wrote to', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.type(id, 'typed here')
+    await laptop.sync()
+    await laptop.type(id, ' and more')
+
+    // Counts the full reads of this page: snapshot plus every row, in order.
+    const db = activeDatabase()!
+    type Collection = { sortBy: (...args: unknown[]) => unknown }
+    type Clause = { equals: (...args: unknown[]) => Collection }
+    const table = db.docUpdates as unknown as { where: (...args: unknown[]) => Clause }
+    const where = table.where.bind(table)
+    let reads = 0
+    table.where = (...args: unknown[]) => {
+      const clause = where(...args)
+      const equals = clause.equals.bind(clause)
+      clause.equals = (...value: unknown[]) => {
+        const collection = equals(...value)
+        const sortBy = collection.sortBy.bind(collection)
+        if (value[0] === id) collection.sortBy = (...rest: unknown[]) => ((reads += 1), sortBy(...rest))
+        return collection
+      }
+      return clause
+    }
+    try {
+      await laptop.engine.syncOnce()
+      assert.equal(laptop.phase(), 'synced')
+      assert.equal(reads, 0, 'every row on disk was written by this tab')
+
+      // Another tab's row, with no relay.
+      const other = new Y.Doc()
+      Y.applyUpdate(other, Y.encodeStateAsUpdate((await openDoc(id)).doc))
+      const before = Y.encodeStateVector(other)
+      ;(other.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement).insert(0, [new Y.XmlText('elsewhere ')])
+      await db.docUpdates.add({ pageId: id, update: Y.encodeStateAsUpdate(other, before) })
+      await patchDocState(db, id, (current) => ({ dirty: 1, edits: current.edits + 1 }))
+      await laptop.engine.syncOnce()
+      assert.equal(laptop.phase(), 'synced')
+      assert.equal(reads, 1, 'a row from another tab is read in before the push')
+    } finally {
+      delete (table as { where?: unknown }).where
+    }
+    const merged = new Y.Doc()
+    Y.applyUpdate(merged, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(merged), /elsewhere typed here and more/)
+  })
+
   it("pushes another tab's edit that lands on the disk as this tab starts a push", async () => {
     await laptop.focus()
     const id = await createPage()
