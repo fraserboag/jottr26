@@ -110,7 +110,9 @@ const Row = memo(function Row({
         onDragStart={(event) => {
           setDragId(page.id)
           event.dataTransfer.effectAllowed = 'move'
-          event.dataTransfer.setData('text/plain', page.id)
+          // Not text/plain, which the editor would paste in as the page's id
+          // if the row were dropped on the note.
+          event.dataTransfer.setData('application/x-jottr-page', page.id)
         }}
         onDragEnd={() => {
           setDragId(null)

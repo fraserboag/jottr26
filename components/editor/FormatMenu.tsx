@@ -38,7 +38,10 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
           initialHref={link.value}
           onApply={link.apply}
           onUnset={link.clear}
-          onClose={link.close}
+          onClose={() => {
+            link.close()
+            editor.commands.focus()
+          }}
         />
       ) : (
         <FormatButtons

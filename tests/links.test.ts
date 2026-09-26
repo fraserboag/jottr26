@@ -53,6 +53,10 @@ describe('resolveLink', () => {
       kind: 'external',
       href: 'mailto:someone@example.com',
     })
+    assert.deepEqual(resolveLink('tel:+441234567890', HERE), {
+      kind: 'external',
+      href: 'tel:+441234567890',
+    })
   })
 
   it('refuses a script url and anything unparseable', () => {
@@ -102,6 +106,14 @@ describe('normalizeHref', () => {
     // Used to come back as https://mailto:… , which went nowhere.
     assert.equal(normalizeHref('mailto:someone@example.com'), 'mailto:someone@example.com')
     assert.equal(normalizeHref('tel:+441234567890'), 'tel:+441234567890')
+    assert.equal(normalizeHref('tel:12345'), 'tel:12345')
+  })
+
+  it('reads a host and port as a host, not as a scheme', () => {
+    // Stored as typed, these went nowhere when clicked.
+    assert.equal(normalizeHref('example.com:8080/docs'), 'https://example.com:8080/docs')
+    assert.equal(normalizeHref('localhost:3000'), 'https://localhost:3000')
+    assert.equal(looksLikeUrl('localhost:3000'), true)
   })
 
   it('leaves a link to one of your own pages alone', () => {

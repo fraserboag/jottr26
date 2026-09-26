@@ -154,9 +154,12 @@ export async function movePage(pageId: string, parentId: string, index: number) 
 }
 
 async function isDescendant(candidate: string, ancestor: string): Promise<boolean> {
-  let current = candidate
-  for (let depth = 0; current && depth < 64; depth += 1) {
+  // Visited rather than capped at a depth, so a deep tree cannot be looped
+  // and a ring left by two offline moves still ends the walk.
+  const seen = new Set<string>()
+  for (let current = candidate; current && !seen.has(current); ) {
     if (current === ancestor) return true
+    seen.add(current)
     const page = await db().pages.get(current)
     if (!page) return false
     current = page.parentId

@@ -10,7 +10,7 @@ export type LinkTarget =
 
 /** Page content arrives from other devices, so an href is untrusted input and
  *  `javascript:` must never reach `window.open`. */
-const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
 
 /** A dev server is this same workspace under another origin, so a page link
  *  copied from one — or written before page links went relative — still
@@ -56,6 +56,14 @@ export function resolveLink(href: string, base: string): LinkTarget | null {
  *  'Meeting: agenda' from being read as an address. */
 const SCHEME = /^[a-z][a-z0-9+.-]*:\S/i
 
+/** `example.com:8080` or `localhost:3000` — a host and port, which the URL
+ *  parser would otherwise read as a scheme called `example.com:`. */
+const HOST_PORT = /^(?:localhost|[^\s:/]*\.[^\s:/]+):\d+(?:[/?#]|$)/i
+
+function hasScheme(value: string) {
+  return SCHEME.test(value) && !HOST_PORT.test(value)
+}
+
 /** The href for a link to one of your own pages. Relative on purpose: the same
  *  note opens on a dev server and on the deployed app, and never sends you
  *  across origins to read a page this copy already has. */
@@ -70,7 +78,7 @@ export function pageHref(pageId: string): string {
 export function normalizeHref(input: string): string {
   const value = input.trim()
   if (!value) return ''
-  if (SCHEME.test(value) || value.startsWith('/')) return value
+  if (hasScheme(value) || value.startsWith('/')) return value
   return `https://${value}`
 }
 

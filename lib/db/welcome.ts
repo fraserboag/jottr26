@@ -113,8 +113,14 @@ export async function ensureFirstPage(): Promise<string | null> {
   const db = activeDatabase()
   if (!db) return null
 
-  if (await readMeta(db, WELCOME_KEY, false)) return null
-  await writeMeta(db, WELCOME_KEY, true)
+  // Checked and claimed in one transaction, so two tabs signing in at once,
+  // or two quick runs of the caller, cannot both write a welcome page.
+  const claimed = await db.transaction('rw', db.meta, async () => {
+    if (await readMeta(db, WELCOME_KEY, false)) return false
+    await writeMeta(db, WELCOME_KEY, true)
+    return true
+  })
+  if (!claimed) return null
 
   const count = await db.pages.count()
   if (count > 0) return null

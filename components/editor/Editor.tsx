@@ -37,6 +37,7 @@ export const Editor = memo(function Editor({ pageId }: { pageId: string }) {
 
 function Loader({ pageId }: { pageId: string }) {
   const [handle, setHandle] = useState<DocHandle | null>(null)
+  const [failure, setFailure] = useState<unknown>(null)
   // Read from IndexedDB rather than from the handle: a document that arrives
   // mid-wait has to flip this view over on its own, and a mutable field on a
   // plain object is something React cannot see change.
@@ -44,14 +45,22 @@ function Loader({ pageId }: { pageId: string }) {
 
   useEffect(() => {
     let cancelled = false
-    void openDoc(pageId).then((loaded) => {
-      if (!cancelled) setHandle(loaded)
-    })
+    openDoc(pageId).then(
+      (loaded) => {
+        if (!cancelled) setHandle(loaded)
+      },
+      (error: unknown) => {
+        if (!cancelled) setFailure(error ?? new Error('Could not open this page'))
+      },
+    )
     return () => {
       cancelled = true
     }
   }, [pageId])
 
+  // Thrown here, where EditorError can catch it: a rejection in the effect
+  // would leave the skeleton up for good.
+  if (failure) throw failure
   if (!handle || ready === undefined) return <EditorSkeleton />
 
   if (!ready) {
