@@ -255,6 +255,32 @@ describe('local-first sync', () => {
     assert.equal((await laptop.page(pageId))?.title, title)
   })
 
+  it('leaves page rows the server has not changed alone on the next pull', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Unchanged')
+    await laptop.sync()
+    // Pulled once, which takes the server's timestamps onto the row.
+    await laptop.sync()
+
+    // The overlap window hands this page back on every cycle. Writing it again
+    // would wake every live query on the table for nothing.
+    const db = activeDatabase()!
+    let writes = 0
+    const count = () => {
+      writes += 1
+    }
+    db.pages.hook('updating', count)
+    db.pages.hook('creating', count)
+    try {
+      await laptop.engine.syncOnce()
+    } finally {
+      db.pages.hook('updating').unsubscribe(count)
+      db.pages.hook('creating').unsubscribe(count)
+    }
+    assert.equal(writes, 0)
+  })
+
   it('reports a typed-but-unsynced page as pending rather than synced', async () => {
     await laptop.focus()
     const id = await createPage()

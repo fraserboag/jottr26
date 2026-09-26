@@ -38,6 +38,8 @@ import { initialStatus, type SyncStatus } from './types'
 const OVERLAP_MS = 30_000
 const PAGE_SIZE = 500
 const BLOB_CHUNK = 20
+/** Rows per upsert or purge request. */
+const PUSH_BATCH = 100
 const POLL_INTERVAL_MS = 45_000
 /** How often to check with the server while realtime is not connected, since
  *  nothing else will say when another device has written. */
@@ -98,6 +100,17 @@ export async function countPending(db: JottrDB) {
     db.docStates.where('dirty').equals(1).primaryKeys(),
   ])
   return new Set([...pages, ...docs] as string[]).size
+}
+
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
+/** Whether writing `patch` over `row` would change anything. */
+function changes<T extends object>(row: T, patch: Partial<T>) {
+  return (Object.keys(patch) as Array<keyof T>).some((key) => row[key] !== patch[key])
 }
 
 export class SyncEngine {
@@ -562,30 +575,43 @@ export class SyncEngine {
     await this.pullDocs(signal)
   }
 
-  private async pullPages(signal: AbortSignal) {
-    const cursor = await readMeta<number>(this.db, META_PAGES_CURSOR, 0)
+  /** Every row of `table` changed since `cursor`, less the overlap, oldest
+   *  first, a page of rows at a time. */
+  private async *changedSince<T>(
+    table: string,
+    columns: string,
+    idColumn: string,
+    cursor: number,
+    signal: AbortSignal,
+  ): AsyncGenerator<T[]> {
     const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
-    let offset = 0
-    let newest = cursor
-
-    for (;;) {
+    for (let offset = 0; ; offset += PAGE_SIZE) {
       const { data, error } = await this.supabase
-        .from('pages')
-        .select('*')
+        .from(table)
+        .select(columns)
         .gte('updated_at', since)
         .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
+        .order(idColumn, { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1)
         .abortSignal(signal)
 
       if (error) throw new Error(error.message)
-      const rows = (data ?? []) as ServerPage[]
-      if (rows.length === 0) break
+      const rows = (data ?? []) as T[]
+      if (rows.length > 0) yield rows
+      if (rows.length < PAGE_SIZE) return
+    }
+  }
 
+  private async pullPages(signal: AbortSignal) {
+    const cursor = await readMeta<number>(this.db, META_PAGES_CURSOR, 0)
+    let newest = cursor
+
+    for await (const rows of this.changedSince<ServerPage>('pages', '*', 'id', cursor, signal)) {
       const purged: string[] = []
 
       await this.db.transaction('rw', this.db.pages, async () => {
-        for (const row of rows) {
+        const locals = await this.db.pages.bulkGet(rows.map((row) => row.id))
+        for (const [index, row] of rows.entries()) {
           const serverUpdatedAt = Date.parse(row.updated_at)
           newest = Math.max(newest, serverUpdatedAt)
 
@@ -596,7 +622,7 @@ export class SyncEngine {
             continue
           }
 
-          const local = await this.db.pages.get(row.id)
+          const local = locals[index]
           const server: Pick<PageRow, PageField> = {
             title: row.title,
             parentId: row.parent_id ?? '',
@@ -614,11 +640,12 @@ export class SyncEngine {
             for (const field of PAGE_FIELDS) {
               if (!mine.has(field)) Object.assign(patch, { [field]: server[field] })
             }
+            if (!changes(local, patch)) continue
             await this.db.pages.update(row.id, patch)
             continue
           }
 
-          await this.db.pages.put({
+          const next: PageRow = {
             id: row.id,
             ...server,
             searchText: local?.searchText ?? '',
@@ -628,14 +655,16 @@ export class SyncEngine {
             serverUpdatedAt,
             dirty: 0,
             origin: local?.origin ?? 'remote',
-          })
+          }
+          // The overlap window hands back this device's own recent pushes on
+          // every cycle. Rewriting them unchanged would wake every live query
+          // on the pages table, and re-render the sidebar, for nothing.
+          if (local && !changes(local, next)) continue
+          await this.db.pages.put(next)
         }
       })
 
       await forgetPages(this.db, purged)
-
-      if (rows.length < PAGE_SIZE) break
-      offset += PAGE_SIZE
     }
 
     if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
@@ -643,40 +672,28 @@ export class SyncEngine {
 
   private async pullDocs(signal: AbortSignal) {
     const cursor = await readMeta<number>(this.db, META_DOCS_CURSOR, 0)
-    const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
-    let offset = 0
     let newest = cursor
     const stale: string[] = []
 
     // Versions first, blobs second. Most of what the overlap window returns is
     // this device's own last push, and re-downloading those blobs every cycle
     // would be the single most wasteful thing the app does.
-    for (;;) {
-      const { data, error } = await this.supabase
-        .from('page_docs')
-        .select('page_id, version, updated_at')
-        .gte('updated_at', since)
-        .order('updated_at', { ascending: true })
-        .order('page_id', { ascending: true })
-        .range(offset, offset + PAGE_SIZE - 1)
-        .abortSignal(signal)
-
-      if (error) throw new Error(error.message)
-      const rows = (data ?? []) as Array<{ page_id: string; version: number; updated_at: string }>
-      if (rows.length === 0) break
-
-      for (const row of rows) {
+    type Row = { page_id: string; version: number; updated_at: string }
+    for await (const rows of this.changedSince<Row>(
+      'page_docs',
+      'page_id, version, updated_at',
+      'page_id',
+      cursor,
+      signal,
+    )) {
+      const locals = await this.db.docStates.bulkGet(rows.map((row) => row.page_id))
+      for (const [index, row] of rows.entries()) {
         newest = Math.max(newest, Date.parse(row.updated_at))
-        const local = await this.db.docStates.get(row.page_id)
-        if (!local || local.version !== row.version) stale.push(row.page_id)
+        if (locals[index]?.version !== row.version) stale.push(row.page_id)
       }
-
-      if (rows.length < PAGE_SIZE) break
-      offset += PAGE_SIZE
     }
 
-    for (let i = 0; i < stale.length; i += BLOB_CHUNK) {
-      const chunk = stale.slice(i, i + BLOB_CHUNK)
+    for (const chunk of chunks(stale, BLOB_CHUNK)) {
       const { data, error } = await this.supabase
         .from('page_docs')
         .select('page_id, ydoc, version')
@@ -782,8 +799,7 @@ export class SyncEngine {
     const queued = await this.db.purges.toArray()
     if (queued.length === 0) return
 
-    for (let i = 0; i < queued.length; i += 100) {
-      const batch = queued.slice(i, i + 100)
+    for (const batch of chunks(queued, PUSH_BATCH)) {
       const ids = batch.map((row) => row.id)
       const { error } = await this.supabase.rpc('purge_pages', { p_ids: ids }).abortSignal(signal)
       if (error) throw new Error(error.message)
@@ -795,8 +811,7 @@ export class SyncEngine {
     const dirty = await this.db.pages.where('dirty').equals(1).toArray()
     if (dirty.length === 0) return
 
-    for (let i = 0; i < dirty.length; i += 100) {
-      const batch = dirty.slice(i, i + 100)
+    for (const batch of chunks(dirty, PUSH_BATCH)) {
       const payload = batch.map((page: PageRow) => ({
         id: page.id,
         user_id: this.userId,
