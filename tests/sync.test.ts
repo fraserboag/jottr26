@@ -345,6 +345,11 @@ describe('local-first sync', () => {
     await deleteForever(id)
     await laptop.sync()
 
+    // The pull runs before the purge is sent, while the server row is still
+    // live, and it must not put the page back in the trash meanwhile.
+    assert.equal(await laptop.page(id), undefined, 'the laptop should not bring it back')
+    assert.equal(await activeDatabase()!.docStates.get(id), undefined)
+
     const tombstone = server.pages.get(id)
     assert.ok(tombstone?.purged_at, 'the row should stay behind as a tombstone')
     assert.equal(tombstone?.title, '', 'the tombstone should not keep the title')

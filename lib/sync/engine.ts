@@ -652,11 +652,17 @@ export class SyncEngine {
     for await (const rows of this.changedSince<ServerPage>('pages', '*', 'id', cursor, signal)) {
       const purged: string[] = []
 
-      await this.db.transaction('rw', this.db.pages, async () => {
-        const locals = await this.db.pages.bulkGet(rows.map((row) => row.id))
+      await this.db.transaction('rw', [this.db.pages, this.db.purges], async () => {
+        const ids = rows.map((row) => row.id)
+        const locals = await this.db.pages.bulkGet(ids)
+        const queued = await this.db.purges.bulkGet(ids)
         for (const [index, row] of rows.entries()) {
           const serverUpdatedAt = Date.parse(row.updated_at)
           newest = Math.max(newest, serverUpdatedAt)
+
+          // Deleted for good here, and the server has not heard yet: the pull
+          // runs before the purge is sent, and would put the page back.
+          if (queued[index]) continue
 
           // Deleted for good somewhere. That beats anything this device still
           // has waiting to push: the person emptied it from the trash.
@@ -736,7 +742,12 @@ export class SyncEngine {
       }
     }
 
-    for (const chunk of chunks(stale, BLOB_CHUNK)) {
+    // A page deleted for good here keeps its row on the server until the
+    // purge is sent. Downloading its document would bring it back.
+    const queued = await this.db.purges.bulkGet(stale)
+    const wanted = stale.filter((_, index) => !queued[index])
+
+    for (const chunk of chunks(wanted, BLOB_CHUNK)) {
       const { data, error } = await this.supabase
         .from('page_docs')
         .select('page_id, ydoc, version')
