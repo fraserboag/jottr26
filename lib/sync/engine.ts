@@ -870,16 +870,35 @@ export class SyncEngine {
     const dirty = await this.db.pages.where('dirty').equals(1).toArray()
     if (dirty.length === 0) return
 
-    for (const batch of chunks(dirty, PUSH_BATCH)) {
+    // A row the server already has sends only the fields this device changed,
+    // so it cannot write back a stale value over another device's edit to the
+    // rest. The upsert updates only the columns it is given, and a request
+    // gives every row the same columns, so rows are sent in groups that
+    // changed the same fields.
+    const groups = new Map<string, { fields: Set<PageField>; pages: PageRow[] }>()
+    for (const page of dirty) {
+      const changed = page.serverUpdatedAt ? (page.dirtyFields ?? PAGE_FIELDS) : PAGE_FIELDS
+      const fields = PAGE_FIELDS.filter((field) => changed.includes(field))
+      const key = fields.join()
+      if (!groups.has(key)) groups.set(key, { fields: new Set(fields), pages: [] })
+      groups.get(key)!.pages.push(page)
+    }
+
+    const batches = [...groups.values()].flatMap(({ fields, pages }) =>
+      chunks(pages, PUSH_BATCH).map((batch) => ({ fields, batch })),
+    )
+    for (const { fields, batch } of batches) {
       const payload = batch.map((page: PageRow) => ({
         id: page.id,
         user_id: this.userId,
-        title: page.title,
-        parent_id: page.parentId || null,
-        sort_key: page.sortKey,
-        is_favorite: page.isFavorite === 1,
-        deleted_at: page.deletedAt ? new Date(page.deletedAt).toISOString() : null,
         created_at: new Date(page.createdAt).toISOString(),
+        ...(fields.has('title') && { title: page.title }),
+        ...(fields.has('parentId') && { parent_id: page.parentId || null }),
+        ...(fields.has('sortKey') && { sort_key: page.sortKey }),
+        ...(fields.has('isFavorite') && { is_favorite: page.isFavorite === 1 }),
+        ...(fields.has('deletedAt') && {
+          deleted_at: page.deletedAt ? new Date(page.deletedAt).toISOString() : null,
+        }),
       }))
 
       const { data, error } = await this.supabase

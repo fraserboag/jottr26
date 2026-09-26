@@ -502,6 +502,34 @@ describe('local-first sync', () => {
     assert.ok(server.pages.get(id)?.deleted_at)
   })
 
+  it("pushes only the fields this device changed, keeping another device's move", async () => {
+    await laptop.focus()
+    const target = await createPage()
+    const id = await createPage()
+    await laptop.sync()
+    await phone.sync()
+
+    await laptop.setTitle(id, 'Renamed on the laptop')
+
+    await phone.focus()
+    await movePage(id, target, 0)
+    await phone.sync()
+
+    // The move lands between the laptop's pull and its push. The rename must
+    // not carry the laptop's old parent back up with it.
+    await laptop.pushWithoutPulling()
+    await laptop.sync()
+    await phone.sync()
+
+    assert.equal(server.pages.get(id)?.parent_id, target)
+    assert.equal(server.pages.get(id)?.title, 'Renamed on the laptop')
+    for (const device of [laptop, phone]) {
+      const row = await device.page(id)
+      assert.equal(row?.parentId, target, `${device.name} should have the move`)
+      assert.equal(row?.title, 'Renamed on the laptop', `${device.name} should have the rename`)
+    }
+  })
+
   it('drops pages deleted from the server outright, but keeps ones not yet uploaded', async () => {
     await laptop.focus()
     const gone = await createPage()
