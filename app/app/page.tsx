@@ -5,7 +5,7 @@ import { WorkspaceProvider, useWorkspace } from '@/components/workspace/Workspac
 import { Workspace } from '@/components/workspace/Workspace'
 import { ServiceWorkerManager } from '@/components/ServiceWorkerManager'
 import { SetupNotice } from '@/components/SetupNotice'
-import { Icon } from '@/components/ui/Icon'
+import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { isSupabaseConfigured } from '@/lib/supabase/client'
 
 /** The workspace is client-rendered on purpose.
@@ -33,14 +33,7 @@ function Gate() {
   }, [ready, session])
 
   if (!ready || !session) {
-    return (
-      <div className="grid h-dvh place-items-center bg-surface">
-        <div className="flex items-center gap-1.5 text-muted">
-          <Icon name="refresh" size={16} className="animate-spin" />
-          <span>{ready ? 'Taking you to sign in…' : 'Opening Jottr…'}</span>
-        </div>
-      </div>
-    )
+    return <LoadingScreen label={ready ? 'Taking you to sign in…' : 'Opening Jottr…'} />
   }
 
   return <Workspace />
