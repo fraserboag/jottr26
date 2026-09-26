@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { filterSlashItems, slashAllowed, slashItems } from '@/components/editor/extensions/slash'
-import { headlessEditor, inside, page, paragraph } from './editor'
+import { headlessEditor, inside, page, pageSchema, paragraph } from './editor'
 
 /** Each block, and the words people reach for when they want it. */
 const keywords: Array<[string, string, string[]]> = [
@@ -54,5 +54,16 @@ describe('the slash menu', () => {
     const body = inside(state, 'paragraph', 5)
     assert.equal(slashAllowed(state, { from: title, to: title + 1 }), false)
     assert.equal(slashAllowed(state, { from: body, to: body + 5 }), true)
+  })
+
+  it('stays shut in a code block and in inline code', () => {
+    const block = page(pageSchema.node('codeBlock', null, [pageSchema.text('ls /')]))
+    const inBlock = inside(block, 'codeBlock', 3)
+    assert.equal(slashAllowed(block, { from: inBlock, to: inBlock + 1 }), false)
+
+    const code = pageSchema.marks.code.create()
+    const inline = page(pageSchema.node('paragraph', null, [pageSchema.text('run '), pageSchema.text('cd /', [code])]))
+    const slash = inside(inline, 'paragraph', 'run cd '.length)
+    assert.equal(slashAllowed(inline, { from: slash, to: slash + 1 }), false)
   })
 })

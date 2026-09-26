@@ -113,9 +113,13 @@ export function filterSlashItems(query: string, editor?: Editor): SlashItem[] {
 }
 
 /** Not in the page title. It holds only text, so every block the menu makes
- *  either fails there, having already deleted the query, or lands below it. */
+ *  either fails there, having already deleted the query, or lands below it.
+ *  Nor in code, where a slash is a path or a division, and an Enter to end
+ *  the line would pick the first item and turn the code into a heading. */
 export function slashAllowed(state: EditorState, range: Range) {
-  return state.doc.resolve(range.from).parent.type.name !== 'title'
+  const { parent } = state.doc.resolve(range.from)
+  if (parent.type.name === 'title' || parent.type.spec.code) return false
+  return !state.doc.nodeAt(range.from)?.marks.some((mark) => mark.type.spec.code)
 }
 
 export interface SlashHandlers {
