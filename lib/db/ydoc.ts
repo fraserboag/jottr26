@@ -42,6 +42,9 @@ const handles = new Map<string, DocHandle>()
 /** Documents of pages dropped from this device, which must not write again. */
 const forgotten = new WeakSet<Y.Doc>()
 const loading = new Map<string, Promise<DocHandle>>()
+/** Bumped by releaseAll, so a load that was running when the account signed
+ *  out knows not to hand back a document tied to the closed database. */
+let generation = 0
 const dirtyListeners = new Set<Listener>()
 
 export function onLocalEdit(listener: Listener) {
@@ -240,8 +243,15 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     const db = activeDatabase()
     if (!db) throw new Error('openDoc called before sign-in')
 
+    const started = generation
     const doc = new Y.Doc({ gc: true })
     const { deltaCount } = await loadFromDisk(db, pageId, doc)
+    // Registered, it would be what this page opens to after signing back in,
+    // and its writes, aimed at the closed database, would all be skipped.
+    if (generation !== started) {
+      doc.destroy()
+      throw new Error('Signed out while the page was loading')
+    }
 
     const handle: DocHandle = { pageId, doc, editedAt: 0 }
     let pending = deltaCount
@@ -407,6 +417,7 @@ function collectText(node: Y.XmlElement | Y.XmlFragment): string {
 }
 
 export function releaseAll() {
+  generation += 1
   for (const timer of resaveTimers.values()) clearTimeout(timer)
   resaveTimers.clear()
   if (unsaved.size) {

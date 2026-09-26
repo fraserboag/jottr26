@@ -5,7 +5,7 @@ import { installBrowserGlobals } from './harness'
 
 installBrowserGlobals()
 
-const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
+const { openDatabase, closeDatabase, eraseDatabase } = await import('@/lib/db/dexie')
 const { openDoc, patchDocState, readPlainText, releaseAll, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
@@ -83,5 +83,21 @@ describe('delta compaction', () => {
     assert.equal(state?.version, 7)
     assert.equal(state?.dirty, 1)
     assert.ok((await db.docUpdates.where('pageId').equals('page').count()) < 150, 'it compacted')
+  })
+})
+
+describe('signing out', () => {
+  it('saves edits to a page whose load was still running when the account signed out and back in', async () => {
+    openDatabase('signed-out')
+    const loading = openDoc('page')
+    releaseAll()
+    await loading.catch(() => {})
+    await eraseDatabase('signed-out')
+
+    const db = openDatabase('signed-out')
+    await openDoc('page', { seed: true })
+    await whenPersisted()
+    assert.ok((await db.docUpdates.where('pageId').equals('page').count()) > 0)
+    assert.equal((await db.docStates.get('page'))?.dirty, 1)
   })
 })
