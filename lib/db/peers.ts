@@ -5,7 +5,9 @@
  *  page drift apart until a reload, which to a user is indistinguishable from
  *  broken sync. Deltas are tiny, so the channel stays cheap. */
 
-type PeerMessage = { pageId: string; update: Uint8Array }
+/** `seq` is the row the update was stored as. Missing from a tab running an
+ *  older build. */
+type PeerMessage = { pageId: string; update: Uint8Array; seq?: number }
 type PeerListener = (message: PeerMessage) => void
 
 let channel: BroadcastChannel | null = null
@@ -27,8 +29,8 @@ export function closePeerChannel() {
   channel = null
 }
 
-export function broadcastUpdate(pageId: string, update: Uint8Array) {
-  channel?.postMessage({ pageId, update })
+export function broadcastUpdate(pageId: string, update: Uint8Array, seq: number) {
+  channel?.postMessage({ pageId, update, seq } satisfies PeerMessage)
 }
 
 export function onPeerUpdate(listener: PeerListener) {

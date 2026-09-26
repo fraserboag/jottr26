@@ -322,7 +322,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
 
         // Pulls too: only the leader tab pulls, and without this every other
         // tab showing the page would sit on the old text until a reload.
-        broadcastUpdate(pageId, update)
+        broadcastUpdate(pageId, update, seq as number)
 
         if (isLocal) {
           await patchDocState(db, pageId, (current) => ({ dirty: 1, edits: current.edits + 1 }))
@@ -397,14 +397,20 @@ export function loadedDoc(pageId: string): DocHandle | undefined {
 /** Relay deltas from sibling tabs into whichever documents are open here. One
  *  still loading gets it once loaded, whether or not its read of the disk
  *  already caught the row: applying an update twice changes nothing. */
-onPeerUpdate(({ pageId, update }) => {
+onPeerUpdate(({ pageId, update, seq }) => {
+  // Its row is on disk already, and now in the document too, so a push from
+  // this tab needn't read the page back in to find it.
+  const apply = (doc: Y.Doc) => {
+    Y.applyUpdate(doc, update, PEER_ORIGIN)
+    if (seq !== undefined) held.get(doc)?.add(seq)
+  }
   const handle = handles.get(pageId)
   if (handle) {
-    Y.applyUpdate(handle.doc, update, PEER_ORIGIN)
+    apply(handle.doc)
     return
   }
   loading.get(pageId)?.then(
-    (loaded) => Y.applyUpdate(loaded.doc, update, PEER_ORIGIN),
+    (loaded) => apply(loaded.doc),
     () => {},
   )
 })

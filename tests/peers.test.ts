@@ -9,7 +9,7 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
 const { closePeerChannel, openPeerChannel } = await import('@/lib/db/peers')
-const { applyRemoteUpdate, openDoc, readPlainText, releaseAll, whenPersisted, DOC_FIELD } = await import(
+const { applyRemoteUpdate, openDoc, readPlainText, refreshFromDisk, releaseAll, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
 
@@ -100,5 +100,53 @@ describe('tabs of the same account', () => {
     await whenPersisted()
     assert.equal(await db.docUpdates.where('pageId').equals('received').count(), deltasBefore)
     assert.equal((await db.docStates.get('received'))?.dirty, 0)
+  })
+
+  it("doesn't read a page back off the disk for a row another tab stored and relayed", async () => {
+    const handle = await openDoc('relayed', { seed: true })
+    await whenPersisted()
+
+    // Counts the full reads of this page: snapshot plus every row, in order.
+    type Collection = { sortBy: (...args: unknown[]) => unknown }
+    type Clause = { equals: (...args: unknown[]) => Collection }
+    const table = db.docUpdates as unknown as { where: (...args: unknown[]) => Clause }
+    const where = table.where.bind(table)
+    let reads = 0
+    table.where = (...args: unknown[]) => {
+      const clause = where(...args)
+      const equals = clause.equals.bind(clause)
+      clause.equals = (...value: unknown[]) => {
+        const collection = equals(...value)
+        const sortBy = collection.sortBy.bind(collection)
+        if (value[0] === 'relayed') collection.sortBy = (...rest: unknown[]) => ((reads += 1), sortBy(...rest))
+        return collection
+      }
+      return clause
+    }
+
+    // The other tab stores its edit, then relays it: with the row's seq, or
+    // without, as an older build does.
+    const theirs = new Y.Doc()
+    Y.applyUpdate(theirs, Y.encodeStateAsUpdate(handle.doc))
+    const typeThere = async (text: string, withSeq: boolean) => {
+      const before = Y.encodeStateVector(theirs)
+      ;(theirs.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement).insert(0, [new Y.XmlText(text)])
+      const update = Y.encodeStateAsUpdate(theirs, before)
+      const seq = await db.docUpdates.add({ pageId: 'relayed', update })
+      otherTab.postMessage({ pageId: 'relayed', update, ...(withSeq ? { seq } : {}) })
+      await waitFor(() => readPlainText(handle.doc).includes(text))
+    }
+
+    try {
+      await typeThere('stored there ', true)
+      await refreshFromDisk(handle)
+      assert.equal(reads, 0, 'the relay said which row it was')
+
+      await typeThere('and by an older build ', false)
+      await refreshFromDisk(handle)
+      assert.equal(reads, 1, 'a row with no seq is read in')
+    } finally {
+      delete (table as { where?: unknown }).where
+    }
   })
 })
