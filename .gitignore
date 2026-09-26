@@ -9,3 +9,6 @@ out
 next-env.d.ts
 .vercel
 supabase/.temp/
+
+# local bug list for picking up in later sessions
+/BUGS.md
