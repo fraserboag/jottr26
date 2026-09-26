@@ -22,6 +22,17 @@ export async function touch(
   database: JottrDB = db(),
 ) {
   const fields = Object.keys(patch) as PageField[]
+  await flagEdited(ids, patch, database)
+  // A title follows typing and waits with it; anything else is a deliberate
+  // act on the page that should reach the other devices at once.
+  notifyLocalEdit(fields.every((field) => field === 'title') ? 'text' : 'structure')
+}
+
+/** touch() without telling the sync engine, for a caller making several
+ *  edits in one transaction: the engine counts what is pending straight
+ *  away, and a read begun inside the transaction would be pulled into it. */
+async function flagEdited(ids: string | string[], patch: Partial<Pick<PageRow, PageField>>, database: JottrDB) {
+  const fields = Object.keys(patch) as PageField[]
   await database
     .pages.where('id')
     .anyOf(typeof ids === 'string' ? [ids] : ids)
@@ -37,9 +48,6 @@ export async function touch(
       page.dirtyFields = already && [...new Set([...already, ...fields])]
       page.dirty = 1
     })
-  // A title follows typing and waits with it; anything else is a deliberate
-  // act on the page that should reach the other devices at once.
-  notifyLocalEdit(fields.every((field) => field === 'title') ? 'text' : 'structure')
 }
 
 export function siblingsOf(parentId: string): Promise<PageRow[]> {
@@ -155,9 +163,14 @@ export async function movePage(pageId: string, parentId: string, index: number) 
   while (end < siblings.length && siblings[end].sortKey === after) end += 1
   const run = [...siblings.slice(start, index).map((p) => p.id), pageId, ...siblings.slice(index, end).map((p) => p.id)]
   const keys = generateNKeysBetween(siblings[start - 1]?.sortKey ?? null, siblings[end]?.sortKey ?? null, run.length)
-  for (const [i, id] of run.entries()) {
-    await touch(id, id === pageId ? { parentId, sortKey: keys[i] } : { sortKey: keys[i] })
-  }
+  // All at once, so a push never reads the run half renumbered.
+  const database = db()
+  await database.transaction('rw', database.pages, async () => {
+    for (const [i, id] of run.entries()) {
+      await flagEdited(id, id === pageId ? { parentId, sortKey: keys[i] } : { sortKey: keys[i] }, database)
+    }
+  })
+  notifyLocalEdit('structure')
 }
 
 async function isDescendant(candidate: string, ancestor: string): Promise<boolean> {
