@@ -2,7 +2,7 @@ import { InputRule } from '@tiptap/core'
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
 import { type Command, type EditorState, NodeSelection, Selection, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
-import { isEmptyParagraph, pm } from './helpers'
+import { deleteDividerBefore, isEmptyParagraph, pm } from './helpers'
 
 /** Backspace at the very start of the line under a divider: the divider goes
  *  and the caret stays where it is. ProseMirror would otherwise select the
@@ -12,11 +12,7 @@ export const backspaceAfterDivider: Command = (state, dispatch) => {
   const { selection } = state
   const { $from } = selection
   if (!selection.empty || !$from.parent.isTextblock || $from.parentOffset > 0) return false
-  const line = $from.before()
-  const rule = state.doc.resolve(line).nodeBefore
-  if (rule?.type.name !== 'horizontalRule') return false
-  if (dispatch) dispatch(state.tr.delete(line - rule.nodeSize, line).scrollIntoView())
-  return true
+  return deleteDividerBefore(state, dispatch, $from.before())
 }
 
 /** Where the caret lands when an arrow key carries it off the top (`dir` -1)

@@ -1,6 +1,6 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 import { NodeSelection, Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
-import { caretToLineAbove, pm, removeBlockToAbove, replaceWithEmptyLine, titleStyleAttribute } from './helpers'
+import { backspaceHeading, pm, removeBlockToAbove, replaceWithEmptyLine, titleStyleAttribute } from './helpers'
 
 /** A list of the page's subpages: the pages one level down, each a link — or,
  *  set to a depth of two, the pages two levels down, grouped under the child
@@ -79,17 +79,12 @@ export function leaveSubpagesTitle(): Command {
  *  the list is read from the page's children, so nothing written is lost. One
  *  with words in it is left alone. */
 export function backspaceSubpagesTitle(): Command {
-  return (state, dispatch) => {
-    const { $from, empty } = state.selection
-    if (!empty || $from.parent.type.name !== SUBPAGES_TITLE || $from.parentOffset > 0) return false
-    const pos = $from.before(-1)
-    if ($from.parent.content.size > 0) return caretToLineAbove(state, dispatch, pos)
-
+  return backspaceHeading(SUBPAGES_TITLE, (state, dispatch, pos, list) => {
     // Where the page or a list item can't be left without a line here, the
     // list becomes an empty line, with the caret on it.
-    const end = $from.after(-1)
+    const end = pos + list.nodeSize
     return removeBlockToAbove(state, dispatch, pos, end) || replaceWithEmptyLine(state, dispatch, pos, end)
-  }
+  })
 }
 
 export const SubpagesTitle = Node.create({

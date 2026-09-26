@@ -9,7 +9,7 @@ import {
   type Transaction,
 } from '@tiptap/pm/state'
 import type { EditorView, NodeView, ViewMutationRecord } from '@tiptap/pm/view'
-import { caretToLineAbove, isBlankBody, isEmptyParagraph, pm, removeBlockToAbove, titleStyleAttribute } from './helpers'
+import { backspaceHeading, isBlankBody, openLineAt, pm, removeBlockToAbove, titleStyleAttribute } from './helpers'
 import { nestedList, newFirstItem } from './lists'
 
 /** An accordion: a heading line that owns a box beneath it, which folds away.
@@ -158,20 +158,8 @@ export function enterAccordionBody(): Command {
       return true
     }
 
-    if (dispatch) {
-      const tr = state.tr
-      // Past the heading and into the box.
-      const bodyStart = $from.after() + 1
-      const first = accordion.child(1).firstChild
-      if (isEmptyParagraph(first)) {
-        tr.setSelection(TextSelection.create(tr.doc, bodyStart + 1))
-      } else {
-        tr.insert(bodyStart, state.schema.nodes.paragraph.create())
-        tr.setSelection(TextSelection.create(tr.doc, bodyStart + 1))
-      }
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    // Past the heading and into the box.
+    return openLineAt(state, dispatch, $from.after() + 1)
   }
 }
 
@@ -205,13 +193,7 @@ export function leaveAccordion(): Command {
  *  opened with '>'. One with words in it is left alone, rather than unmaking a
  *  block that has been written in. */
 export function backspaceAccordion(): Command {
-  return (state, dispatch) => {
-    const { $from, empty } = state.selection
-    if (!empty || $from.parent.type.name !== ACCORDION_TITLE || $from.parentOffset > 0) return false
-    const pos = $from.before(-1)
-    if ($from.parent.content.size > 0) return caretToLineAbove(state, dispatch, pos)
-
-    const accordion = $from.node(-1)
+  return backspaceHeading(ACCORDION_TITLE, (state, dispatch, pos, accordion) => {
     const body = accordion.child(1)
     const blocks: PMNode[] = []
     if (!isBlankBody(body)) body.forEach((child) => blocks.push(child))
@@ -223,7 +205,7 @@ export function backspaceAccordion(): Command {
       removeBlockToAbove(state, dispatch, pos, pos + accordion.nodeSize, blocks) ||
       unwrapAccordion()(state, dispatch)
     )
-  }
+  })
 }
 
 /** Backspace, at the very start of the box: up to the end of the heading, so

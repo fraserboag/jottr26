@@ -35,18 +35,26 @@ export const titleStyleAttribute = {
   renderHTML: (attributes: Record<string, unknown>) => (attributes.title ? { 'data-title': 'true' } : {}),
 }
 
+/** A divider straight before `pos` goes, and the caret stays where it is.
+ *  False when there is none. */
+export function deleteDividerBefore(
+  state: EditorState,
+  dispatch: ((tr: Transaction) => void) | undefined,
+  pos: number,
+) {
+  const rule = state.doc.resolve(pos).nodeBefore
+  if (rule?.type.name !== 'horizontalRule') return false
+  if (dispatch) dispatch(state.tr.delete(pos - rule.nodeSize, pos).scrollIntoView())
+  return true
+}
+
 /** Up to the end of the line above the block at `pos`, leaving the block
  *  alone. With nothing above to go to, the caret stays put rather than
  *  selecting the block. A divider straight above goes instead, the caret
  *  staying put, as it does under any line. Always takes the key. */
 export function caretToLineAbove(state: EditorState, dispatch: ((tr: Transaction) => void) | undefined, pos: number) {
-  const $pos = state.doc.resolve(pos)
-  const rule = $pos.nodeBefore
-  if (rule?.type.name === 'horizontalRule') {
-    if (dispatch) dispatch(state.tr.delete(pos - rule.nodeSize, pos).scrollIntoView())
-    return true
-  }
-  const above = Selection.findFrom($pos, -1, true)
+  if (deleteDividerBefore(state, dispatch, pos)) return true
+  const above = Selection.findFrom(state.doc.resolve(pos), -1, true)
   if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
   return true
 }
@@ -71,6 +79,40 @@ export function removeBlockToAbove(
   if (dispatch) {
     const tr = state.tr.replaceWith(pos, end, replacement)
     tr.setSelection(above.map(tr.doc, tr.mapping))
+    dispatch(tr.scrollIntoView())
+  }
+  return true
+}
+
+/** Backspace at the very start of a block's own heading, the `name` node
+ *  that opens it: up to the end of the line above, as Backspace would go from
+ *  any line there is nothing to join into. With the heading empty, `emptied`
+ *  decides what becomes of the block, which starts at `pos`. */
+export function backspaceHeading(
+  name: string,
+  emptied: (
+    state: EditorState,
+    dispatch: ((tr: Transaction) => void) | undefined,
+    pos: number,
+    block: Node,
+  ) => boolean,
+): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.parent.type.name !== name || $from.parentOffset > 0) return false
+    const pos = $from.before(-1)
+    if ($from.parent.content.size > 0) return caretToLineAbove(state, dispatch, pos)
+    return emptied(state, dispatch, pos, $from.node(-1))
+  }
+}
+
+/** The caret onto the empty line at `pos`, or onto a new one put there when
+ *  the block at `pos` is anything else. */
+export function openLineAt(state: EditorState, dispatch: ((tr: Transaction) => void) | undefined, pos: number) {
+  if (dispatch) {
+    const tr = state.tr
+    if (!isEmptyParagraph(state.doc.nodeAt(pos))) tr.insert(pos, state.schema.nodes.paragraph.create())
+    tr.setSelection(TextSelection.create(tr.doc, pos + 1))
     dispatch(tr.scrollIntoView())
   }
   return true

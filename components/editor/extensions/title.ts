@@ -1,6 +1,6 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 import { Selection, TextSelection, type Command } from '@tiptap/pm/state'
-import { isEmptyParagraph, pm } from './helpers'
+import { openLineAt, pm } from './helpers'
 
 /** The document's own top node, requiring a title followed by at least one
  *  block. Because the title is node 0 of the same ProseMirror document, it is
@@ -27,25 +27,9 @@ export function openBodyLine(name: string): Command {
     const { $from, empty } = state.selection
     if (!empty || $from.depth !== 1 || $from.parent.type.name !== name) return false
 
-    const after = $from.after()
-    const first = state.doc.maybeChild($from.index(0) + 1)
-    const paragraph = state.schema.nodes.paragraph
-
     // A page that has only ever had its title typed already opens on a blank
-    // line. Use that one rather than pushing it down under a second.
-    if (isEmptyParagraph(first)) {
-      if (dispatch) {
-        dispatch(state.tr.setSelection(TextSelection.create(state.doc, after + 1)).scrollIntoView())
-      }
-      return true
-    }
-
-    if (dispatch) {
-      const tr = state.tr.insert(after, paragraph.create())
-      tr.setSelection(TextSelection.create(tr.doc, after + 1))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    // line. That one is used rather than pushed down under a second.
+    return openLineAt(state, dispatch, $from.after())
   }
 }
 
