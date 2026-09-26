@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { activeDatabase } from './dexie'
 import { bySortKey, liveChildren } from './pages'
@@ -68,6 +69,55 @@ export function useDocReady(pageId: string): boolean | undefined {
     if (!page) return undefined
     return page.origin === 'local' || (state?.version ?? 0) > 0
   }, [pageId])
+}
+
+/** Written on every pause in typing, and drawn nowhere in the sidebar. */
+const UNDRAWN = new Set<string>(['searchText', 'editedAt'])
+
+function sameForSidebar(a: PageRow, b: PageRow) {
+  const left = a as unknown as Record<string, unknown>
+  const right = b as unknown as Record<string, unknown>
+  for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
+    if (UNDRAWN.has(key)) continue
+    const x = left[key]
+    const y = right[key]
+    if (Array.isArray(x) && Array.isArray(y)) {
+      if (x.length !== y.length || x.some((item, i) => item !== y[i])) return false
+    } else if (!Object.is(x, y)) {
+      return false
+    }
+  }
+  return true
+}
+
+/** The page list with last time's rows kept wherever only the search text or
+ *  edit time moved on, and last time's list itself when that is all that did.
+ *
+ *  Typing rewrites the open page's row every few hundred milliseconds, and the
+ *  live query hands back every row new each time. Passed straight on, the
+ *  whole sidebar tree would be rebuilt and redrawn with every pause. The rows
+ *  kept here carry stale search text, so they are for drawing only. */
+export function reuseRows(previous: readonly PageRow[], next: PageRow[]): PageRow[] {
+  const before = new Map(previous.map((page) => [page.id, page]))
+  let changed = previous.length !== next.length
+  const rows = next.map((page, index) => {
+    const old = before.get(page.id)
+    const kept = old && sameForSidebar(old, page) ? old : page
+    if (kept !== previous[index]) changed = true
+    return kept
+  })
+  return changed ? rows : (previous as PageRow[])
+}
+
+/** `pages` through reuseRows, render to render. */
+export function useDrawnRows(pages: PageRow[]): PageRow[] {
+  const [seen, setSeen] = useState(pages)
+  const [drawn, setDrawn] = useState(pages)
+  if (seen !== pages) {
+    setSeen(pages)
+    setDrawn(reuseRows(drawn, pages))
+  }
+  return drawn
 }
 
 export interface TreeNode {

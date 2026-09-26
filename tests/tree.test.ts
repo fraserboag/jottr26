@@ -9,7 +9,7 @@ const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
 const { createPage, deleteForever, emptyTrash, liveChildren, movePage, restorePage, trashPage } = await import(
   '@/lib/db/pages'
 )
-const { buildTree } = await import('@/lib/db/hooks')
+const { buildTree, reuseRows } = await import('@/lib/db/hooks')
 const { releaseAll, whenPersisted } = await import('@/lib/db/ydoc')
 
 const row = (id: string, parentId = ''): PageRow => ({
@@ -31,6 +31,32 @@ const shape = (nodes: ReturnType<typeof buildTree>): unknown =>
   nodes.map((node) => (node.children.length ? { [node.page.id]: shape(node.children) } : node.page.id))
 
 describe('sidebar tree', () => {
+  it('keeps last time\'s rows, and the list itself, when only search text and edit time moved on', () => {
+    const before = [row('a'), row('b')]
+    const typed = [{ ...before[0], searchText: 'hello', editedAt: 5 }, { ...before[1] }]
+    assert.equal(reuseRows(before, typed), before)
+  })
+
+  it('takes a changed row, and a changed flag list, while keeping the rows around it', () => {
+    const before = [row('a'), { ...row('b'), dirtyFields: ['title' as const] }]
+    const renamed = [{ ...before[0], title: 'A' }, { ...before[1], dirtyFields: ['title' as const] }]
+    const after = reuseRows(before, renamed)
+    assert.notEqual(after, before)
+    assert.equal(after[0], renamed[0])
+    assert.equal(after[1], before[1], 'an equal flag list is not a change')
+
+    const flagged = reuseRows(before, [before[0], { ...before[1], dirtyFields: ['parentId' as const] }])
+    assert.notEqual(flagged[1], before[1])
+  })
+
+  it('follows pages being added, removed and reordered', () => {
+    const before = [row('a'), row('b')]
+    assert.deepEqual(reuseRows(before, [row('b'), row('a')]).map((page) => page.id), ['b', 'a'])
+    assert.notEqual(reuseRows(before, [row('b'), row('a')]), before)
+    assert.deepEqual(reuseRows(before, [row('a')]).map((page) => page.id), ['a'])
+    assert.deepEqual(reuseRows(before, [...before, row('c')]).map((page) => page.id), ['a', 'b', 'c'])
+  })
+
   it('nests pages under their parents, keeping the order they came in', () => {
     const tree = buildTree([row('a'), row('a1', 'a'), row('b'), row('a2', 'a'), row('a1x', 'a1')])
     assert.deepEqual(shape(tree), [{ a: [{ a1: ['a1x'] }, 'a2'] }, 'b'])

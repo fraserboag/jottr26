@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageMenu } from './PageMenu'
@@ -8,7 +8,7 @@ import { PageRowButton, RowActions } from './PageRow'
 import { PageTree } from './PageTree'
 import { SyncStatusRow, useForceSync } from './SyncControls'
 import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
-import { buildTree, type TreeNode } from '@/lib/db/hooks'
+import { buildTree, useDrawnRows, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
 import { toggleExpanded, useExpanded } from '@/lib/util/expanded'
 import { raiseKeyboard } from '@/lib/util/keyboard'
@@ -31,8 +31,11 @@ export function Sidebar({
   const forceSync = useForceSync()
   const expanded = useExpanded()
 
-  const tree: TreeNode[] = useMemo(() => buildTree(pages), [pages])
-  const favourites = useMemo(() => pages.filter((page) => page.isFavorite), [pages])
+  // Typing changes only rows' search text and edit time, which the sidebar
+  // doesn't draw; kept rows mean the tree isn't rebuilt or redrawn for it.
+  const rows = useDrawnRows(pages)
+  const tree: TreeNode[] = useMemo(() => buildTree(rows), [rows])
+  const favourites = useMemo(() => rows.filter((page) => page.isFavorite), [rows])
 
   return (
     <div className="sidebar-tones flex h-full flex-col bg-sidebar">
@@ -163,7 +166,7 @@ function SignOutItem({ close }: { close: () => void }) {
 
 /** A row drawn like the page tree's, flat and without the tree's drag, which
  *  would move the page itself rather than reorder the favourites. */
-function Favourite({
+const Favourite = memo(function Favourite({
   page,
   isOpen,
   onOpen,
@@ -186,7 +189,7 @@ function Favourite({
       </div>
     </li>
   )
-}
+})
 
 function AddPage({ onClick }: { onClick: () => void }) {
   return (
