@@ -85,9 +85,10 @@ create trigger page_docs_touch_updated_at
 -- ---------------------------------------------------------------------------
 -- Row level security. There is no sharing in Jottr, so every policy is the
 -- same sentence: you can only ever touch your own rows. A document also has to
--- belong to a page of yours: the foreign key alone does not check that, since
--- foreign key checks bypass RLS, and a document someone else inserted for your
--- page would leave you unable to save it.
+-- belong to a page of yours, when written and when rewritten: the foreign key
+-- alone does not check that, since foreign key checks bypass RLS, and a
+-- document someone else inserted for your page, or moved onto it by changing
+-- its page_id, would leave you unable to save it.
 -- ---------------------------------------------------------------------------
 alter table public.pages enable row level security;
 alter table public.page_docs enable row level security;
@@ -113,7 +114,13 @@ create policy page_docs_insert on public.page_docs for insert with check (
      where p.id = page_docs.page_id and p.user_id = auth.uid()
   )
 );
-create policy page_docs_update on public.page_docs for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy page_docs_update on public.page_docs for update using (auth.uid() = user_id) with check (
+  auth.uid() = user_id
+  and exists (
+    select 1 from public.pages as p
+     where p.id = page_docs.page_id and p.user_id = auth.uid()
+  )
+);
 create policy page_docs_delete on public.page_docs for delete using (auth.uid() = user_id);
 
 -- A saved document stamps its page row. Realtime carries only pages (see the
