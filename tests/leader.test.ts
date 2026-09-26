@@ -128,6 +128,11 @@ describe('more than one tab', () => {
 
     assert.equal(leading(second), true, 'the tab in front took the lock')
     assert.equal(leading(first), false, 'and the other tab queued up behind it')
+    assert.equal(
+      (first as unknown as { releaseLock: unknown }).releaseLock,
+      null,
+      'letting go of the hold on the lock it lost',
+    )
     assert.ok(server.counts.select > before, 'and synced with it')
     assert.equal(second.getStatus().phase, 'synced')
   })

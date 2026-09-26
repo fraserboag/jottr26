@@ -429,6 +429,9 @@ export class SyncEngine {
     if (this.running && this.isLeader && this.leaderAttempt === attempt) {
       // Another tab came to the front and took over. Queue up behind it, and
       // leave the syncing to it rather than finishing a cycle alongside it.
+      // The hold on the lock it took is let go too, or it waits for good.
+      this.releaseLock?.()
+      this.releaseLock = null
       this.isLeader = false
       this.dropRealtime()
       this.runAbort?.abort()
