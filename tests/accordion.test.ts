@@ -201,6 +201,17 @@ describe('accordion block', () => {
     assert.deepEqual(state.doc.child(1).child(1).children.map((node) => node.textContent), ['text', 'more'])
   })
 
+  it('jumps up to the heading from the start of a Title opening the box, but leaves an empty one be', () => {
+    const titled = page(accordion('Details', [schema.node('heading', null, schema.text('Plan')), paragraph('more')]))
+    const { state, applied } = run(caretAt(titled, inside(titled, 'heading')), backspaceIntoHeading())
+    assert.equal(applied, true)
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+    assert.equal(state.doc.child(1).child(1).child(0).textContent, 'Plan')
+
+    const empty = page(accordion('Details', [schema.node('heading'), paragraph('more')]))
+    assert.equal(run(caretAt(empty, inside(empty, 'heading')), backspaceIntoHeading()).applied, false)
+  })
+
   it('takes an empty first line of the box with it, unless it is the only one', () => {
     const start = page(accordion('Details', [paragraph(), paragraph('more')]))
     const { state } = run(caretAt(start, inside(start, 'accordionBody', 1)), backspaceIntoHeading())

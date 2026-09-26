@@ -233,11 +233,15 @@ export function backspaceAccordion(): Command {
  *
  *  The line you were on stays in the box, since pulling it into the heading
  *  would make body text into heading text. An empty one goes, unless it is
- *  the box's only line, which has to stay. */
+ *  the box's only line, which has to stay. A Title counts once it has words
+ *  in it; an empty one is left to Backspace's usual turning it back into a
+ *  line. */
 export function backspaceIntoHeading(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
-    if (!empty || $from.parentOffset > 0 || $from.depth < 3 || $from.parent.type.name !== 'paragraph') return false
+    const { parent } = $from
+    const line = parent.type.name === 'paragraph' || (parent.type.name === 'heading' && parent.content.size > 0)
+    if (!empty || $from.parentOffset > 0 || $from.depth < 3 || !line) return false
     const body = $from.node(-1)
     if (body.type.name !== ACCORDION_BODY || $from.index(-1) !== 0) return false
 
