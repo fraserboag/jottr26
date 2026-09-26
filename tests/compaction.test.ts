@@ -86,6 +86,14 @@ describe('delta compaction', () => {
   })
 })
 
+describe('opening a page', () => {
+  it('seeds a new page when another load of it is already running', async () => {
+    openDatabase(`compaction-${device++}`)
+    const [, handle] = await Promise.all([openDoc('page'), openDoc('page', { seed: true })])
+    assert.equal(handle.doc.getXmlFragment(DOC_FIELD).length, 2)
+  })
+})
+
 describe('signing out', () => {
   it('saves edits to a page whose load was still running when the account signed out and back in', async () => {
     openDatabase('signed-out')

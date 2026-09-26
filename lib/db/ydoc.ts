@@ -237,7 +237,12 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
   }
 
   const inFlight = loading.get(pageId)
-  if (inFlight) return inFlight
+  if (inFlight) {
+    if (!options?.seed) return inFlight
+    const handle = await inFlight
+    seedDocument(handle.doc)
+    return handle
+  }
 
   const promise = (async (): Promise<DocHandle> => {
     const db = activeDatabase()
