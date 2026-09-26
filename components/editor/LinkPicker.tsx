@@ -99,6 +99,9 @@ export function LinkPicker({
             setIndex(0)
           }}
           onKeyDown={(event) => {
+            // Enter that commits a Japanese, Chinese or Korean word is not
+            // Enter that picks a row. Safari reports it only as key code 229.
+            if (event.nativeEvent.isComposing || event.keyCode === 229) return
             if (event.key === 'ArrowDown') {
               event.preventDefault()
               setIndex((i) => (rows.length ? (i + 1) % rows.length : 0))
