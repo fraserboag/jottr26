@@ -36,6 +36,10 @@ export function LinkPicker({
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
+  // Where the pointer last was. Arrow keys scroll rows under a still cursor,
+  // which fires enter and move events without the mouse going anywhere, so
+  // only a real change of position picks a row — as in the / menu.
+  const pointer = useRef({ x: -1, y: -1 })
 
   // The field opens where it is already in view — in the bubble at the
   // selection, or in the bar over the keyboard — and a plain focus would have
@@ -130,7 +134,12 @@ export function LinkPicker({
               <button
                 type="button"
                 data-active={i === index}
-                onMouseEnter={() => setIndex(i)}
+                onMouseMove={(event) => {
+                  const { clientX: x, clientY: y } = event
+                  if (x === pointer.current.x && y === pointer.current.y) return
+                  pointer.current = { x, y }
+                  if (i !== index) setIndex(i)
+                }}
                 // Without this the editor loses its selection on mousedown, the
                 // bubble menu hides, and the click never lands.
                 onMouseDown={(event) => event.preventDefault()}

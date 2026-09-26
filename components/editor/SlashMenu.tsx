@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import type { SlashItem } from './extensions/slash'
 import { scrollIntoList } from '@/lib/util/scroll'
@@ -8,7 +8,9 @@ import { scrollIntoList } from '@/lib/util/scroll'
 export interface SlashMenuState {
   items: SlashItem[]
   index: number
-  rect: DOMRect | null
+  /** Where the caret is now. A function rather than a rect, since scrolling
+   *  moves the caret without anything else about the menu changing. */
+  measure: (() => DOMRect | null) | null
 }
 
 interface SlashListProps {
@@ -26,25 +28,32 @@ const WIDTH = 268
 export function SlashMenu(props: SlashListProps) {
   const { state } = props
 
-  // Positioned against the caret, then nudged back inside the viewport. Flips
-  // above the caret when there is no room below. A plain computation, so it
-  // costs no extra render.
-  const position = useMemo(() => {
-    const rect = state.rect
-    if (!rect) return null
-
-    const height = Math.min(MAX_HEIGHT, state.items.length * ROW + 10)
-    const margin = 8
-    const below = rect.bottom + 8
-    const flip = below + height > window.innerHeight - margin && rect.top > height + margin
-
-    return {
-      top: flip ? rect.top - height - 8 : below,
-      left: Math.min(Math.max(margin, rect.left), window.innerWidth - WIDTH - margin),
+  // The menu is fixed to the viewport, so a scroll or a resize would leave it
+  // behind the caret. Either one redraws it against where the caret now is.
+  const [, remeasure] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => {
+    if (!state.measure) return
+    window.addEventListener('scroll', remeasure, true)
+    window.addEventListener('resize', remeasure)
+    return () => {
+      window.removeEventListener('scroll', remeasure, true)
+      window.removeEventListener('resize', remeasure)
     }
-  }, [state.rect, state.items.length])
+  }, [state.measure])
 
-  if (!position) return null
+  // Positioned against the caret, then nudged back inside the viewport. Flips
+  // above the caret when there is no room below.
+  const rect = state.measure?.()
+  if (!rect) return null
+
+  const height = Math.min(MAX_HEIGHT, state.items.length * ROW + 10)
+  const margin = 8
+  const below = rect.bottom + 8
+  const flip = below + height > window.innerHeight - margin && rect.top > height + margin
+  const position = {
+    top: flip ? rect.top - height - 8 : below,
+    left: Math.min(Math.max(margin, rect.left), window.innerWidth - WIDTH - margin),
+  }
 
   return (
     <div

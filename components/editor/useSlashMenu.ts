@@ -33,12 +33,12 @@ export function useSlashMenu() {
     const handlers: SlashHandlers = {
       onStart: (props) => {
         slashRef.current = { items: props.items, index: 0, command: props.command }
-        setSlash({ items: props.items, index: 0, rect: props.clientRect?.() ?? null })
+        setSlash({ items: props.items, index: 0, measure: props.clientRect ?? null })
       },
       onUpdate: (props) => {
         const index = Math.min(slashRef.current.index, Math.max(0, props.items.length - 1))
         slashRef.current = { items: props.items, index, command: props.command }
-        setSlash({ items: props.items, index, rect: props.clientRect?.() ?? null })
+        setSlash({ items: props.items, index, measure: props.clientRect ?? null })
       },
       onKeyDown: ({ event }) => {
         if (slashRef.current.items.length === 0 && event.key !== 'Escape') return false
