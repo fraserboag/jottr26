@@ -72,8 +72,11 @@ export class FakeServer {
   /** What each client's realtime subscription was given, to fire events at. */
   realtimeHandlers: Array<(event: { new: Record<string, unknown> }) => void> = []
   maxRpcInFlight = 0
+  /** Runs once a select has been answered, as another device writing between
+   *  two page fetches would. */
+  afterSelect: ((table: string) => void) | null = null
 
-  private stamp() {
+  stamp() {
     this.clock += 1
     return new Date(this.clock).toISOString()
   }
@@ -89,7 +92,7 @@ export class FakeServer {
       let limit: number | null = null
       let inList: string[] | null = null
       let unpurgedOnly = false
-      let range: [number, number] | null = null
+      let keyset: { at: string; column: string; id: string } | null = null
       let signal: AbortSignal | null = null
       const orders: string[] = []
 
@@ -127,8 +130,15 @@ export class FakeServer {
                 : 1,
             )
         }
-        if (range) rows = rows.slice(range[0], range[1] + 1)
+        if (keyset) {
+          const { at, column, id } = keyset
+          rows = rows.filter((row) => {
+            const key = String((row as unknown as Record<string, unknown>)[column])
+            return row.updated_at > at || (row.updated_at === at && key > id)
+          })
+        }
         if (limit !== null) rows = rows.slice(0, limit)
+        this.afterSelect?.(table)
         return { data: rows, error: null }
       }
 
@@ -138,7 +148,13 @@ export class FakeServer {
         gt: (_column: string, value: string) => ((afterId = value), builder),
         limit: (value: number) => ((limit = value), builder),
         order: (column: string) => (orders.push(column), builder),
-        range: (a: number, b: number) => ((range = [a, b]), builder),
+        // Only ever the keyset filter `changedSince` pages with.
+        or: (filter: string) => {
+          const match = /^updated_at\.gt\."(.+)",and\(updated_at\.eq\."\1",(\w+)\.gt\."(.+)"\)$/.exec(filter)
+          if (!match) throw new Error(`unexpected filter: ${filter}`)
+          keyset = { at: match[1], column: match[2], id: match[3] }
+          return builder
+        },
         in: (_column: string, values: string[]) => ((inList = values), builder),
         // Only ever `.is('purged_at', null)`.
         is: () => ((unpurgedOnly = true), builder),

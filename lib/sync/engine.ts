@@ -605,29 +605,43 @@ export class SyncEngine {
   }
 
   /** Every row of `table` changed since `cursor`, less the overlap, oldest
-   *  first, a page of rows at a time. */
-  private async *changedSince<T>(
+   *  first, a page of rows at a time.
+   *
+   *  Keyset paging on (updated_at, id): with offsets, a row another device
+   *  edits mid-scan moves to the end and shifts the rest left, so one row is
+   *  never read, and the cursor then moves past it for good. The id breaks
+   *  ties, since one transaction stamps every row it writes with the same
+   *  time. */
+  private async *changedSince<T extends { updated_at: string }>(
     table: string,
     columns: string,
-    idColumn: string,
+    idColumn: keyof T & string,
     cursor: number,
     signal: AbortSignal,
   ): AsyncGenerator<T[]> {
     const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
-    for (let offset = 0; ; offset += PAGE_SIZE) {
-      const { data, error } = await this.supabase
+    let last: T | null = null
+    for (;;) {
+      let query = this.supabase
         .from(table)
         .select(columns)
         .gte('updated_at', since)
         .order('updated_at', { ascending: true })
         .order(idColumn, { ascending: true })
-        .range(offset, offset + PAGE_SIZE - 1)
-        .abortSignal(signal)
+      // The server's own timestamp string, which keeps the microseconds a
+      // Date would round away.
+      if (last) {
+        const at = last.updated_at
+        const id = String(last[idColumn])
+        query = query.or(`updated_at.gt."${at}",and(updated_at.eq."${at}",${idColumn}.gt."${id}")`)
+      }
+      const { data, error } = await query.limit(PAGE_SIZE).abortSignal(signal)
 
       if (error) throw new Error(error.message)
-      const rows = (data ?? []) as T[]
+      const rows = (data ?? []) as unknown as T[]
       if (rows.length > 0) yield rows
       if (rows.length < PAGE_SIZE) return
+      last = rows[rows.length - 1]
     }
   }
 

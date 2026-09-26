@@ -522,6 +522,47 @@ describe('local-first sync', () => {
     assert.ok(await phone.page(fresh), 'a page the server has never seen must survive')
   })
 
+  it('pulls every changed page even when one changes between two page fetches', async () => {
+    // More than one page of changes, as a first sync pulls.
+    const ids: string[] = []
+    for (let i = 0; i < 600; i++) {
+      const id = `bulk-${String(i).padStart(3, '0')}`
+      const at = server.stamp()
+      server.pages.set(id, {
+        id,
+        user_id: 'u',
+        title: id,
+        parent_id: null,
+        sort_key: `a${i}`,
+        deleted_at: null,
+        created_at: at,
+        updated_at: at,
+      })
+      ids.push(id)
+    }
+
+    // Another device edits a page the first fetch already returned, which
+    // moves it to the end of the order the pull is reading in.
+    server.afterSelect = (table) => {
+      if (table !== 'pages') return
+      server.afterSelect = null
+      const row = server.pages.get(ids[0])!
+      server.pages.set(ids[0], { ...row, title: 'Edited', updated_at: server.stamp() })
+    }
+
+    const tablet = new Device('tablet')
+    await tablet.sync()
+
+    await tablet.focus()
+    const pulled = await activeDatabase()!.pages.bulkGet(ids)
+    assert.deepEqual(
+      ids.filter((_, index) => !pulled[index]),
+      [],
+      'every page should arrive',
+    )
+    assert.equal(pulled[0]?.title, 'Edited')
+  })
+
   it('keeps literal angle brackets in a title', async () => {
     await laptop.focus()
     const id = await createPage()
