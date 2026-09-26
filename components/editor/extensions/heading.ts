@@ -1,4 +1,5 @@
-import { Node, textblockTypeInputRule } from '@tiptap/core'
+import { isNodeActive, Node, textblockTypeInputRule } from '@tiptap/core'
+import type { EditorState } from '@tiptap/pm/state'
 import { ACCORDION_TITLE } from './accordion'
 import { SUBPAGES_TITLE } from './subpages'
 
@@ -14,6 +15,12 @@ declare module '@tiptap/core' {
       setTitle: () => ReturnType
     }
   }
+}
+
+/** The heading the caret is in that has to stay the node it is, if any. Read
+ *  from the command's own state, which a chain has moved on from the editor's. */
+function ownHeading(state: EditorState) {
+  return [ACCORDION_TITLE, SUBPAGES_TITLE].find((name) => state.schema.nodes[name] && isNodeActive(state, name))
 }
 
 /** A title inside the page body: one size only, a step up from body text.
@@ -49,16 +56,16 @@ export const Heading = Node.create({
     return {
       toggleTitle:
         () =>
-        ({ editor, commands }) => {
-          const own = [ACCORDION_TITLE, SUBPAGES_TITLE].find((name) => editor.isActive(name))
+        ({ state, commands }) => {
+          const own = ownHeading(state)
           return own
-            ? commands.updateAttributes(own, { title: !editor.isActive(own, { title: true }) })
+            ? commands.updateAttributes(own, { title: !isNodeActive(state, own, { title: true }) })
             : commands.toggleNode(this.name, 'paragraph')
         },
       setTitle:
         () =>
-        ({ editor, commands }) => {
-          const own = [ACCORDION_TITLE, SUBPAGES_TITLE].find((name) => editor.isActive(name))
+        ({ state, commands }) => {
+          const own = ownHeading(state)
           return own ? commands.updateAttributes(own, { title: true }) : commands.setNode(this.name)
         },
     }
