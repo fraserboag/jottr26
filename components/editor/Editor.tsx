@@ -4,23 +4,10 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
 import type { Extensions } from '@tiptap/core'
 import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { TableKit } from '@tiptap/extension-table'
-import { AccordionKit } from './extensions/accordion'
-import { Callout } from './extensions/callout'
-import { CodeBlockExit } from './extensions/codeBlock'
-import { Divider } from './extensions/divider'
-import { Subpages, SubpagesTitle } from './extensions/subpages'
-import { ListItem } from './extensions/lists'
-import { FormattingMarks } from './extensions/marks'
-import { Heading } from './extensions/heading'
-import { FinanceTable } from './extensions/finance'
-import { ScrollingTableView } from './extensions/tableView'
-import { JottrDocument, Title } from './extensions/title'
-import { SelectLine } from './extensions/selectLine'
-import { SelectBlock } from './extensions/selectBlock'
+import { pageExtensions } from './extensions/page'
+import { Subpages } from './extensions/subpages'
 import { createSlashExtension } from './extensions/slash'
 import { slashHandlers } from './slashBridge'
 import { SlashMenu } from './SlashMenu'
@@ -86,83 +73,23 @@ function Loader({ pageId }: { pageId: string }) {
 /** Everything the editor is built from, for one page's document. */
 function editorExtensions(doc: Y.Doc, pageId: string): Extensions {
   return [
-    JottrDocument,
-    Title,
-    StarterKit.configure({
-      document: false,
-      // Collaboration brings its own Yjs-aware undo stack. Keeping
-      // ProseMirror's would undo other devices' edits along with yours.
-      undoRedo: false,
-      // StarterKit brings Heading unless this is exactly false. Its six
-      // levels give way to the one-size Heading added below.
-      heading: false,
-      // Same again for Blockquote: without this, '>' and Mod-Shift-B still
-      // make quotes. A callout is the block that sets a passage apart, and
-      // '>' opens an accordion instead.
-      blockquote: false,
-      // Added below instead, as a version whose first line can be an
-      // accordion.
-      listItem: false,
-      // Added below instead, as versions a new line doesn't carry over.
-      bold: false,
-      italic: false,
-      underline: false,
-      strike: false,
-      code: false,
-      link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
-      // Enter's way out is CodeBlockExit's, below, rather than Tiptap's
-      // two blank lines.
-      codeBlock: { HTMLAttributes: { spellcheck: 'false' }, exitOnTripleEnter: false },
-      // Added below instead, as a version whose '---' reuses a blank line
-      // already under it.
-      horizontalRule: false,
-      // The accent, like every other drop line and resize handle, rather
-      // than the text colour it defaults to.
-      dropcursor: { color: 'var(--accent)' },
-    }),
-    ...FormattingMarks,
-    Heading,
-    SelectLine,
-    SelectBlock,
-    ListItem,
-    Callout,
-    CodeBlockExit,
-    Divider,
-    Subpages.extend({
-      addNodeView: () =>
-        ReactNodeViewRenderer(SubpageList, {
-          // The entries, headings and buttons are the list's own: a click
-          // opens a page or adds one and a drag reorders, and
-          // ProseMirror would read any of them as an edit to the
-          // document. The block's own heading is written in like any other
-          // line.
-          stopEvent: ({ event }) =>
-            event.target instanceof Element &&
-            !event.target.closest('.subpages-title') &&
-            !!event.target.closest('li, .subpages-group-head, button, a'),
-        }),
-    }).configure({ pageId }),
-    SubpagesTitle,
-    ...AccordionKit,
-    // Rows, cells and headers come from the kit; the table node itself is
-    // the finance-aware one, so its extra attribute and plugin are in the
-    // schema from the start.
-    TableKit.configure({ table: false }),
-    FinanceTable.configure({
-      resizable: true,
-      // Dragging a line trades width between the two columns either side
-      // of it (see tableResize.ts), and never takes away a table's last
-      // unsized column, so the table keeps filling the page. This is the
-      // floor a drag stops at; the columns nobody dragged stop shrinking
-      // sooner, and the table scrolls.
-      cellMinWidth: 40,
-      // The table's own edges are not lines between columns.
-      lastColumnResizable: false,
-      View: ScrollingTableView,
-      // Only reaches serialised HTML: while the editor is editable the
-      // resizing plugin renders the table through TableView, which brings
-      // the wrapper the sideways scroll hangs off.
-      renderWrapper: true,
+    ...pageExtensions({
+      // The list's React view, which the shared list leaves out so it loads
+      // under Node.
+      subpages: Subpages.extend({
+        addNodeView: () =>
+          ReactNodeViewRenderer(SubpageList, {
+            // The entries, headings and buttons are the list's own: a click
+            // opens a page or adds one and a drag reorders, and
+            // ProseMirror would read any of them as an edit to the
+            // document. The block's own heading is written in like any other
+            // line.
+            stopEvent: ({ event }) =>
+              event.target instanceof Element &&
+              !event.target.closest('.subpages-title') &&
+              !!event.target.closest('li, .subpages-group-head, button, a'),
+          }),
+      }).configure({ pageId }),
     }),
     Collaboration.configure({ document: doc }),
     Placeholder.configure({
