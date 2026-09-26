@@ -86,6 +86,57 @@ describe('delta compaction', () => {
   })
 })
 
+describe('where the compacted page is kept', () => {
+  const rows = (db: ReturnType<typeof openDatabase>) => db.docUpdates.where('pageId').equals('page').count()
+
+  it('keeps it out of the row every edit rewrites', async () => {
+    const { db, text } = await freshPage()
+    for (let i = 0; i < 200; i += 1) text.insert(text.length, 'x')
+    await whenPersisted()
+
+    assert.equal((await db.docStates.get('page'))?.snapshot.byteLength, 0)
+    assert.ok((await rows(db)) < 150, 'it compacted')
+    assert.equal(readPlainText(await reload()), '\n' + 'x'.repeat(200) + '\n')
+  })
+
+  it("moves a page an older build compacted out of that row on the first edit, and not before", async () => {
+    const db = openDatabase(`compaction-${device++}`)
+    const old = new Y.Doc()
+    const paragraph = new Y.XmlElement('paragraph')
+    old.getXmlFragment(DOC_FIELD).insert(0, [new Y.XmlElement('title'), paragraph])
+    paragraph.insert(0, [new Y.XmlText('from the old build')])
+    await db.docStates.put({ pageId: 'page', snapshot: Y.encodeStateAsUpdate(old), version: 3, dirty: 0, edits: 5 })
+
+    const handle = await openDoc('page')
+    await whenPersisted()
+    assert.ok((await db.docStates.get('page'))!.snapshot.byteLength > 0, 'opening alone writes nothing')
+
+    const text = (handle.doc.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement).get(0) as Y.XmlText
+    text.insert(text.length, ', and this one')
+    await whenPersisted()
+
+    const state = (await db.docStates.get('page'))!
+    assert.equal(state.snapshot.byteLength, 0)
+    assert.deepEqual([state.version, state.dirty, state.edits], [3, 1, 6])
+    assert.equal(readPlainText(await reload()), '\nfrom the old build, and this one\n')
+  })
+
+  it('reads a page an older build compacted after this one did', async () => {
+    const { db, text } = await freshPage()
+    for (let i = 0; i < 200; i += 1) text.insert(text.length, 'x')
+    await whenPersisted()
+
+    // What an older build's compaction does: the page into the snapshot, and
+    // every row, this build's compacted one included, deleted.
+    const copy = new Y.Doc()
+    for (const row of await db.docUpdates.where('pageId').equals('page').toArray()) Y.applyUpdate(copy, row.update)
+    await db.docStates.update('page', { snapshot: Y.encodeStateAsUpdate(copy) })
+    await db.docUpdates.where('pageId').equals('page').delete()
+
+    assert.equal(readPlainText(await reload()), '\n' + 'x'.repeat(200) + '\n')
+  })
+})
+
 describe('opening a page', () => {
   it('seeds a new page when another load of it is already running', async () => {
     openDatabase(`compaction-${device++}`)

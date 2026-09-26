@@ -130,16 +130,23 @@ async function compact(db: JottrDB, pageId: string, doc: Y.Doc) {
   }
 }
 
+/** The whole document goes back as a single delta row, not into the doc
+ *  state row's snapshot. That row is rewritten on every keystroke to count
+ *  the edit, and holding the document it made each keystroke a write of the
+ *  whole page. Any snapshot an older build left there is folded in and
+ *  cleared. Both builds read a page as its snapshot plus every row, so either
+ *  can read what the other wrote. */
 async function compactNow(db: JottrDB, pageId: string, doc: Y.Doc) {
   await db.transaction('rw', db.docStates, db.docUpdates, async () => {
     // Caught up and encoded inside the transaction, so it covers every delta
     // row the delete below can reach, including ones this tab never applied.
     // A row written after it opened waits until this commits.
     await catchUp(db, pageId, doc)
-    const snapshot = Y.encodeStateAsUpdate(doc)
-    const existing = await db.docStates.get(pageId)
-    await db.docStates.put({ ...blankDocState(pageId), ...existing, snapshot })
+    const update = Y.encodeStateAsUpdate(doc)
     await db.docUpdates.where('pageId').equals(pageId).delete()
+    await db.docUpdates.add({ pageId, update })
+    const existing = await db.docStates.get(pageId)
+    if (existing?.snapshot?.byteLength) await db.docStates.put({ ...existing, snapshot: new Uint8Array() })
   })
 }
 
@@ -250,7 +257,11 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
 
     const started = generation
     const doc = new Y.Doc({ gc: true })
-    const { deltaCount } = await loadFromDisk(db, pageId, doc)
+    const { state, deltaCount } = await loadFromDisk(db, pageId, doc)
+    // Saved by an older build, the whole document is still in the row every
+    // edit rewrites. The first edit here moves it out. Not on opening: a
+    // first sync opens every page.
+    let snapshotInRow = Boolean(state?.snapshot?.byteLength)
     // Registered, it would be what this page opens to after signing back in,
     // and its writes, aimed at the closed database, would all be skipped.
     if (generation !== started) {
@@ -291,9 +302,9 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
           notifyLocalEdit()
         }
 
-        if (pending >= COMPACT_THRESHOLD) {
+        if (pending >= COMPACT_THRESHOLD || (isLocal && snapshotInRow)) {
           pending = 0
-          await compact(db, pageId, doc)
+          if (await compact(db, pageId, doc)) snapshotInRow = false
         }
       })().catch((error) => markUnsaved(db, handle, error))
       persisting.add(write)

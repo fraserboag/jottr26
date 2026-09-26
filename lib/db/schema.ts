@@ -48,7 +48,10 @@ export type PageField = (typeof PAGE_FIELDS)[number]
 
 export interface DocStateRow {
   pageId: string
-  /** Compacted Yjs state. Deltas since this snapshot live in `docUpdates`. */
+  /** Compacted Yjs state, as builds before 2026-09-26 kept it. Empty once
+   *  this build has compacted the page: the compacted state is then a row in
+   *  `docUpdates`, since this row is rewritten on every edit. Read as the
+   *  base the `docUpdates` rows apply to. */
   snapshot: Uint8Array
   /** Server compare-and-swap token. 0 = the server has never seen this doc. */
   version: number
