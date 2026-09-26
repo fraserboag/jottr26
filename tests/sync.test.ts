@@ -5,8 +5,9 @@ import { FakeServer, installBrowserGlobals, setOnline } from './harness'
 
 installBrowserGlobals()
 
-const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName } =
+const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName, readMeta } =
   await import('@/lib/db/dexie')
+const { META_PAGES_CURSOR } = await import('@/lib/db/schema')
 const { createPage, trashPage, restorePage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
   await import('@/lib/db/pages')
 const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, patchDocState, DOC_FIELD } =
@@ -646,6 +647,53 @@ describe('local-first sync', () => {
       'every page should arrive',
     )
     assert.equal(pulled[0]?.title, 'Edited')
+  })
+
+  it('keeps the pages a first sync pulled before it ran out of time', async () => {
+    for (let i = 0; i < 600; i++) {
+      const id = `slow-${String(i).padStart(3, '0')}`
+      const at = server.stamp()
+      server.pages.set(id, {
+        id,
+        user_id: 'u',
+        title: id,
+        parent_id: null,
+        sort_key: `a${i}`,
+        deleted_at: null,
+        created_at: at,
+        updated_at: at,
+      })
+    }
+
+    // The first fetch is answered, and the link dies before the next.
+    const device = new Device('slow-link')
+    await device.focus()
+    const internals = device.engine as unknown as {
+      cycleTimeoutMs: number
+      retryTimer: ReturnType<typeof setTimeout> | null
+    }
+    internals.cycleTimeoutMs = 50
+    server.afterSelect = (table) => {
+      if (table !== 'pages') return
+      server.afterSelect = null
+      server.stalled = true
+    }
+    try {
+      await device.engine.syncOnce()
+    } finally {
+      server.afterSelect = null
+      server.stalled = false
+      internals.cycleTimeoutMs = 90_000
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    }
+
+    assert.equal(device.phase(), 'error')
+    assert.ok(
+      (await readMeta(activeDatabase()!, META_PAGES_CURSOR, 0)) > 0,
+      'the next sync should carry on from the pages already pulled',
+    )
+    // Only this device has seen them, and every later sync would pull them.
+    for (const id of [...server.pages.keys()]) if (id.startsWith('slow-')) server.pages.delete(id)
   })
 
   it('keeps literal angle brackets in a title', async () => {

@@ -810,9 +810,11 @@ export class SyncEngine {
       })
 
       await forgetPages(this.db, purged)
+      // After each batch rather than once at the end: rows come oldest
+      // first, so a first sync that runs out of time carries on from here
+      // rather than reading every page again, and timing out again.
+      if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
     }
-
-    if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
   }
 
   private async pullDocs(signal: AbortSignal): Promise<Error | null> {
