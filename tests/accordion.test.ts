@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
-import { EditorState, TextSelection } from '@tiptap/pm/state'
+import { EditorState, NodeSelection, Selection, TextSelection } from '@tiptap/pm/state'
 import { liftListItem, sinkListItem, splitListItem } from '@tiptap/pm/schema-list'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
@@ -282,6 +282,40 @@ describe('accordion block', () => {
     }
     assert.deepEqual(extend(4, 21), [4, 29], 'down from above goes on past the box')
     assert.deepEqual(extend(29, 21), [29, 16], 'up from below stops at the heading')
+  })
+
+  it('lands an arrow key on the heading, not on a divider hidden in a folded box', () => {
+    const line = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+    const title = { type: 'title', content: [{ type: 'text', text: 'N' }] }
+    const folded = (...body: object[]) => ({
+      type: 'accordion',
+      attrs: { open: false },
+      content: [
+        { type: 'accordionTitle', content: [{ type: 'text', text: 'Head' }] },
+        { type: 'accordionBody', content: body },
+      ],
+    })
+    // What prosemirror-view does for an arrow key beside a divider: selects it.
+    const arrow = (content: object[], from: number, dir: 1 | -1) => {
+      const instance = headlessEditor({ type: 'doc', content }, 1)
+      const { doc } = instance.state
+      let state = EditorState.create({ doc, plugins: instance.extensionManager.plugins })
+      state = state.apply(state.tr.setSelection(TextSelection.create(doc, from)))
+      const $at = state.selection.$from
+      const target = Selection.findFrom(doc.resolve(dir < 0 ? $at.before() : $at.after()), dir)!
+      assert.ok(target instanceof NodeSelection)
+      return state.applyTransaction(state.tr.setSelection(target)).state
+    }
+
+    // Left from the start of 'below', with a divider ending the box.
+    const up = arrow([title, folded(line('secret'), { type: 'horizontalRule' }), line('below')], 23, -1)
+    assert.ok(up.selection.empty, 'none of the hidden text is selected')
+    assert.equal(up.selection.head, 9, 'at the end of the heading')
+
+    // Right from the end of the heading, with a divider starting the box.
+    const down = arrow([title, folded({ type: 'horizontalRule' }, line('secret')), line('below')], 9, 1)
+    assert.ok(down.selection.empty)
+    assert.equal(down.selection.$head.parent.textContent, 'below', 'on past the box')
   })
 
   it("makes a new accordion from the slash menu on a line inside a box, rather than unwrapping the box", () => {

@@ -322,13 +322,18 @@ const skipFolded = new Plugin({
 
     const { accordion, pos } = hidden
     const titleEnd = pos + accordion.child(0).nodeSize
-    const fromAbove = oldState.selection.head <= pos
+    // Heading into the box from its own heading is going down, as much as
+    // arriving from above the accordion is.
+    const fromAbove = oldState.selection.head < selection.head
     const end = pos + accordion.nodeSize
     // Nothing further down to go to: stay on the heading.
     const head = fromAbove ? (Selection.findFrom(state.doc.resolve(end), 1, true)?.head ?? titleEnd) : titleEnd
     // A selection being extended with Shift keeps its anchor and moves on
-    // past the box, rather than collapsing to a caret.
-    const anchor = selection.empty ? head : selection.anchor
+    // past the box, rather than collapsing to a caret. A block selected in
+    // the box by an arrow key is not one: its anchor is hidden too, and kept
+    // it would select the box's text for the next keystroke to delete.
+    const extending = selection instanceof TextSelection && !selection.empty
+    const anchor = extending ? selection.anchor : head
     return state.tr.setSelection(TextSelection.create(state.doc, anchor, head))
   },
 })
