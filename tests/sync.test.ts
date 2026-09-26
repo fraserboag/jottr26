@@ -128,7 +128,6 @@ const settle = () => whenPersisted()
 
 let laptop: Device
 let phone: Device
-let pageId: string
 
 describe('local-first sync', () => {
   before(async () => {
@@ -140,119 +139,125 @@ describe('local-first sync', () => {
     closeDatabase()
   })
 
-  it('writes a new page to the server, then reports nothing pending', async () => {
-    await laptop.focus()
-    pageId = await createPage()
-    await laptop.setTitle(pageId, 'Groceries')
-    await laptop.type(pageId, 'Oat milk')
+  /** One page, passed back and forth between the two devices. These run in
+   *  order and each builds on the state the one before left behind. */
+  describe('one page on two devices, step by step', () => {
+    let pageId: string
 
-    assert.equal(await laptop.pendingCount(), 1, 'an unsynced page should be counted')
+    it('writes a new page to the server, then reports nothing pending', async () => {
+      await laptop.focus()
+      pageId = await createPage()
+      await laptop.setTitle(pageId, 'Groceries')
+      await laptop.type(pageId, 'Oat milk')
 
-    await laptop.sync()
+      assert.equal(await laptop.pendingCount(), 1, 'an unsynced page should be counted')
 
-    assert.equal(server.pages.size, 1)
-    assert.equal(server.docs.get(pageId)?.version, 1)
-    assert.equal(server.pages.get(pageId)?.title, 'Groceries')
-    assert.equal(await laptop.pendingCount(), 0, 'nothing should be pending after a sync')
-  })
+      await laptop.sync()
 
-  it('delivers the page to a second device', async () => {
-    await phone.sync()
+      assert.equal(server.pages.size, 1)
+      assert.equal(server.docs.get(pageId)?.version, 1)
+      assert.equal(server.pages.get(pageId)?.title, 'Groceries')
+      assert.equal(await laptop.pendingCount(), 0, 'nothing should be pending after a sync')
+    })
 
-    assert.equal(await phone.title(pageId), 'Groceries')
-    assert.match(await phone.text(pageId), /Oat milk/)
-    assert.equal((await phone.page(pageId))?.dirty, 0)
-  })
+    it('delivers the page to a second device', async () => {
+      await phone.sync()
 
-  it('is idempotent: a second sync with no changes writes nothing', async () => {
-    const before = { ...server.counts }
-    await laptop.sync()
-    await phone.sync()
+      assert.equal(await phone.title(pageId), 'Groceries')
+      assert.match(await phone.text(pageId), /Oat milk/)
+      assert.equal((await phone.page(pageId))?.dirty, 0)
+    })
 
-    assert.equal(server.counts.upsert, before.upsert, 'no metadata should be re-pushed')
-    assert.equal(server.counts.rpc, before.rpc, 'no document should be re-pushed')
-  })
+    it('is idempotent: a second sync with no changes writes nothing', async () => {
+      const before = { ...server.counts }
+      await laptop.sync()
+      await phone.sync()
 
-  it('merges edits made on both devices while offline', async () => {
-    setOnline(false)
-    await laptop.type(pageId, ' · Coffee beans')
-    await phone.type(pageId, ' · Bread')
+      assert.equal(server.counts.upsert, before.upsert, 'no metadata should be re-pushed')
+      assert.equal(server.counts.rpc, before.rpc, 'no document should be re-pushed')
+    })
 
-    assert.equal(await laptop.pendingCount(), 1)
-    assert.equal(await phone.pendingCount(), 1)
+    it('merges edits made on both devices while offline', async () => {
+      setOnline(false)
+      await laptop.type(pageId, ' · Coffee beans')
+      await phone.type(pageId, ' · Bread')
 
-    setOnline(true)
-    await laptop.sync()
-    await phone.sync()
+      assert.equal(await laptop.pendingCount(), 1)
+      assert.equal(await phone.pendingCount(), 1)
 
-    const phoneText = await phone.text(pageId)
-    assert.match(phoneText, /Coffee beans/, "the laptop's edit reached the phone")
-    assert.match(phoneText, /Bread/, "the phone's own edit survived the merge")
+      setOnline(true)
+      await laptop.sync()
+      await phone.sync()
 
-    await laptop.sync()
-    const laptopText = await laptop.text(pageId)
-    assert.match(laptopText, /Coffee beans/)
-    assert.match(laptopText, /Bread/)
+      const phoneText = await phone.text(pageId)
+      assert.match(phoneText, /Coffee beans/, "the laptop's edit reached the phone")
+      assert.match(phoneText, /Bread/, "the phone's own edit survived the merge")
 
-    assert.equal(await laptop.pendingCount(), 0)
-    assert.equal(await phone.pendingCount(), 0)
-  })
+      await laptop.sync()
+      const laptopText = await laptop.text(pageId)
+      assert.match(laptopText, /Coffee beans/)
+      assert.match(laptopText, /Bread/)
 
-  it('recovers when the server moves on mid-push', async () => {
-    setOnline(false)
-    await laptop.type(pageId, ' · Butter')
-    await phone.type(pageId, ' · Rice')
-    setOnline(true)
+      assert.equal(await laptop.pendingCount(), 0)
+      assert.equal(await phone.pendingCount(), 0)
+    })
 
-    await laptop.sync()
+    it('recovers when the server moves on mid-push', async () => {
+      setOnline(false)
+      await laptop.type(pageId, ' · Butter')
+      await phone.type(pageId, ' · Rice')
+      setOnline(true)
 
-    // The phone pushes against the version it held before the laptop's write,
-    // which is exactly the race the compare-and-swap exists for.
-    const rejectedBefore = server.counts.rpcRejected
-    await phone.pushWithoutPulling()
+      await laptop.sync()
 
-    assert.ok(
-      server.counts.rpcRejected > rejectedBefore,
-      'the stale push should have been rejected',
-    )
+      // The phone pushes against the version it held before the laptop's write,
+      // which is exactly the race the compare-and-swap exists for.
+      const rejectedBefore = server.counts.rpcRejected
+      await phone.pushWithoutPulling()
 
-    // Rejected, merged, retried — and neither edit lost on the way through.
-    const serverText = new Y.Doc()
-    Y.applyUpdate(serverText, Buffer.from(server.docs.get(pageId)!.ydoc, 'base64'))
-    const merged = readPlainText(serverText)
-    assert.match(merged, /Butter/, "the laptop's edit is still on the server")
-    assert.match(merged, /Rice/, "the phone's edit reached the server")
+      assert.ok(
+        server.counts.rpcRejected > rejectedBefore,
+        'the stale push should have been rejected',
+      )
 
-    assert.equal(await phone.pendingCount(), 0, 'the retry should have settled the document')
-  })
+      // Rejected, merged, retried — and neither edit lost on the way through.
+      const serverText = new Y.Doc()
+      Y.applyUpdate(serverText, Buffer.from(server.docs.get(pageId)!.ydoc, 'base64'))
+      const merged = readPlainText(serverText)
+      assert.match(merged, /Butter/, "the laptop's edit is still on the server")
+      assert.match(merged, /Rice/, "the phone's edit reached the server")
 
-  it('converges on identical documents', async () => {
-    await laptop.sync()
-    await phone.sync()
-    await laptop.sync()
+      assert.equal(await phone.pendingCount(), 0, 'the retry should have settled the document')
+    })
 
-    const a = await laptop.text(pageId)
-    const b = await phone.text(pageId)
-    assert.equal(a, b, 'both devices should hold the same document')
-  })
+    it('converges on identical documents', async () => {
+      await laptop.sync()
+      await phone.sync()
+      await laptop.sync()
 
-  it('merges concurrent renames instead of picking a winner', async () => {
-    setOnline(false)
-    await laptop.setTitle(pageId, ' (weekly)')
-    await phone.setTitle(pageId, ' (Ocado)')
+      const a = await laptop.text(pageId)
+      const b = await phone.text(pageId)
+      assert.equal(a, b, 'both devices should hold the same document')
+    })
 
-    setOnline(true)
-    await laptop.sync()
-    await phone.sync()
-    await laptop.sync()
+    it('merges concurrent renames instead of picking a winner', async () => {
+      setOnline(false)
+      await laptop.setTitle(pageId, ' (weekly)')
+      await phone.setTitle(pageId, ' (Ocado)')
 
-    const title = await laptop.title(pageId)
-    assert.equal(title, await phone.title(pageId), 'titles should converge')
-    assert.match(title, /weekly/, "the laptop's rename survived")
-    assert.match(title, /Ocado/, "the phone's rename survived")
+      setOnline(true)
+      await laptop.sync()
+      await phone.sync()
+      await laptop.sync()
 
-    // The sidebar's denormalised copy has to follow the document.
-    assert.equal((await laptop.page(pageId))?.title, title)
+      const title = await laptop.title(pageId)
+      assert.equal(title, await phone.title(pageId), 'titles should converge')
+      assert.match(title, /weekly/, "the laptop's rename survived")
+      assert.match(title, /Ocado/, "the phone's rename survived")
+
+      // The sidebar's denormalised copy has to follow the document.
+      assert.equal((await laptop.page(pageId))?.title, title)
+    })
   })
 
   it('leaves page rows the server has not changed alone on the next pull', async () => {
