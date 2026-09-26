@@ -58,6 +58,12 @@ describe('searchPages', () => {
     assert.deepEqual(ids, ['d', 'a', 'b', 'c'])
   })
 
+  it('counts typing in a page as editing it, when ranking equal matches', () => {
+    const typedIn = { ...page('e', 'Meeting minutes', '', 1), editedAt: 10 }
+    const ids = searchPages([...pages, typedIn], 'meeting', texts).map((hit) => hit.page.id)
+    assert.deepEqual(ids, ['e', 'a', 'b', 'c'])
+  })
+
   it('quotes the surrounding text for a body match, so you can tell pages apart', () => {
     const hit = searchPages(pages, 'snacks', texts)[0]
     assert.equal(hit.page.id, 'c')

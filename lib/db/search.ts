@@ -24,6 +24,9 @@ function lowerBody(texts: SearchTexts, pageId: string) {
   return body
 }
 
+/** Typing moves `editedAt` and not `updatedAt`, as the sidebar reads it. */
+const lastTouched = (page: PageRow) => Math.max(page.updatedAt, page.editedAt ?? 0)
+
 /** Search runs over the local copy, so it answers as fast as you can type and
  *  keeps working on a train. Titles rank above body matches. */
 export function searchPages(pages: PageRow[], query: string, texts: SearchTexts = new Map()): Hit[] {
@@ -31,7 +34,7 @@ export function searchPages(pages: PageRow[], query: string, texts: SearchTexts 
   if (!q) {
     return pages
       .slice()
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => lastTouched(b) - lastTouched(a))
       .slice(0, 12)
       .map((page) => ({ page, snippet: null }))
   }
@@ -56,7 +59,7 @@ export function searchPages(pages: PageRow[], query: string, texts: SearchTexts 
   }
 
   return scored
-    .sort((a, b) => b.score - a.score || b.hit.page.updatedAt - a.hit.page.updatedAt)
+    .sort((a, b) => b.score - a.score || lastTouched(b.hit.page) - lastTouched(a.hit.page))
     .slice(0, 30)
     .map((entry) => entry.hit)
 }
