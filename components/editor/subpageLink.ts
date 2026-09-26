@@ -27,5 +27,17 @@ export function linkToNewSubpage(
   // linked from nowhere.
   if (!editor.can().setLink(link)) return
   editor.chain().focus().setLink(link).run()
-  void createPage({ id, parentId, title }).then(open)
+  return createPage({ id, parentId, title }).then(open, () => {
+    // The page could not be written, so the link comes back off rather than
+    // point at nothing. An editor closed meanwhile dispatches nothing.
+    const type = editor.schema.marks.link
+    editor.commands.command(({ tr }) => {
+      tr.doc.descendants((node, pos) => {
+        if (node.marks.some((mark) => mark.type === type && mark.attrs.href === link.href)) {
+          tr.removeMark(pos, pos + node.nodeSize, type)
+        }
+      })
+      return tr.docChanged
+    })
+  })
 }

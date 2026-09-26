@@ -5,7 +5,7 @@ import { TextSelection } from '@tiptap/pm/state'
 // For IndexedDB alone. The rest of the fake browser would put the editor on
 // its DOM path, which a headless one cannot take.
 import './harness'
-import { openDatabase, activeDatabase } from '@/lib/db/dexie'
+import { openDatabase, activeDatabase, closeDatabase } from '@/lib/db/dexie'
 import { linkToNewSubpage } from '@/components/editor/subpageLink'
 import { pageHref } from '@/lib/util/links'
 import { headlessEditor } from './editor'
@@ -78,5 +78,17 @@ describe('link to a new subpage', () => {
       ['Budget'],
       'only the linked selection should have made a page',
     )
+  })
+
+  it('takes the link back off when the page cannot be written', async () => {
+    closeDatabase()
+    const plain = editorWith([])
+    selectWord(plain)
+    let opened = false
+    await linkToNewSubpage(plain, 'home', () => {
+      opened = true
+    })
+    assert.equal(opened, false)
+    assert.equal(linkHref(plain), null)
   })
 })
