@@ -15,6 +15,16 @@ const SHELL_CACHE = `jottr-shell-${VERSION}`
 const ASSET_CACHE = 'jottr-assets-v2'
 const KEEP = new Set([SHELL_CACHE, ASSET_CACHE])
 
+/** Every deploy brings new chunks, and the old ones would otherwise stay on
+ *  the device for good. A chunk goes once no cached page loads it and it has
+ *  not been used for this long. Not on age alone: the editor is its own chunk
+ *  that no page's HTML names, and it is kept by being used. */
+const PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000
+/** A chunk in use is re-stamped at most this often, not on every load. */
+const RESTAMP_AFTER_MS = 24 * 60 * 60 * 1000
+const STORED_HEADER = 'x-jottr-stored'
+const ASSET_PATTERN = /\/_next\/static\/[^"'\\\s)]+/g
+
 /** Cached at install so a freshly installed app works offline immediately,
  *  before the user has visited every route. */
 const PAGES = ['/app', '/', '/login']
@@ -161,18 +171,59 @@ async function cachePage(path) {
 async function storeShell(path, response) {
   if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return
   const html = await response.clone().text()
-  const assets = new Set(html.match(/\/_next\/static\/[^"'\\\s)]+/g) ?? [])
+  const assets = new Set(html.match(ASSET_PATTERN) ?? [])
   const assetCache = await caches.open(ASSET_CACHE)
   await Promise.all(
     [...assets].map(async (asset) => {
       if (await assetCache.match(asset)) return
       const fetched = await fetch(asset)
       if (!fetched.ok) throw new Error(`${asset}: ${fetched.status}`)
-      await assetCache.put(asset, fetched)
+      await assetCache.put(asset, stamped(fetched))
     }),
   )
   const cache = await caches.open(SHELL_CACHE)
   await cache.put(path, response)
+  // Only once a fresh shell is in, so what it loads is never mistaken for
+  // something no page needs.
+  if (Date.now() - lastPruned > RESTAMP_AFTER_MS) {
+    lastPruned = Date.now()
+    await pruneAssets(assetCache, cache)
+  }
+}
+
+let lastPruned = 0
+
+/** A copy of the response carrying the time it was stored. Headers on a
+ *  fetched response cannot be changed, so it is rebuilt around the body. */
+function stamped(response, now = Date.now()) {
+  const headers = new Headers(response.headers)
+  headers.set(STORED_HEADER, String(now))
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+}
+
+/** Drops chunks that no cached page loads and that have not been used for
+ *  PRUNE_AFTER_MS. One stored before stamps existed is stamped now rather than
+ *  dropped, so it too gets the full time. Icons and the manifest stay. */
+async function pruneAssets(assetCache, shellCache, now = Date.now()) {
+  const referenced = new Set()
+  for (const request of await shellCache.keys()) {
+    const page = await shellCache.match(request)
+    const html = page ? await page.text() : ''
+    for (const asset of html.match(ASSET_PATTERN) ?? []) {
+      const url = new URL(asset, request.url)
+      referenced.add(url.pathname + url.search)
+    }
+  }
+
+  for (const request of await assetCache.keys()) {
+    const url = new URL(request.url)
+    if (!url.pathname.startsWith('/_next/static/') || referenced.has(url.pathname + url.search)) continue
+    const hit = await assetCache.match(request)
+    if (!hit) continue
+    const stored = Number(hit.headers.get(STORED_HEADER))
+    if (!stored) await assetCache.put(request, stamped(hit, now))
+    else if (now - stored > PRUNE_AFTER_MS) await assetCache.delete(request)
+  }
 }
 
 /** Safe because these URLs are content-hashed by the build. */
@@ -180,10 +231,16 @@ async function cacheFirst(event, cacheName) {
   const { request } = event
   const cache = await caches.open(cacheName)
   const hit = await cache.match(request)
-  if (hit) return hit
+  if (hit) {
+    // Marked as in use, which is what keeps a chunk no page's HTML names.
+    if (!(Date.now() - Number(hit.headers.get(STORED_HEADER)) < RESTAMP_AFTER_MS)) {
+      event.waitUntil(cache.put(request, stamped(hit.clone())))
+    }
+    return hit
+  }
   const response = await fetch(request)
   // Kept alive until written: the worker can be stopped once it has answered.
-  if (response.ok) event.waitUntil(cache.put(request, response.clone()))
+  if (response.ok) event.waitUntil(cache.put(request, stamped(response.clone())))
   return response
 }
 
