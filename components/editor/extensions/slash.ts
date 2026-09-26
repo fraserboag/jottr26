@@ -1,4 +1,5 @@
 import { Extension, type Editor, type Range } from '@tiptap/core'
+import type { EditorState } from '@tiptap/pm/state'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import type { IconName } from '@/components/ui/Icon'
 
@@ -111,6 +112,12 @@ export function filterSlashItems(query: string, editor?: Editor): SlashItem[] {
   )
 }
 
+/** Not in the page title. It holds only text, so every block the menu makes
+ *  either fails there, having already deleted the query, or lands below it. */
+export function slashAllowed(state: EditorState, range: Range) {
+  return state.doc.resolve(range.from).parent.type.name !== 'title'
+}
+
 export interface SlashHandlers {
   onStart: (props: SuggestionProps<SlashItem>) => void
   onUpdate: (props: SuggestionProps<SlashItem>) => void
@@ -133,6 +140,7 @@ export function createSlashExtension(handlers: () => SlashHandlers | null) {
           allowSpaces: false,
           // A slash inside a word is a slash, not a command.
           allowedPrefixes: [' ', '\n'],
+          allow: ({ state, range }) => slashAllowed(state, range),
           items: ({ query, editor }) => filterSlashItems(query, editor),
           command: ({ editor, range, props }) => props.run(editor, range),
           render: () => ({

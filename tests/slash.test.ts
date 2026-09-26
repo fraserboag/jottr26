@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { filterSlashItems } from '@/components/editor/extensions/slash'
+import { filterSlashItems, slashAllowed } from '@/components/editor/extensions/slash'
+import { inside, page, paragraph } from './editor'
 
 /** Each block, and the words people reach for when they want it. */
 const keywords: Array<[string, string, string[]]> = [
@@ -29,5 +30,13 @@ describe('the slash menu', () => {
 
   it("finds only the subpage list for '/sub'", () => {
     assert.deepEqual(filterSlashItems('sub').map((item) => item.id), ['subpages'])
+  })
+
+  it('opens in the body but not in the page title', () => {
+    const state = page(paragraph('Plan /code'))
+    const title = inside(state, 'title', 1)
+    const body = inside(state, 'paragraph', 5)
+    assert.equal(slashAllowed(state, { from: title, to: title + 1 }), false)
+    assert.equal(slashAllowed(state, { from: body, to: body + 5 }), true)
   })
 })
