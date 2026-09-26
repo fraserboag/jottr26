@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
 import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -37,11 +37,14 @@ import { resolveLink } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
 import { useCoarsePointer } from '@/lib/util/pointer'
 
-export function Editor({ pageId }: { pageId: string }) {
+/** Memoised: the workspace around it re-renders whenever the page list does,
+ *  which while typing is every few hundred milliseconds, and none of that
+ *  concerns the editor. */
+export const Editor = memo(function Editor({ pageId }: { pageId: string }) {
   // Keyed, so switching pages remounts with fresh state instead of clearing the
   // old document out from underneath the loader.
   return <Loader key={pageId} pageId={pageId} />
-}
+})
 
 function Loader({ pageId }: { pageId: string }) {
   const [handle, setHandle] = useState<DocHandle | null>(null)

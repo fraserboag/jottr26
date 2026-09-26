@@ -3,12 +3,12 @@
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
+import { EnsureFirstPage } from './EnsureFirstPage'
 import { Sidebar } from './Sidebar'
 import { TrashPage } from './TrashPage'
 import { useWorkspace } from './WorkspaceProvider'
 import { useAllPages } from '@/lib/db/hooks'
 import { toggleFavorite } from '@/lib/db/pages'
-import { ensureFirstPage } from '@/lib/db/welcome'
 import { useOpenPageId, useTrashOpen } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 
@@ -31,7 +31,7 @@ function clampWidth(value: number) {
 }
 
 export function Workspace() {
-  const { userId, status } = useWorkspace()
+  const { userId } = useWorkspace()
   const pages = useAllPages(userId)
   const [openId, open] = useOpenPageId()
   const [trashOpen, openTrash] = useTrashOpen()
@@ -77,16 +77,7 @@ export function Workspace() {
     return () => media.removeEventListener('change', apply)
   }, [])
 
-  // A brand new account gets one page to land on rather than an empty screen.
-  useEffect(() => {
-    if (!userId || !pages || pages.length > 0) return
-    // Only once the server has confirmed the account really is empty. A device
-    // that first opens offline would otherwise write a duplicate page.
-    if (status.lastSyncedAt === null) return
-    void ensureFirstPage().then((id) => {
-      if (id) open(id, { replace: true })
-    })
-  }, [userId, pages, status.lastSyncedAt, open])
+  const landOn = useCallback((id: string) => open(id, { replace: true }), [open])
 
   const byId = useMemo(() => new Map((pages ?? []).map((page) => [page.id, page])), [pages])
   const page = openId ? (byId.get(openId) ?? null) : null
@@ -252,6 +243,8 @@ export function Workspace() {
         dragging ? ' cursor-col-resize select-none [&_button]:cursor-col-resize' : ''
       }`}
     >
+      <EnsureFirstPage pages={pages} onCreated={landOn} />
+
       {/* Kept in the page while shut, so it fades with the drawer's slide both
           ways rather than blinking on and off around it. */}
       {!wide && (

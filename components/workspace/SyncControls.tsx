@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import { useWorkspace } from "./WorkspaceProvider";
+import { useSyncStatus, useWorkspace } from "./WorkspaceProvider";
 import { SyncOverlay } from "./SyncOverlay";
 import type { SyncPhase } from "@/lib/sync/types";
 
@@ -26,7 +26,7 @@ type Overlay = { failure: string | null } | null;
  * caller to render outside the menu that started it, which closes on click.
  */
 export function useForceSync() {
-  const { status, retrySync, syncNow, cancelSync } = useWorkspace();
+  const { forceSync, cancelSync } = useWorkspace();
   const [overlay, setOverlay] = useState<Overlay>(null);
   // Bumped on every start, cancel and close, so a sync that settles after its
   // overlay was dismissed cannot reopen it.
@@ -36,7 +36,7 @@ export function useForceSync() {
     const id = ++attempt.current;
     setOverlay({ failure: null });
     const [result] = await Promise.all([
-      status.phase === "error" ? retrySync() : syncNow(),
+      forceSync(),
       new Promise((resolve) => setTimeout(resolve, OVERLAY_MIN_MS)),
     ]);
     if (attempt.current !== id) return;
@@ -71,7 +71,7 @@ export function useForceSync() {
 }
 
 export function SyncStatusRow({ onForceSync }: { onForceSync: () => void }) {
-  const { status } = useWorkspace();
+  const status = useSyncStatus();
   const visual = look[status.phase];
 
   return (

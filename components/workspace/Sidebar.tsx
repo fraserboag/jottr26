@@ -4,8 +4,8 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageMenu } from './PageMenu'
 import { PageTree } from './PageTree'
-import { SyncStatusRow, useForceSync } from './SyncIndicator'
-import { useWorkspace } from './WorkspaceProvider'
+import { SyncStatusRow, useForceSync } from './SyncControls'
+import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
 import { buildTree, type TreeNode } from '@/lib/db/hooks'
 import { createPage } from '@/lib/db/pages'
 import { toggleExpanded, useExpanded } from '@/lib/util/expanded'
@@ -25,7 +25,7 @@ export function Sidebar({
   trashOpen: boolean
   onOpenTrash: () => void
 }) {
-  const { session, signOut, status } = useWorkspace()
+  const { session } = useWorkspace()
   const forceSync = useForceSync()
   const expanded = useExpanded()
 
@@ -68,26 +68,7 @@ export function Sidebar({
                 }}
               />
               <MenuSeparator />
-              <MenuItem
-                icon={<Icon name="logout" size={14} />}
-                tone="danger"
-                onClick={() => {
-                  // Signing out erases the local copy, so unsynced work has to
-                  // be called out rather than quietly discarded.
-                  if (
-                    status.pending > 0 &&
-                    !window.confirm(
-                      `${status.pending} ${status.pending === 1 ? 'page has' : 'pages have'} changes that haven't reached your account yet. Signing out now will discard them. Continue?`,
-                    )
-                  ) {
-                    return
-                  }
-                  close()
-                  void signOut()
-                }}
-              >
-                Sign out
-              </MenuItem>
+              <SignOutItem close={close} />
             </>
           )}
         </Popover>
@@ -146,6 +127,35 @@ export function Sidebar({
         <SidebarAction icon="trash" label="View Trash" current={trashOpen} onClick={onOpenTrash} />
       </footer>
     </div>
+  )
+}
+
+/** Its own component so that only an open settings menu follows the pending
+ *  count, rather than the whole sidebar. */
+function SignOutItem({ close }: { close: () => void }) {
+  const { signOut } = useWorkspace()
+  const status = useSyncStatus()
+  return (
+    <MenuItem
+      icon={<Icon name="logout" size={14} />}
+      tone="danger"
+      onClick={() => {
+        // Signing out erases the local copy, so unsynced work has to
+        // be called out rather than quietly discarded.
+        if (
+          status.pending > 0 &&
+          !window.confirm(
+            `${status.pending} ${status.pending === 1 ? 'page has' : 'pages have'} changes that haven't reached your account yet. Signing out now will discard them. Continue?`,
+          )
+        ) {
+          return
+        }
+        close()
+        void signOut()
+      }}
+    >
+      Sign out
+    </MenuItem>
   )
 }
 

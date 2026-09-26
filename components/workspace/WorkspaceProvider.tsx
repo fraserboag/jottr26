@@ -3,30 +3,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { storedSession, supabaseClient } from '@/lib/supabase/client'
-import { activeDatabase, closeDatabase, eraseDatabase, openDatabase } from '@/lib/db/dexie'
+import { closeDatabase, eraseDatabase, openDatabase } from '@/lib/db/dexie'
 import { releaseAll } from '@/lib/db/ydoc'
 import { SyncEngine } from '@/lib/sync/engine'
 import { initialStatus, type SyncStatus } from '@/lib/sync/types'
 
+/** What rarely changes: who is signed in, and the actions. Kept apart from the
+ *  sync status, which moves with every keystroke, so that most of the app does
+ *  not re-render each time the pending count does. */
 interface WorkspaceValue {
   session: Session | null
   userId: string | null
   /** True once we know whether there is a session and, if so, the local
    *  database is open. Everything downstream can assume storage is ready. */
   ready: boolean
-  status: SyncStatus
-  /** Both resolve once the sync they start has finished, with how it went —
-   *  or null when there is no engine to ask. */
-  retrySync: () => Promise<SyncStatus | null>
-  syncNow: () => Promise<SyncStatus | null>
+  /** Syncs now, or retries at once if the last attempt failed. Resolves once
+   *  that sync has finished, with how it went — or null when there is no
+   *  engine to ask. */
+  forceSync: () => Promise<SyncStatus | null>
   /** Abandons the sync in progress, for a network that never answers. */
   cancelSync: () => void
   signOut: () => Promise<void>
-  /** Unsynced pages, for the confirmation shown before signing out. */
-  pendingCount: number
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null)
+const SyncStatusContext = createContext<SyncStatus>(initialStatus)
 
 export function useWorkspace() {
   const value = useContext(WorkspaceContext)
@@ -35,13 +36,15 @@ export function useWorkspace() {
 }
 
 export function useSyncStatus() {
-  return useWorkspace().status
+  return useContext(SyncStatusContext)
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
   const [engineStatus, setEngineStatus] = useState<SyncStatus>(initialStatus)
+  // Which account's database is open, so readiness can wait for it.
+  const [openFor, setOpenFor] = useState<string | null>(null)
   const engineRef = useRef<SyncEngine | null>(null)
 
   useEffect(() => {
@@ -91,7 +94,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     openDatabase(userId)
     const engine = new SyncEngine(supabaseClient(), userId)
     engineRef.current = engine
-    const unsubscribe = engine.subscribe(setEngineStatus)
+    // subscribe() hands over the current status straight away, so this is
+    // also the signal that the database is open for this account.
+    const unsubscribe = engine.subscribe((next) => {
+      setOpenFor(userId)
+      setEngineStatus(next)
+    })
     void engine.start()
 
     return () => {
@@ -133,20 +141,35 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId])
 
+  // Read when a sync is forced, to choose between syncing and retrying,
+  // without the actions having to change with every status.
+  const statusRef = useRef(status)
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
+
+  const forceSync = useCallback(async () => {
+    const engine = engineRef.current
+    if (!engine) return null
+    return statusRef.current.phase === 'error' ? engine.retryNow() : engine.syncNow()
+  }, [])
+  const cancelSync = useCallback(() => engineRef.current?.cancelSync(), [])
+
   const value = useMemo<WorkspaceValue>(
     () => ({
       session,
       userId,
-      ready: ready && (!userId || activeDatabase() !== null),
-      status,
-      pendingCount: status.pending,
-      retrySync: async () => (await engineRef.current?.retryNow()) ?? null,
-      syncNow: async () => (await engineRef.current?.syncNow()) ?? null,
-      cancelSync: () => engineRef.current?.cancelSync(),
+      ready: ready && (!userId || openFor === userId),
+      forceSync,
+      cancelSync,
       signOut,
     }),
-    [session, userId, ready, status, signOut],
+    [session, userId, ready, openFor, forceSync, cancelSync, signOut],
   )
 
-  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+  return (
+    <WorkspaceContext.Provider value={value}>
+      <SyncStatusContext.Provider value={status}>{children}</SyncStatusContext.Provider>
+    </WorkspaceContext.Provider>
+  )
 }
