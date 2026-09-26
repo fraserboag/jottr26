@@ -323,12 +323,13 @@ const skipFolded = new Plugin({
     const { accordion, pos } = hidden
     const titleEnd = pos + accordion.child(0).nodeSize
     const fromAbove = oldState.selection.head <= pos
-    if (!fromAbove) return state.tr.setSelection(TextSelection.create(state.doc, titleEnd))
-
     const end = pos + accordion.nodeSize
-    const next = Selection.findFrom(state.doc.resolve(end), 1, true)
     // Nothing further down to go to: stay on the heading.
-    return state.tr.setSelection(next ?? TextSelection.create(state.doc, titleEnd))
+    const head = fromAbove ? (Selection.findFrom(state.doc.resolve(end), 1, true)?.head ?? titleEnd) : titleEnd
+    // A selection being extended with Shift keeps its anchor and moves on
+    // past the box, rather than collapsing to a caret.
+    const anchor = selection.empty ? head : selection.anchor
+    return state.tr.setSelection(TextSelection.create(state.doc, anchor, head))
   },
 })
 
@@ -474,10 +475,12 @@ export const Accordion = Node.create({
 
   addCommands() {
     return {
+      // Unwraps only from the accordion's own heading. On a line inside its
+      // box, a new accordion goes there, as '> ' makes one.
       toggleAccordion:
         () =>
         ({ state, dispatch }) =>
-          findAccordion(state.selection.$from)
+          state.selection.$from.parent.type.name === ACCORDION_TITLE
             ? unwrapAccordion()(state, dispatch)
             : makeAccordion()(state, dispatch),
     }

@@ -82,6 +82,31 @@ describe('divider', () => {
     assert.deepEqual(outline(instance), { blocks: ['horizontalRule', 'paragraph'], caretIn: 1 })
   })
 
+  it("'---' in the page title stays as typed", () => {
+    for (const below of [paragraph(), paragraph('after')]) {
+      const instance = headlessEditor(
+        { type: 'doc', content: [{ type: 'title', content: [{ type: 'text', text: '--' }] }, below] },
+        3,
+      )
+      typeLast(instance, '-')
+      assert.equal(instance.state.doc.child(0).textContent, '---')
+      assert.equal(instance.state.doc.childCount, 2)
+    }
+  })
+
+  it("'---' on the first line of a list item stays as typed", () => {
+    const item = { type: 'listItem', content: [paragraph('--'), paragraph()] }
+    const instance = editor(firstBody + 4, { type: 'bulletList', content: [item] })
+    typeLast(instance, '-')
+    const list = instance.state.doc.child(1)
+    assert.equal(list.type.name, 'bulletList')
+    assert.deepEqual(
+      list.child(0).content.content.map((node) => node.type.name),
+      ['paragraph', 'paragraph'],
+    )
+    assert.equal(list.child(0).child(0).textContent, '---')
+  })
+
   it("'*** ' and '___ ' take the blank line below too", () => {
     for (const typed of ['***', '___']) {
       const instance = editor(firstBody + 3, paragraph(typed), paragraph())

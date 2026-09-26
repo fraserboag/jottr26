@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import * as Y from 'yjs'
+import { EditorState, TextSelection } from '@tiptap/pm/state'
 import { liftListItem, sinkListItem, splitListItem } from '@tiptap/pm/schema-list'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
@@ -15,7 +16,7 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { backspaceAfterList, backspaceNestedItem } from '@/components/editor/extensions/lists'
-import { caretAt, inside, outline, page, pageSchema as schema, paragraph, run } from './editor'
+import { caretAt, headlessEditor, inside, outline, page, pageSchema as schema, paragraph, run } from './editor'
 
 function accordion(title: string, body: Node[] = [paragraph()], open = true) {
   return schema.node('accordion', { open }, [
@@ -256,6 +257,70 @@ describe('accordion block', () => {
     assert.equal(tr?.getMeta('addToHistory'), false)
     assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
     assert.equal(state.selection.$from.parentOffset, 'Details'.length)
+  })
+
+  it('carries a selection being extended with Shift past a folded box, rather than collapsing it', () => {
+    const line = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+    const folded = {
+      type: 'accordion',
+      attrs: { open: false },
+      content: [
+        { type: 'accordionTitle', content: [{ type: 'text', text: 'Head' }] },
+        { type: 'accordionBody', content: [line('hidden')] },
+      ],
+    }
+    const title = { type: 'title', content: [{ type: 'text', text: 'N' }] }
+    const instance = headlessEditor({ type: 'doc', content: [title, line('above'), folded, line('below')] }, 4)
+    const { plugins } = instance.extensionManager
+    const { doc } = instance.state
+    // 'above' opens at 4, the hidden line holds 21, 'below' opens at 29 and
+    // the heading ends at 16.
+    const extend = (anchor: number, head: number) => {
+      const state = EditorState.create({ doc, plugins, selection: TextSelection.create(doc, anchor) })
+      const { selection } = state.apply(state.tr.setSelection(TextSelection.create(doc, anchor, head)))
+      return [selection.anchor, selection.head]
+    }
+    assert.deepEqual(extend(4, 21), [4, 29], 'down from above goes on past the box')
+    assert.deepEqual(extend(29, 21), [29, 16], 'up from below stops at the heading')
+  })
+
+  it("makes a new accordion from the slash menu on a line inside a box, rather than unwrapping the box", () => {
+    const title = { type: 'title', content: [{ type: 'text', text: 'N' }] }
+    const box = {
+      type: 'accordion',
+      attrs: { open: true },
+      content: [
+        { type: 'accordionTitle', content: [{ type: 'text', text: 'Head' }] },
+        { type: 'accordionBody', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] },
+      ],
+    }
+    // Inside 'one', the box's first line.
+    const instance = headlessEditor({ type: 'doc', content: [title, box] }, 12)
+    assert.equal(instance.commands.toggleAccordion(), true)
+    const outer = instance.state.doc.child(1)
+    assert.equal(outer.type.name, 'accordion')
+    assert.equal(outer.child(0).textContent, 'Head')
+    const nested = outer.child(1).child(0)
+    assert.equal(nested.type.name, 'accordion')
+    assert.equal(nested.child(0).textContent, 'one')
+  })
+
+  it('unwraps the accordion from the slash menu in its own heading', () => {
+    const title = { type: 'title', content: [{ type: 'text', text: 'N' }] }
+    const box = {
+      type: 'accordion',
+      attrs: { open: true },
+      content: [
+        { type: 'accordionTitle', content: [{ type: 'text', text: 'Head' }] },
+        { type: 'accordionBody', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] },
+      ],
+    }
+    const instance = headlessEditor({ type: 'doc', content: [title, box] }, 6)
+    assert.equal(instance.commands.toggleAccordion(), true)
+    assert.deepEqual(
+      instance.state.doc.content.content.map((node) => `${node.type.name}:${node.textContent}`),
+      ['title:N', 'paragraph:Head', 'paragraph:one'],
+    )
   })
 })
 

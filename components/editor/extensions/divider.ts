@@ -83,6 +83,10 @@ export const Divider = HorizontalRule.extend({
           handler: (props) => {
             const { state, range } = props
             const $from = state.doc.resolve(range.from)
+            // Where a divider can't take the line's place — the page title, or
+            // a list item's first line — the dashes stay as typed.
+            const index = $from.index(-1)
+            if (!$from.node(-1).canReplaceWith(index, index + 1, this.type)) return null
             const wholeLine = range.from === $from.start() && range.to === $from.end()
             const below = state.doc.nodeAt($from.after())
             const blankBelow = isEmptyParagraph(below)

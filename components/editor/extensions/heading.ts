@@ -9,6 +9,9 @@ declare module '@tiptap/core' {
        *  subpage list's heading, which has to stay that node, its Title style
        *  instead. */
       toggleTitle: () => ReturnType
+      /** The line as a Title, as the slash menu makes it — or, in a heading
+       *  that has to stay the node it is, that heading's Title style. */
+      setTitle: () => ReturnType
     }
   }
 }
@@ -51,6 +54,12 @@ export const Heading = Node.create({
           return own
             ? commands.updateAttributes(own, { title: !editor.isActive(own, { title: true }) })
             : commands.toggleNode(this.name, 'paragraph')
+        },
+      setTitle:
+        () =>
+        ({ editor, commands }) => {
+          const own = [ACCORDION_TITLE, SUBPAGES_TITLE].find((name) => editor.isActive(name))
+          return own ? commands.updateAttributes(own, { title: true }) : commands.setNode(this.name)
         },
     }
   },

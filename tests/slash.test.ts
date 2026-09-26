@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { filterSlashItems, slashAllowed } from '@/components/editor/extensions/slash'
-import { inside, page, paragraph } from './editor'
+import { filterSlashItems, slashAllowed, slashItems } from '@/components/editor/extensions/slash'
+import { headlessEditor, inside, page, paragraph } from './editor'
 
 /** Each block, and the words people reach for when they want it. */
 const keywords: Array<[string, string, string[]]> = [
@@ -30,6 +30,22 @@ describe('the slash menu', () => {
 
   it("finds only the subpage list for '/sub'", () => {
     assert.deepEqual(filterSlashItems('sub').map((item) => item.id), ['subpages'])
+  })
+
+  it("draws an accordion's heading as a Title, which can't become a Title block", () => {
+    const box = {
+      type: 'accordion',
+      content: [
+        { type: 'accordionTitle', content: [{ type: 'text', text: 'Head /ti' }] },
+        { type: 'accordionBody', content: [{ type: 'paragraph' }] },
+      ],
+    }
+    const title = { type: 'title', content: [{ type: 'text', text: 'N' }] }
+    const instance = headlessEditor({ type: 'doc', content: [title, box] }, 13)
+    slashItems.find((item) => item.id === 'title')!.run(instance, { from: 10, to: 13 })
+    const heading = instance.state.doc.child(1).child(0)
+    assert.equal(heading.textContent, 'Head ')
+    assert.equal(heading.attrs.title, true)
   })
 
   it('opens in the body but not in the page title', () => {

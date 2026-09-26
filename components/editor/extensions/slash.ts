@@ -32,7 +32,7 @@ export const slashItems: SlashItem[] = [
     title: 'Title',
     icon: 'title',
     keywords: ['heading', 'header', 'h1', 'h2', 'h3', 'section'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).setNode('heading').run(),
+    run: (editor, range) => editor.chain().focus().deleteRange(range).setTitle().run(),
   },
   {
     id: 'bullet',

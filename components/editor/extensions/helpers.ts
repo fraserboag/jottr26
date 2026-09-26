@@ -4,10 +4,11 @@ import { Selection, TextSelection, type Command, type EditorState, type Transact
 
 /** A keyboard shortcut that tries ProseMirror commands in turn, stopping at the
  *  first that takes the key. The commands are built once, by the caller, not
- *  on every press. */
+ *  on every press. Run straight against the view rather than through
+ *  editor.commands, which dispatches a transaction even when every command
+ *  declines — on Enter and Backspace, one per extension that binds them. */
 export function pm(editor: Editor, ...commands: Command[]) {
-  return () =>
-    editor.commands.command(({ state, dispatch }) => commands.some((command) => command(state, dispatch)))
+  return () => commands.some((command) => command(editor.state, editor.view.dispatch))
 }
 
 export function isEmptyParagraph(node: Node | null | undefined): boolean {
