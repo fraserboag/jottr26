@@ -1,15 +1,14 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
-import { useOpenPageId } from '@/lib/util/route'
+import { FormatButtons, formatFlags, useLinkEditing } from './formatActions'
 import { LinkPicker } from './LinkPicker'
 import { SlashList } from './SlashMenu'
 import { useSlashMenu } from './useSlashMenu'
 import { TableControls, useTableState } from './TableMenu'
-import { linkToNewSubpage } from './subpageLink'
 
 /** The format menu for touch screens: the same actions as the bubble, on a bar
  *  that sits on top of the keyboard for as long as the page is being edited.
@@ -33,31 +32,19 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
       className="max-h-[var(--blocks-height,312px)] p-1.5"
     />
   )
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [linkValue, setLinkValue] = useState('')
-  const [, openPage] = useOpenPageId()
+  const link = useLinkEditing(editor)
   const barRef = useRef<HTMLDivElement>(null)
   const table = useTableState(editor)
 
   const state = useEditorState({
     editor,
     selector: ({ editor: instance }) => ({
+      ...formatFlags(instance),
       focused: instance.isFocused,
       // The same places the bubble stays away from: the title takes no marks,
       // and a code block takes none either.
       hidden: instance.isActive('title') || instance.isActive('codeBlock'),
       selected: !instance.state.selection.empty,
-      bold: instance.isActive('bold'),
-      italic: instance.isActive('italic'),
-      strike: instance.isActive('strike'),
-      code: instance.isActive('code'),
-      link: instance.isActive('link'),
-      heading:
-        instance.isActive('heading') ||
-        instance.isActive('accordionTitle', { title: true }) ||
-        instance.isActive('subpagesTitle', { title: true }),
-      bullet: instance.isActive('bulletList'),
-      ordered: instance.isActive('orderedList'),
       canUndo: instance.can().undo(),
       canRedo: instance.can().redo(),
     }),
@@ -67,17 +54,8 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
   // keep the bar up on its own. The block menu opens wherever '/' was typed,
   // code blocks included, so it brings the bar up even where the formatting
   // stays hidden.
-  const formatting = !state.hidden && (state.focused || linkOpen)
+  const formatting = !state.hidden && (state.focused || link.open)
   const visible = formatting || Boolean(blocks)
-
-  // Going back to the page is the end of the link field, however it happened.
-  useEffect(() => {
-    const onFocus = () => setLinkOpen(false)
-    editor.on('focus', onFocus)
-    return () => {
-      editor.off('focus', onFocus)
-    }
-  }, [editor])
 
   // `position: fixed` pins to the layout viewport, which on iOS carries on
   // underneath the keyboard, so `bottom: 0` would put the bar behind the keys.
@@ -166,21 +144,8 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
   }, [visible, editor])
 
   const closeLink = () => {
-    setLinkOpen(false)
-    setLinkValue('')
+    link.close()
     editor.commands.focus()
-  }
-
-  const applyLink = (href: string) => {
-    setLinkOpen(false)
-    setLinkValue('')
-    editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
-  }
-
-  const clearLink = () => {
-    setLinkOpen(false)
-    setLinkValue('')
-    editor.chain().focus().unsetLink().run()
   }
 
   // A phone keyboard keeps '/' a layer or two down, so the bar types it for
@@ -211,7 +176,7 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
       onBlur={(event) => {
         const next = event.relatedTarget
         if (next instanceof Node && (barRef.current?.contains(next) || editor.view.dom.contains(next))) return
-        setLinkOpen(false)
+        link.close()
       }}
       className="rise-in with-keyboard fixed inset-x-0 top-0 z-40 border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-soft)] data-[keyboard=true]:pb-0"
     >
@@ -223,7 +188,7 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
           <div className="rise-in with-keyboard">{blocks}</div>
         </div>
       )}
-      {!formatting ? null : linkOpen ? (
+      {!formatting ? null : link.open ? (
         <div
           // Padded as the formatting row is, so the bar keeps its height and
           // nothing under it moves when the field opens.
@@ -231,9 +196,9 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
         >
           <LinkPicker
             className="min-w-0 flex-1 pt-1.5"
-            initialHref={linkValue}
-            onApply={applyLink}
-            onUnset={clearLink}
+            initialHref={link.value}
+            onApply={link.apply}
+            onUnset={link.clear}
             onClose={closeLink}
           />
           <ToolButton icon="x" label="Close" onClick={closeLink} />
@@ -258,39 +223,14 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
             {/* Only the formatting scrolls; the block and undo buttons stay
                 pinned at either end so they are always in reach. */}
             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
-              <ToolButton icon="bold" label="Bold" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-              <ToolButton icon="italic" label="Italic" active={state.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-              <ToolButton icon="strike" label="Strikethrough" active={state.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
-              <ToolButton icon="code" label="Inline code" active={state.code} onClick={() => editor.chain().focus().toggleCode().run()} />
-              <ToolButton
-                icon="link"
-                label="Link"
-                active={state.link}
-                // A link needs some text to sit on: either a selection, or the
-                // link the caret is already inside.
-                disabled={!state.selected && !state.link}
-                onClick={() => {
-                  setLinkValue(editor.getAttributes('link').href ?? '')
-                  setLinkOpen(true)
-                }}
+              <FormatButtons
+                editor={editor}
+                pageId={pageId}
+                flags={state}
+                onLink={link.start}
+                separatorClassName="mx-1 h-7 w-px shrink-0 bg-line"
+                selected={state.selected}
               />
-              <ToolButton
-                icon="filePlus"
-                label="Link to a new subpage"
-                // The new page takes its title from the selection, so there has
-                // to be one.
-                disabled={!state.selected}
-                onClick={() => linkToNewSubpage(editor, pageId, openPage)}
-              />
-              <span className="mx-1 h-7 w-px shrink-0 bg-line" />
-              <ToolButton
-                icon="title"
-                label="Title"
-                active={state.heading}
-                onClick={() => editor.chain().focus().toggleTitle().run()}
-              />
-              <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-              <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
             </div>
             <span className="mx-1 h-7 w-px shrink-0 bg-line" />
             <ToolButton icon="undo" label="Undo" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />
