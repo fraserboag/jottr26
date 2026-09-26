@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Palette. Jottr is light only: every colour is defined once here on bare
-   :root, and `color-scheme: light` keeps form controls and scrollbars in step
-   even on a device set to dark.
+   Palette. Every colour is defined here on :root, and re-pointed below for a
+   device set to dark. `color-scheme` keeps form controls and scrollbars in
+   step with whichever is showing.
    --------------------------------------------------------------------------- */
 :root {
   /* Paper on a desk: the page is a faintly warm off-white, and the sidebar a
@@ -52,6 +52,49 @@
   --shadow-pop: 0 2px 6px rgb(23 23 22 / 0.08), 0 12px 32px rgb(23 23 22 / 0.14);
 
   color-scheme: light;
+}
+
+/* Dark follows the device's setting; there is no toggle. Every shade keeps its
+   place relative to the page: the sidebar and the boxes a step darker, menus
+   a step lighter, so a callout, a table's header or the login card read the
+   same way round in both. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1f1f1d;
+    --surface-sunken: #1a1a19;
+    --surface-raised: #2a2a27;
+    --sidebar: #181817;
+    --overlay: rgb(0 0 0 / 0.5);
+
+    --text: #e3e2de;
+    --text-muted: #a3a29c;
+    --text-faint: #6a6964;
+    /* A step lighter, as the light sidebar's are a step darker. */
+    --sidebar-text-muted: #b0afa9;
+    --sidebar-text-faint: #85847e;
+
+    --line: #2e2e2b;
+    --line-strong: #3a3a37;
+
+    --hover: rgb(255 255 255 / 0.05);
+    --active: rgb(255 255 255 / 0.085);
+    --selected: rgb(255 255 255 / 0.065);
+
+    /* The same indigo, lifted so links still pass AA on the dark page. Light
+       enough that a button's text goes dark rather than white. */
+    --accent: #8e96dc;
+    --accent-contrast: #171830;
+    --accent-soft: rgb(142 150 220 / 0.22);
+
+    --ok: #57c26a;
+    --warn: #f0a33a;
+    --danger: #f06565;
+
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.35), 0 4px 14px rgb(0 0 0 / 0.3);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.4), 0 12px 32px rgb(0 0 0 / 0.5);
+
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
