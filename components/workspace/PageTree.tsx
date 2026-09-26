@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { memo, useState, useSyncExternalStore } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { createPage, dropRelative, type DropZone } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { TreeNode } from '@/lib/db/hooks'
 import { PageMenu } from './PageMenu'
+import { PageRowButton, RowActions } from './PageRow'
 
 interface TreeProps {
   nodes: TreeNode[]
@@ -16,26 +17,43 @@ interface TreeProps {
   depth?: number
 }
 
+type Drop = { id: string; zone: DropZone } | null
+
+/** Where a drag would land. Kept outside React state, since it changes on
+ *  every dragover: each row subscribes to whether it is the target, so only
+ *  the rows that gain or lose the indicator re-render. */
+function createDropStore() {
+  let current: Drop = null
+  const listeners = new Set<() => void>()
+  return {
+    get: () => current,
+    set(next: Drop) {
+      if (next?.id === current?.id && next?.zone === current?.zone) return
+      current = next
+      for (const listener of listeners) listener()
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+  }
+}
+
+type DropStore = ReturnType<typeof createDropStore>
+
 export function PageTree(props: TreeProps) {
   const [dragId, setDragId] = useState<string | null>(null)
-  const [drop, setDrop] = useState<{ id: string; zone: DropZone } | null>(null)
+  const [drop] = useState(createDropStore)
 
-  return (
-    <Branch
-      {...props}
-      dragId={dragId}
-      drop={drop}
-      setDragId={setDragId}
-      setDrop={setDrop}
-    />
-  )
+  return <Branch {...props} dragId={dragId} drop={drop} setDragId={setDragId} />
 }
 
 interface BranchProps extends TreeProps {
   dragId: string | null
-  drop: { id: string; zone: DropZone } | null
+  drop: DropStore
   setDragId: (id: string | null) => void
-  setDrop: (value: { id: string; zone: DropZone } | null) => void
 }
 
 function Branch({ nodes, depth = 0, ...rest }: BranchProps) {
@@ -48,7 +66,7 @@ function Branch({ nodes, depth = 0, ...rest }: BranchProps) {
   )
 }
 
-function Row({
+const Row = memo(function Row({
   node,
   depth,
   openId,
@@ -58,29 +76,32 @@ function Row({
   dragId,
   drop,
   setDragId,
-  setDrop,
 }: Omit<BranchProps, 'nodes'> & { node: TreeNode; depth: number }) {
   const { page, children } = node
   const isOpen = openId === page.id
   const isExpanded = expanded.has(page.id)
   const hasChildren = children.length > 0
 
-  const onDragOver = useCallback(
-    (event: React.DragEvent) => {
-      if (!dragId || dragId === page.id) return
-      event.preventDefault()
-      event.dataTransfer.dropEffect = 'move'
-      const rect = event.currentTarget.getBoundingClientRect()
-      const offset = (event.clientY - rect.top) / rect.height
-      // Edges reorder, the middle nests — the same gesture people expect from
-      // every file tree they have used.
-      const zone: DropZone = offset < 0.28 ? 'before' : offset > 0.72 ? 'after' : 'inside'
-      setDrop({ id: page.id, zone })
-    },
-    [dragId, page.id, setDrop],
-  )
+  const onDragOver = (event: React.DragEvent) => {
+    if (!dragId || dragId === page.id) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    const rect = event.currentTarget.getBoundingClientRect()
+    const offset = (event.clientY - rect.top) / rect.height
+    // Edges reorder, the middle nests — the same gesture people expect from
+    // every file tree they have used.
+    const zone: DropZone = offset < 0.28 ? 'before' : offset > 0.72 ? 'after' : 'inside'
+    drop.set({ id: page.id, zone })
+  }
 
-  const active = drop?.id === page.id ? drop.zone : null
+  const active = useSyncExternalStore(
+    drop.subscribe,
+    () => {
+      const target = drop.get()
+      return target?.id === page.id ? target.zone : null
+    },
+    () => null,
+  )
 
   return (
     <li>
@@ -93,18 +114,17 @@ function Row({
         }}
         onDragEnd={() => {
           setDragId(null)
-          setDrop(null)
+          drop.set(null)
         }}
         onDragOver={onDragOver}
-        onDragLeave={() => setDrop(null)}
+        onDragLeave={() => drop.set(null)}
         onDrop={(event) => {
           event.preventDefault()
-          const zone = drop?.zone
-          if (dragId && zone) {
-            void dropRelative(dragId, page.id, zone)
+          if (dragId && active) {
+            void dropRelative(dragId, page.id, active)
           }
           setDragId(null)
-          setDrop(null)
+          drop.set(null)
         }}
         // Each level steps in by one icon's width, so a sub-page's icon sits
         // just past its parent's and the tree reads in clean columns. The
@@ -135,27 +155,9 @@ function Row({
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => onOpen(page.id)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
-        >
-          {!hasChildren && (
-            <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
-              <Icon name="file" size={15} className="text-faint" />
-            </span>
-          )}
-          <span
-            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-ink'}`}
-          >
-            {page.title || 'Untitled'}
-          </span>
-        </button>
+        <PageRowButton page={page} isOpen={isOpen} onOpen={onOpen} icon={!hasChildren} />
 
-        {/* Shown on hover, or while the menu is open, which a touch screen
-            never has, so there they stay, a little faded. Hidden, they take
-            no width, so a long title runs to the row's edge. */}
-        <div className="flex w-0 shrink-0 items-center overflow-hidden opacity-0 transition-opacity group-hover:w-auto group-hover:overflow-visible group-hover:opacity-100 focus-within:w-auto focus-within:overflow-visible focus-within:opacity-100 has-[[aria-expanded=true]]:w-auto has-[[aria-expanded=true]]:overflow-visible has-[[aria-expanded=true]]:opacity-100 pointer-coarse:w-auto pointer-coarse:overflow-visible pointer-coarse:opacity-40">
+        <RowActions>
           <PageMenu page={page} />
 
           <button
@@ -173,7 +175,7 @@ function Row({
           >
             <Icon name="plus" size={16} strokeWidth={2} />
           </button>
-        </div>
+        </RowActions>
       </div>
 
       {hasChildren && isExpanded && (
@@ -187,12 +189,11 @@ function Row({
           dragId={dragId}
           drop={drop}
           setDragId={setDragId}
-          setDrop={setDrop}
         />
       )}
     </li>
   )
-}
+})
 
 function Indicator({ className }: { className: string }) {
   return (

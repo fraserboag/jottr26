@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageMenu } from './PageMenu'
+import { PageRowButton, RowActions } from './PageRow'
 import { PageTree } from './PageTree'
 import { SyncStatusRow, useForceSync } from './SyncControls'
 import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
@@ -178,26 +179,10 @@ function Favourite({
           isOpen ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
         }`}
       >
-        <button
-          type="button"
-          onClick={() => onOpen(page.id)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left pointer-coarse:py-2"
-        >
-          <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
-            <Icon name="file" size={15} className="text-faint" />
-          </span>
-          <span
-            className={`truncate ${isOpen ? 'font-medium text-ink' : '[font-weight:var(--body-weight)] text-ink'}`}
-          >
-            {page.title || 'Untitled'}
-          </span>
-        </button>
-        {/* Shown on hover, or while the menu is open, which a touch screen
-            never has, so there it stays, a little faded. Hidden, it takes
-            no width, so a long title runs to the row's edge. */}
-        <div className="flex w-0 shrink-0 items-center overflow-hidden opacity-0 transition-opacity group-hover:w-auto group-hover:overflow-visible group-hover:opacity-100 focus-within:w-auto focus-within:overflow-visible focus-within:opacity-100 has-[[aria-expanded=true]]:w-auto has-[[aria-expanded=true]]:overflow-visible has-[[aria-expanded=true]]:opacity-100 pointer-coarse:w-auto pointer-coarse:overflow-visible pointer-coarse:opacity-40">
+        <PageRowButton page={page} isOpen={isOpen} onOpen={onOpen} />
+        <RowActions>
           <PageMenu page={page} />
-        </div>
+        </RowActions>
       </div>
     </li>
   )
