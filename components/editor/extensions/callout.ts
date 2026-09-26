@@ -2,6 +2,7 @@ import { mergeAttributes, Node } from '@tiptap/core'
 import { liftEmptyBlock } from '@tiptap/pm/commands'
 import type { Command } from '@tiptap/pm/state'
 import type { ResolvedPos } from '@tiptap/pm/model'
+import { pm } from './helpers'
 
 /** A callout: a padded box that sets a passage apart from the page around it.
  *
@@ -47,12 +48,8 @@ function insideCallout($from: ResolvedPos, name: string) {
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     callout: {
-      /** Wrap the selected blocks in a callout. */
-      setCallout: () => ReturnType
       /** Wrap the selection, or unwrap it if it is already in a callout. */
       toggleCallout: () => ReturnType
-      /** Lift the selection back out of its callout. */
-      unsetCallout: () => ReturnType
     }
   }
 }
@@ -75,25 +72,16 @@ export const Callout = Node.create({
 
   addCommands() {
     return {
-      setCallout:
-        () =>
-        ({ commands }) =>
-          commands.wrapIn(this.name),
       toggleCallout:
         () =>
         ({ commands }) =>
           commands.toggleWrap(this.name),
-      unsetCallout:
-        () =>
-        ({ commands }) =>
-          commands.lift(this.name),
     }
   },
 
   addKeyboardShortcuts() {
     return {
-      Enter: () =>
-        this.editor.commands.command(({ state, dispatch }) => leaveCallout(this.name)(state, dispatch)),
+      Enter: pm(this.editor, leaveCallout(this.name)),
     }
   },
 })

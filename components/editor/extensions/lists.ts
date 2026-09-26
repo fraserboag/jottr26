@@ -1,6 +1,7 @@
 import { ListItem as BaseListItem } from '@tiptap/extension-list'
 import type { Node } from '@tiptap/pm/model'
 import { Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { pm } from './helpers'
 
 /** A list item whose first line can be an accordion as well as a paragraph.
  *
@@ -105,21 +106,15 @@ export function backspaceAfterList(): Command {
   }
 }
 
-const enter = enterNestedList()
-const nestedBackspace = backspaceNestedItem()
-const afterList = backspaceAfterList()
-const backspace: Command = (state, dispatch) => nestedBackspace(state, dispatch) || afterList(state, dispatch)
-
 export const ListItem = BaseListItem.extend({
   content,
 
   addKeyboardShortcuts() {
+    const enter = pm(this.editor, enterNestedList())
     return {
       ...this.parent?.(),
-      Enter: () =>
-        this.editor.commands.command(({ state, dispatch }) => enter(state, dispatch)) ||
-        this.editor.commands.splitListItem(this.name),
-      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
+      Enter: () => enter() || this.editor.commands.splitListItem(this.name),
+      Backspace: pm(this.editor, backspaceNestedItem(), backspaceAfterList()),
     }
   },
 })

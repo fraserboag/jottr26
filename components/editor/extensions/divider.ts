@@ -2,6 +2,7 @@ import { InputRule } from '@tiptap/core'
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
 import { type Command, type EditorState, NodeSelection, Selection, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import { isEmptyParagraph, pm } from './helpers'
 
 /** Backspace at the very start of the line under a divider: the divider goes
  *  and the caret stays where it is. ProseMirror would otherwise select the
@@ -68,7 +69,7 @@ export const Divider = HorizontalRule.extend({
   addKeyboardShortcuts() {
     return {
       ...this.parent?.(),
-      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspaceAfterDivider(state, dispatch)),
+      Backspace: pm(this.editor, backspaceAfterDivider),
       ArrowUp: () => arrowOverDivider(this.editor.view, -1),
       ArrowDown: () => arrowOverDivider(this.editor.view, 1),
     }
@@ -84,7 +85,7 @@ export const Divider = HorizontalRule.extend({
             const $from = state.doc.resolve(range.from)
             const wholeLine = range.from === $from.start() && range.to === $from.end()
             const below = state.doc.nodeAt($from.after())
-            const blankBelow = below?.type.name === 'paragraph' && below.content.size === 0
+            const blankBelow = isEmptyParagraph(below)
             if (!wholeLine || !blankBelow) return rule.handler(props)
 
             const { tr } = state

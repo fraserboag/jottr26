@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core'
 import { Slice, type Node as PMNode } from '@tiptap/pm/model'
 import { Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { pm } from './helpers'
 
 /** The whole page below its title: every block of the body, from the first to
  *  the last, whatever they are — a divider or a table at either end included,
@@ -90,10 +91,7 @@ export const SelectLine = Extension.create({
 
   addKeyboardShortcuts() {
     return {
-      'Mod-a': () =>
-        this.editor.commands.command(
-          ({ state, dispatch }) => selectLine(state, dispatch) || selectBody(state, dispatch),
-        ),
+      'Mod-a': pm(this.editor, selectLine, selectBody),
     }
   },
 })

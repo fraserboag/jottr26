@@ -1,4 +1,6 @@
 import { Node, textblockTypeInputRule } from '@tiptap/core'
+import { ACCORDION_TITLE } from './accordion'
+import { SUBPAGES_TITLE } from './subpages'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -45,7 +47,7 @@ export const Heading = Node.create({
       toggleTitle:
         () =>
         ({ editor, commands }) => {
-          const own = ['accordionTitle', 'subpagesTitle'].find((name) => editor.isActive(name))
+          const own = [ACCORDION_TITLE, SUBPAGES_TITLE].find((name) => editor.isActive(name))
           return own
             ? commands.updateAttributes(own, { title: !editor.isActive(own, { title: true }) })
             : commands.toggleNode(this.name, 'paragraph')

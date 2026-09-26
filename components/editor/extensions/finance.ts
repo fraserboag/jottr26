@@ -22,6 +22,7 @@ import type { Mark, Node, ResolvedPos } from '@tiptap/pm/model'
 import { GapCursor } from '@tiptap/pm/gapcursor'
 import { Table } from '@tiptap/extension-table'
 import { ySyncPluginKey } from 'y-prosemirror'
+import { isCellNode, pm, removeBlockToAbove, replaceWithEmptyLine } from './helpers'
 import { columnTrade } from './tableResize'
 
 /** Finance mode: a per-table switch that formats the numbers in a table as
@@ -299,8 +300,7 @@ export const addRowBelow: Command = (state, dispatch) => {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !isInTable(state)) return false
   const { $from } = selection
-  const role = $from.node($from.depth - 1).type.spec.tableRole
-  if (role !== 'cell' && role !== 'header_cell') return false
+  if (!isCellNode($from.node($from.depth - 1))) return false
 
   if (dispatch) {
     const rect = selectedRect(state)
@@ -322,8 +322,7 @@ export const deleteEmptyRow: Command = (state, dispatch) => {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty || !isInTable(state)) return false
   const { $from } = selection
-  const role = $from.node($from.depth - 1).type.spec.tableRole
-  if (role !== 'cell' && role !== 'header_cell') return false
+  if (!isCellNode($from.node($from.depth - 1))) return false
 
   const rect = selectedRect(state)
   const { map, table } = rect
@@ -333,24 +332,9 @@ export const deleteEmptyRow: Command = (state, dispatch) => {
   }
 
   if (map.height === 1) {
-    if (dispatch) {
-      const pos = rect.tableStart - 1
-      const end = pos + table.nodeSize
-      const $pos = state.doc.resolve(pos)
-      const above = Selection.findFrom($pos, -1)
-      const parent = $pos.parent
-      const index = $pos.index()
-      if (!above || !parent.canReplace(index, index + 1)) {
-        const tr = state.tr.replaceWith(pos, end, state.schema.nodes.paragraph.create())
-        tr.setSelection(TextSelection.create(tr.doc, pos + 1))
-        dispatch(tr.scrollIntoView())
-        return true
-      }
-      const tr = state.tr.delete(pos, end)
-      tr.setSelection(above.map(tr.doc, tr.mapping))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    const pos = rect.tableStart - 1
+    const end = pos + table.nodeSize
+    return removeBlockToAbove(state, dispatch, pos, end) || replaceWithEmptyLine(state, dispatch, pos, end)
   }
 
   if (dispatch) {
@@ -384,8 +368,7 @@ export function gapBelowTable(state: EditorState): Selection | null {
   for (let depth = $head.depth - 1; depth > 0; depth--) {
     // Not the last block in the cell, so there is more of it below.
     if ($head.indexAfter(depth) !== $head.node(depth).childCount) return null
-    const role = $head.node(depth).type.spec.tableRole
-    if (role !== 'cell' && role !== 'header_cell') continue
+    if (!isCellNode($head.node(depth))) continue
     const $cell = state.doc.resolve($head.before(depth))
     if (nextCell($cell, 'vert', 1)) return null
     const $below = state.doc.resolve($cell.after(-1))
@@ -436,15 +419,13 @@ export const FinanceTable = Table.extend({
 
   addKeyboardShortcuts() {
     const parent = this.parent?.() ?? {}
+    const deleteRow = pm(this.editor, deleteEmptyRow)
     return {
       ...parent,
       // The stock binding still gets its turn: deleting a table whose every
       // cell is selected.
-      Backspace: (props) =>
-        this.editor.commands.command(({ state, dispatch }) => deleteEmptyRow(state, dispatch)) ||
-        (parent.Backspace?.(props) ?? false),
-      Enter: () =>
-        this.editor.commands.command(({ state, dispatch }) => addRowBelow(state, dispatch)),
+      Backspace: (props) => deleteRow() || (parent.Backspace?.(props) ?? false),
+      Enter: pm(this.editor, addRowBelow),
       ArrowDown: () => {
         const { view } = this.editor
         const below = view.endOfTextblock('down') && gapBelowTable(view.state)

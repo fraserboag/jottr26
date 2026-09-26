@@ -1,5 +1,6 @@
 import { mergeAttributes, Node } from '@tiptap/core'
-import { NodeSelection, Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { caretToLineAbove, pm, removeBlockToAbove, replaceWithEmptyLine, titleStyleAttribute } from './helpers'
 
 /** A list of the page's subpages: the pages one level down, each a link — or,
  *  set to a depth of two, the pages two levels down, grouped under the child
@@ -78,31 +79,12 @@ export function backspaceSubpagesTitle(): Command {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== SUBPAGES_TITLE || $from.parentOffset > 0) return false
     const pos = $from.before(-1)
-    const above = Selection.findFrom(state.doc.resolve(pos), -1)
+    if ($from.parent.content.size > 0) return caretToLineAbove(state, dispatch, pos)
 
-    if ($from.parent.content.size > 0) {
-      // Nothing above to go to: stay put, rather than select the list.
-      if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
-      return true
-    }
-
-    if (dispatch) {
-      const end = $from.after(-1)
-      const parent = $from.node(-2)
-      const index = $from.index(-2)
-      // Where the page or a list item can't be left without a line here, the
-      // list becomes an empty line, with the caret on it.
-      if (!above || !parent.canReplace(index, index + 1)) {
-        const tr = state.tr.replaceWith(pos, end, state.schema.nodes.paragraph.create())
-        tr.setSelection(TextSelection.create(tr.doc, pos + 1))
-        dispatch(tr.scrollIntoView())
-        return true
-      }
-      const tr = state.tr.delete(pos, end)
-      tr.setSelection(above.map(tr.doc, tr.mapping))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    // Where the page or a list item can't be left without a line here, the
+    // list becomes an empty line, with the caret on it.
+    const end = $from.after(-1)
+    return removeBlockToAbove(state, dispatch, pos, end) || replaceWithEmptyLine(state, dispatch, pos, end)
   }
 }
 
@@ -116,14 +98,7 @@ export const SubpagesTitle = Node.create({
 
   addAttributes() {
     return {
-      /** Drawn as a Title, as an accordion's heading can be, and for the same
-       *  reason: the list has to hold exactly this node, so it can't become a
-       *  Title block. */
-      title: {
-        default: false,
-        parseHTML: (element) => element.getAttribute('data-title') === 'true',
-        renderHTML: (attributes) => (attributes.title ? { 'data-title': 'true' } : {}),
-      },
+      title: titleStyleAttribute,
     }
   },
 
@@ -194,11 +169,9 @@ export const Subpages = Node.create<SubpagesOptions>({
   },
 
   addKeyboardShortcuts() {
-    const leave = leaveSubpagesTitle()
-    const backspace = backspaceSubpagesTitle()
     return {
-      Enter: () => this.editor.commands.command(({ state, dispatch }) => leave(state, dispatch)),
-      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
+      Enter: pm(this.editor, leaveSubpagesTitle()),
+      Backspace: pm(this.editor, backspaceSubpagesTitle()),
     }
   },
 })

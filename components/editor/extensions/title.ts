@@ -1,5 +1,6 @@
 import { mergeAttributes, Node } from '@tiptap/core'
 import { Selection, TextSelection, type Command } from '@tiptap/pm/state'
+import { isEmptyParagraph, pm } from './helpers'
 
 /** The document's own top node, requiring a title followed by at least one
  *  block. Because the title is node 0 of the same ProseMirror document, it is
@@ -32,7 +33,7 @@ export function openBodyLine(name: string): Command {
 
     // A page that has only ever had its title typed already opens on a blank
     // line. Use that one rather than pushing it down under a second.
-    if (first?.type === paragraph && first.content.size === 0) {
+    if (isEmptyParagraph(first)) {
       if (dispatch) {
         dispatch(state.tr.setSelection(TextSelection.create(state.doc, after + 1)).scrollIntoView())
       }
@@ -106,16 +107,12 @@ export const Title = Node.create({
   },
 
   addKeyboardShortcuts() {
-    const openLine = () =>
-      this.editor.commands.command(({ state, dispatch }) => openBodyLine(this.name)(state, dispatch))
-
+    const openLine = pm(this.editor, openBodyLine(this.name))
     return {
       Enter: openLine,
       'Mod-Enter': openLine,
-      Tab: () =>
-        this.editor.commands.command(({ state, dispatch }) => leaveTitle(this.name)(state, dispatch)),
-      Backspace: () =>
-        this.editor.commands.command(({ state, dispatch }) => backspaceIntoTitle(this.name)(state, dispatch)),
+      Tab: pm(this.editor, leaveTitle(this.name)),
+      Backspace: pm(this.editor, backspaceIntoTitle(this.name)),
     }
   },
 })

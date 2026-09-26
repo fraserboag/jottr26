@@ -1,4 +1,4 @@
-import { InputRule, mergeAttributes, Node } from '@tiptap/core'
+import { findParentNodeClosestToPos, InputRule, mergeAttributes, Node } from '@tiptap/core'
 import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from '@tiptap/pm/model'
 import {
   Plugin,
@@ -10,6 +10,7 @@ import {
   type Transaction,
 } from '@tiptap/pm/state'
 import type { EditorView, NodeView, ViewMutationRecord } from '@tiptap/pm/view'
+import { caretToLineAbove, isBlankBody, isEmptyParagraph, pm, removeBlockToAbove, titleStyleAttribute } from './helpers'
 import { nestedList, newFirstItem } from './lists'
 
 /** An accordion: a heading line that owns a box beneath it, which folds away.
@@ -78,11 +79,7 @@ export function makeAccordion(): Command {
 
 /** The accordion around the selection, if there is one, with its position. */
 function findAccordion($pos: ResolvedPos) {
-  for (let depth = $pos.depth; depth > 0; depth -= 1) {
-    const node = $pos.node(depth)
-    if (node.type.name === ACCORDION) return { node, pos: $pos.before(depth) }
-  }
-  return null
+  return findParentNodeClosestToPos($pos, (node) => node.type.name === ACCORDION) ?? null
 }
 
 /** Put an accordion back to plain blocks: the heading becomes a paragraph and
@@ -99,8 +96,7 @@ export function unwrapAccordion(): Command {
       // A heading drawn as a Title goes back to being one.
       const { heading, paragraph } = state.schema.nodes
       const blocks: PMNode[] = [(title.attrs.title && heading ? heading : paragraph).create(null, title.content)]
-      const onlyBlank = body.childCount === 1 && body.firstChild!.type.name === 'paragraph' && body.firstChild!.content.size === 0
-      if (!onlyBlank) body.forEach((child) => blocks.push(child))
+      if (!isBlankBody(body)) body.forEach((child) => blocks.push(child))
 
       const tr = state.tr.replaceWith(pos, pos + node.nodeSize, blocks)
       tr.setSelection(TextSelection.create(tr.doc, pos + 1))
@@ -163,7 +159,7 @@ export function enterAccordionBody(): Command {
       // Past the heading and into the box.
       const bodyStart = $from.after() + 1
       const first = accordion.child(1).firstChild
-      if (first?.type.name === 'paragraph' && first.content.size === 0) {
+      if (isEmptyParagraph(first)) {
         tr.setSelection(TextSelection.create(tr.doc, bodyStart + 1))
       } else {
         tr.insert(bodyStart, state.schema.nodes.paragraph.create())
@@ -209,34 +205,20 @@ export function backspaceAccordion(): Command {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== ACCORDION_TITLE || $from.parentOffset > 0) return false
     const pos = $from.before(-1)
-    const above = Selection.findFrom(state.doc.resolve(pos), -1)
+    if ($from.parent.content.size > 0) return caretToLineAbove(state, dispatch, pos)
 
-    if ($from.parent.content.size > 0) {
-      // Nothing above to go to: stay put, rather than select the accordion.
-      if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
-      return true
-    }
+    const accordion = $from.node(-1)
+    const body = accordion.child(1)
+    const blocks: PMNode[] = []
+    if (!isBlankBody(body)) body.forEach((child) => blocks.push(child))
 
-    if (dispatch) {
-      const accordion = $from.node(-1)
-      const body = accordion.child(1)
-      const onlyBlank = body.childCount === 1 && body.firstChild!.type.name === 'paragraph' && body.firstChild!.content.size === 0
-      const blocks: PMNode[] = []
-      if (!onlyBlank) body.forEach((child) => blocks.push(child))
-
-      const parent = $from.node(-2)
-      const index = $from.index(-2)
-      // Where the page or a list item can't be left without a line here — the
-      // item's first line, the page's only one — the empty heading stays as
-      // one, with the caret on it.
-      if (!above || !parent.canReplace(index, index + 1, Fragment.from(blocks))) {
-        return unwrapAccordion()(state, dispatch)
-      }
-      const tr = state.tr.replaceWith(pos, pos + accordion.nodeSize, blocks)
-      tr.setSelection(above.map(tr.doc, tr.mapping))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    // Where the page or a list item can't be left without a line here — the
+    // item's first line, the page's only one — the empty heading stays as
+    // one, with the caret on it.
+    return (
+      removeBlockToAbove(state, dispatch, pos, pos + accordion.nodeSize, blocks) ||
+      unwrapAccordion()(state, dispatch)
+    )
   }
 }
 
@@ -365,8 +347,9 @@ class AccordionView implements NodeView {
 
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
+    const changed = node.attrs.open !== this.node.attrs.open
     this.node = node
-    this.render()
+    if (changed) this.render()
     return true
   }
 
@@ -402,14 +385,7 @@ export const AccordionTitle = Node.create({
 
   addAttributes() {
     return {
-      /** Drawn as a Title. The heading can't be swapped for a Title block, as
-       *  an accordion has to hold exactly this node, so it carries the style
-       *  instead. */
-      title: {
-        default: false,
-        parseHTML: (element) => element.getAttribute('data-title') === 'true',
-        renderHTML: (attributes) => (attributes.title ? { 'data-title': 'true' } : {}),
-      },
+      title: titleStyleAttribute,
     }
   },
 
@@ -494,15 +470,9 @@ export const Accordion = Node.create({
   },
 
   addKeyboardShortcuts() {
-    const run = (command: Command) => () =>
-      this.editor.commands.command(({ state, dispatch }) => command(state, dispatch))
-    const enter = enterAccordionBody()
-    const leave = leaveAccordion()
-    const unwrap = backspaceAccordion()
-    const intoHeading = backspaceIntoHeading()
     return {
-      Enter: run((state, dispatch) => enter(state, dispatch) || leave(state, dispatch)),
-      Backspace: run((state, dispatch) => unwrap(state, dispatch) || intoHeading(state, dispatch)),
+      Enter: pm(this.editor, enterAccordionBody(), leaveAccordion()),
+      Backspace: pm(this.editor, backspaceAccordion(), backspaceIntoHeading()),
     }
   },
 
