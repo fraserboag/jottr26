@@ -39,6 +39,8 @@ export type EditKind = 'text' | 'structure'
 type Listener = (kind: EditKind) => void
 
 const handles = new Map<string, DocHandle>()
+/** Documents of pages dropped from this device, which must not write again. */
+const forgotten = new WeakSet<Y.Doc>()
 const loading = new Map<string, Promise<DocHandle>>()
 const dirtyListeners = new Set<Listener>()
 
@@ -161,6 +163,10 @@ export async function patchDocState(
  *  for the few callers — tests, mostly — that need to know it has landed. */
 const persisting = new Set<Promise<void>>()
 
+/** The write the update listener started last. Set synchronously inside
+ *  Y.applyUpdate, so applyRemoteUpdate can wait on the one its update began. */
+let latestWrite: Promise<void> | null = null
+
 export async function whenPersisted() {
   while (persisting.size > 0) await Promise.all(persisting)
 }
@@ -244,7 +250,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     // the initial title and paragraph of a brand new page — can slip past
     // persistence.
     doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin === LOAD_ORIGIN || origin === PEER_ORIGIN) return
+      if (origin === LOAD_ORIGIN || origin === PEER_ORIGIN || forgotten.has(doc)) return
 
       const isLocal = origin !== REMOTE_ORIGIN
       if (isLocal) handle.editedAt = Date.now()
@@ -276,6 +282,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
         }
       })().catch((error) => markUnsaved(db, handle, error))
       persisting.add(write)
+      latestWrite = write
       void write.finally(() => persisting.delete(write))
     })
 
@@ -294,11 +301,40 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
 }
 
 /** Apply a state blob that came from the server. Tagged REMOTE_ORIGIN so the
- *  update listener persists it without marking the document dirty again. */
-export async function applyRemoteUpdate(pageId: string, update: Uint8Array) {
-  if (!update.byteLength) return
+ *  update listener persists it without marking the document dirty again.
+ *
+ *  Resolves once it is on disk: true, or false when the disk refused it. The
+ *  page is then held as unsaved, and the server's version must not be
+ *  recorded against it. If it were and the tab then closed, the disk would
+ *  claim a version whose content it lacks, and the next push, accepted at
+ *  that version, would erase the other device's edit from the server. */
+export async function applyRemoteUpdate(pageId: string, update: Uint8Array): Promise<boolean> {
+  if (!update.byteLength) return true
   const handle = await openDoc(pageId)
+  latestWrite = null
   Y.applyUpdate(handle.doc, update, REMOTE_ORIGIN)
+  // Null when the update held nothing new, which is then already stored.
+  const written = latestWrite
+  latestWrite = null
+  await written
+  return !unsaved.has(pageId)
+}
+
+/** Lets go of the documents of pages just dropped from this device. They are
+ *  not destroyed, since an editor may still be showing one for a moment, but
+ *  nothing more they receive is written, so no rows reappear for a page that
+ *  is gone, and a failed save of one no longer counts as unsaved work. */
+export function forgetDocs(pageIds: string[]) {
+  let changed = false
+  for (const pageId of pageIds) {
+    const handle = handles.get(pageId)
+    if (handle) forgotten.add(handle.doc)
+    handles.delete(pageId)
+    clearTimeout(resaveTimers.get(pageId))
+    resaveTimers.delete(pageId)
+    changed = unsaved.delete(pageId) || changed
+  }
+  if (changed) for (const listener of saveListeners) listener()
 }
 
 export function loadedDoc(pageId: string): DocHandle | undefined {

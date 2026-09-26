@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import * as Y from 'yjs'
 import { after, describe, it } from 'node:test'
 import { installBrowserGlobals } from './harness'
 import type { PageRow } from '@/lib/db/schema'
@@ -6,11 +7,11 @@ import type { PageRow } from '@/lib/db/schema'
 installBrowserGlobals()
 
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
-const { createPage, deleteForever, emptyTrash, liveChildren, movePage, restorePage, trashPage } = await import(
+const { createPage, deleteForever, emptyTrash, liveChildren, movePage, restorePage, touch, trashPage } = await import(
   '@/lib/db/pages'
 )
 const { buildTree, reuseRows } = await import('@/lib/db/hooks')
-const { releaseAll, whenPersisted } = await import('@/lib/db/ydoc')
+const { DOC_FIELD, openDoc, releaseAll, whenPersisted } = await import('@/lib/db/ydoc')
 
 const row = (id: string, parentId = ''): PageRow => ({
   id,
@@ -115,6 +116,36 @@ describe('live children', () => {
     await trashPage(y)
     await deleteForever(y)
     assert.equal(await db.pages.get(x), undefined)
+  })
+
+  it('lets go of a page\'s document when the page is deleted for good, so it writes nothing more', async () => {
+    const id = await createPage()
+    const handle = await openDoc(id)
+    await whenPersisted()
+    await trashPage(id)
+    await deleteForever(id)
+
+    // An editor still showing it for a moment, or a late pull, edits it.
+    handle.doc.getXmlFragment(DOC_FIELD).insert(0, [new Y.XmlText('late')])
+    await whenPersisted()
+    assert.equal(await db.docUpdates.where('pageId').equals(id).count(), 0)
+    assert.equal(await db.docStates.get(id), undefined)
+    assert.notEqual(await openDoc(id), handle, 'opened again, it starts afresh')
+  })
+
+  it('stamps every edit of a page later than the last, even within one millisecond', async () => {
+    const id = await createPage()
+    const realNow = Date.now
+    const frozen = realNow()
+    Date.now = () => frozen
+    try {
+      await touch(id, { title: 'one' })
+      const first = (await db.pages.get(id))!.updatedAt
+      await touch(id, { isFavorite: 1 })
+      assert.ok((await db.pages.get(id))!.updatedAt > first)
+    } finally {
+      Date.now = realNow
+    }
   })
 
   it('leaves a live page under a trashed one when the trash is emptied', async () => {

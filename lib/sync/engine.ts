@@ -809,8 +809,11 @@ export class SyncEngine {
       if (error) throw new Error(error.message)
 
       for (const row of (data ?? []) as Array<{ page_id: string; ydoc: string; version: number }>) {
-        await applyRemoteUpdate(row.page_id, base64ToBytes(row.ydoc))
-        await this.recordServerVersion(row.page_id, row.version)
+        // Left at the old version when the disk refused it, so a push merges
+        // with the server rather than being accepted over it.
+        if (await applyRemoteUpdate(row.page_id, base64ToBytes(row.ydoc))) {
+          await this.recordServerVersion(row.page_id, row.version)
+        }
         await this.syncTitleFromDoc(row.page_id)
       }
     }
@@ -1089,7 +1092,9 @@ export class SyncEngine {
       // The server moved on. Merge what it has — Yjs guarantees the union of
       // both edits, so nothing anyone typed is dropped — then retry at the
       // version we were just told about.
-      await applyRemoteUpdate(state.pageId, base64ToBytes(result.ydoc))
+      // Not saved here, the page is now held back like any unsaved edit, and
+      // pushing this copy on would leave the disk behind the server.
+      if (!(await applyRemoteUpdate(state.pageId, base64ToBytes(result.ydoc)))) break
       base = result.version
       await this.recordServerVersion(state.pageId, result.version)
 

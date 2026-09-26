@@ -2,7 +2,7 @@ import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
 import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
-import { DOC_FIELD, notifyLocalEdit, openDoc, readPlainText, readTitle } from './ydoc'
+import { DOC_FIELD, forgetDocs, notifyLocalEdit, openDoc, readPlainText, readTitle } from './ydoc'
 import { newId } from '@/lib/util/id'
 
 function db() {
@@ -26,7 +26,10 @@ export async function touch(
     .anyOf(typeof ids === 'string' ? [ids] : ids)
     .modify((page) => {
       Object.assign(page, patch)
-      page.updatedAt = Date.now()
+      // Always later than the last edit, even within one millisecond: a push
+      // tells an edit made while it was in flight by this stamp moving, and
+      // restoring a page, say, touches it twice in a row.
+      page.updatedAt = Math.max(Date.now(), page.updatedAt + 1)
       // A clean row starts a fresh list; a row already waiting to be pushed
       // adds to its own. One with no list is dirty in every field already.
       const already = page.dirty ? page.dirtyFields : []
@@ -245,6 +248,7 @@ export async function forgetPages(database: JottrDB, ids: string[]) {
     await database.docStates.bulkDelete(ids)
     await database.docUpdates.where('pageId').anyOf(ids).delete()
   })
+  forgetDocs(ids)
 }
 
 export async function emptyTrash() {

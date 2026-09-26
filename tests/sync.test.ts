@@ -1019,6 +1019,39 @@ describe('local-first sync', () => {
     assert.match(readPlainText(pushed), /nowhere to go until now/)
   })
 
+  it("does not record a pulled version the disk refused, so another device's edit survives a closed tab", async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.type(id, 'first')
+    await laptop.sync()
+    await phone.sync()
+    await laptop.type(id, ' from the laptop')
+    await laptop.sync()
+
+    await phone.focus()
+    const db = activeDatabase()!
+    const before = (await db.docStates.get(id))!.version
+    const table = db.docUpdates as unknown as { add: (...args: unknown[]) => Promise<unknown> }
+    table.add = () => Promise.reject(new Error('QuotaExceededError'))
+    try {
+      await phone.engine.syncOnce()
+    } finally {
+      delete (table as { add?: unknown }).add
+      const internals = phone.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    }
+    assert.equal((await db.docStates.get(id))!.version, before, 'the version the disk has content for')
+
+    // The tab closes before the edit is saved, then the phone edits and syncs.
+    await phone.type(id, ' and the phone')
+    await phone.sync()
+
+    const merged = new Y.Doc()
+    Y.applyUpdate(merged, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(merged), /from the laptop/)
+    assert.match(readPlainText(merged), /and the phone/)
+  })
+
   it('does not start a cancelled manual sync that was queued behind another', async () => {
     await laptop.focus()
     const id = await createPage()
