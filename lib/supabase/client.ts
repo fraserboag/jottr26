@@ -1,11 +1,13 @@
 'use client'
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export const isSupabaseConfigured = Boolean(url && anonKey)
+
+const STORAGE_KEY = 'jottr.auth'
 
 let client: SupabaseClient | null = null
 
@@ -26,9 +28,25 @@ export function supabaseClient(): SupabaseClient {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'jottr.auth',
+      storageKey: STORAGE_KEY,
     },
     realtime: { params: { eventsPerSecond: 5 } },
   })
   return client
+}
+
+/** The session as last saved on this device, read without the network.
+ *
+ *  Its access token may well have expired. Supabase will not hand such a
+ *  session back while it cannot reach the server to refresh it, but it does
+ *  keep it in storage, and only removes it when you sign out or the refresh is
+ *  actually refused. So a stored session is still yours, and enough to open
+ *  your notes offline. */
+export function storedSession(): Session | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Session | null
+    return stored?.access_token && stored.refresh_token && stored.user?.id ? stored : null
+  } catch {
+    return null
+  }
 }

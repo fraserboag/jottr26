@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { supabaseClient } from '@/lib/supabase/client'
+import { storedSession, supabaseClient } from '@/lib/supabase/client'
 import { activeDatabase, closeDatabase, eraseDatabase, openDatabase } from '@/lib/db/dexie'
 import { releaseAll } from '@/lib/db/ydoc'
 import { SyncEngine } from '@/lib/sync/engine'
@@ -48,14 +48,26 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     const supabase = supabaseClient()
     let cancelled = false
 
+    // Open straight from storage rather than waiting on Supabase, which with an
+    // expired token spends half a minute trying to refresh it when offline
+    // and then reports no session at all.
+    queueMicrotask(() => {
+      const stored = storedSession()
+      if (cancelled || !stored) return
+      setSession((current) => current ?? stored)
+      setReady(true)
+    })
+
+    // A null from Supabase is only believed once it has also cleared storage:
+    // that is a real sign-out, not an unreachable server.
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
-      setSession(data.session)
+      setSession(data.session ?? storedSession())
       setReady(true)
     })
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next)
+      setSession(next ?? storedSession())
       setReady(true)
     })
 

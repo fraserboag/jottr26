@@ -7,14 +7,18 @@
  * opens offline.
  */
 
-const VERSION = 'v2'
+const VERSION = 'v3'
 const SHELL_CACHE = `jottr-shell-${VERSION}`
-const ASSET_CACHE = `jottr-assets-${VERSION}`
+/** Not tied to VERSION. Everything in it is content-hashed, so an old entry is
+ *  never wrong, and wiping it on an update left the new shell with none of its
+ *  scripts on the next offline launch: a blank page. */
+const ASSET_CACHE = 'jottr-assets-v2'
 const KEEP = new Set([SHELL_CACHE, ASSET_CACHE])
 
 /** Cached at install so a freshly installed app works offline immediately,
  *  before the user has visited every route. */
-const SHELL = ['/app', '/', '/login', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png']
+const PAGES = ['/app', '/', '/login']
+const FILES = ['/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png']
 
 const OFFLINE_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -29,10 +33,18 @@ p{max-width:30ch;color:#6f6e6a}</style></head>
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
+    (async () => {
+      const assets = await caches.open(ASSET_CACHE)
       // Individually, so one 404 during a deploy cannot fail the whole install.
-      Promise.all(SHELL.map((url) => cache.add(url).catch(() => undefined))),
-    ),
+      await Promise.all([
+        ...FILES.map((url) => assets.add(url).catch(() => undefined)),
+        ...PAGES.filter((url) => url !== '/app').map((url) => cachePage(url).catch(() => undefined)),
+        // Except the workspace: without it this worker cannot open the app
+        // offline, so failing leaves the previous worker in charge until the
+        // next visit tries again.
+        cachePage('/app'),
+      ])
+    })(),
   )
 })
 
@@ -64,7 +76,7 @@ self.addEventListener('fetch', (event) => {
   if (url.searchParams.has('_rsc')) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(handleNavigation(request, url))
+    event.respondWith(handleNavigation(event, url))
     return
   }
 
@@ -80,25 +92,25 @@ self.addEventListener('fetch', (event) => {
 
 /** Network first, so a deploy is picked up on the next load; cache second, so
  *  being offline is unremarkable. */
-async function handleNavigation(request, url) {
+async function handleNavigation(event, url) {
   const cache = await caches.open(SHELL_CACHE)
   try {
-    const response = await fetch(request)
-    if (response.ok) cache.put(request, response.clone())
+    const response = await fetch(event.request)
+    if (response.ok) event.waitUntil(storeShell(url.pathname, response.clone()).catch(() => undefined))
     return response
   } catch {
-    const exact = await cache.match(request, { ignoreSearch: true })
+    const exact = await cache.match(url.pathname)
     if (exact) return exact
 
     // Any workspace URL falls back to the workspace shell: it is a client
     // component that reads the page id from the query string itself, so the
     // cached document is correct for every /app URL.
     if (url.pathname === '/app' || url.pathname.startsWith('/app/')) {
-      const shell = await cache.match('/app', { ignoreSearch: true })
+      const shell = await cache.match('/app')
       if (shell) return shell
     }
 
-    const root = await cache.match('/', { ignoreSearch: true })
+    const root = await cache.match('/')
     if (root) return root
 
     return new Response(OFFLINE_FALLBACK, {
@@ -106,6 +118,33 @@ async function handleNavigation(request, url) {
       headers: { 'content-type': 'text/html; charset=utf-8' },
     })
   }
+}
+
+async function cachePage(path) {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error(`${path}: ${response.status}`)
+  await storeShell(path, response)
+}
+
+/** Keeps an HTML page only once the scripts and styles it loads are cached
+ *  too, since a page without them renders nothing. Keyed by path alone: the
+ *  query never changes the document, and one copy per path means the page
+ *  served offline is always the newest one seen. */
+async function storeShell(path, response) {
+  if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return
+  const html = await response.clone().text()
+  const assets = new Set(html.match(/\/_next\/static\/[^"'\\\s)]+/g) ?? [])
+  const assetCache = await caches.open(ASSET_CACHE)
+  await Promise.all(
+    [...assets].map(async (asset) => {
+      if (await assetCache.match(asset)) return
+      const fetched = await fetch(asset)
+      if (!fetched.ok) throw new Error(`${asset}: ${fetched.status}`)
+      await assetCache.put(asset, fetched)
+    }),
+  )
+  const cache = await caches.open(SHELL_CACHE)
+  await cache.put(path, response)
 }
 
 /** Safe because these URLs are content-hashed by the build. */
