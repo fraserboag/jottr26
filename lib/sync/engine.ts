@@ -60,6 +60,9 @@ const STRUCTURE_DEBOUNCE_MS = 150
  *  still running after this long. */
 const SAVING_ANNOUNCE_MS = 300
 const REALTIME_DEBOUNCE_MS = 400
+/** How often typing recounts the pending pages: at most this often, and once
+ *  more when it stops. */
+const PENDING_RECOUNT_MS = 300
 const MAX_CAS_ATTEMPTS = 6
 const MAX_BACKOFF_MS = 30_000
 /** A request can hang without ever failing — a phone suspends the app mid
@@ -178,6 +181,8 @@ export class SyncEngine {
   /** The pending edit push is on the short fuse. */
   private editUrgent = false
   private realtimeTimer: ReturnType<typeof setTimeout> | null = null
+  private recountTimer: ReturnType<typeof setTimeout> | null = null
+  private recountAgain = false
   /** The page row stamp each of this device's own writes left on the server.
    *  Realtime hands every write straight back, and a cycle to pull what this
    *  device just pushed is wasted; an event carrying anyone else's stamp still
@@ -234,7 +239,7 @@ export class SyncEngine {
 
     this.cleanups.push(
       onLocalEdit((kind) => {
-        void this.refreshPending()
+        this.recountSoon()
         // Typing must not push back a structural push that is about to go; it
         // rides along with it instead.
         if (this.editTimer && this.editUrgent) return
@@ -273,6 +278,7 @@ export class SyncEngine {
     if (this.announceTimer) clearTimeout(this.announceTimer)
     if (this.editTimer) clearTimeout(this.editTimer)
     if (this.realtimeTimer) clearTimeout(this.realtimeTimer)
+    if (this.recountTimer) clearTimeout(this.recountTimer)
     for (const cleanup of this.cleanups) cleanup()
     this.cleanups = []
     closePeerChannel()
@@ -288,9 +294,18 @@ export class SyncEngine {
     return this.shown()
   }
 
-  /** Ask for a sync now. Safe to call as often as you like. */
+  /** Ask for a sync now. Safe to call as often as you like. After a failure
+   *  it waits out the backoff: an edit, a realtime event or the tab coming
+   *  back would otherwise each start a sync bound to fail, every second or so
+   *  while typing through an outage. The sync button goes straight through. */
   request() {
+    if (this.inBackoff()) return
     void this.run()
+  }
+
+  /** A failed sync has its retry scheduled already, backing off. */
+  private inBackoff() {
+    return this.status.phase === 'error' && (this.status.retryAt ?? 0) > Date.now()
   }
 
   /** Runs a sync and resolves once it has settled, rather than firing and
@@ -328,8 +343,7 @@ export class SyncEngine {
 
   /** Syncs often while realtime is down, and only as a backstop while it is up. */
   private poll() {
-    // A failed sync has its retry scheduled already, backing off.
-    if (this.status.phase === 'error' && (this.status.retryAt ?? 0) > Date.now()) return
+    if (this.inBackoff()) return
     const interval = this.realtimeUp ? POLL_INTERVAL_MS : OFFLINE_REALTIME_POLL_MS
     // A little slack, so a timer that fires a few ms early does not skip a turn.
     if (Date.now() - this.lastRunAt >= interval - 1_000) this.request()
@@ -530,6 +544,24 @@ export class SyncEngine {
     }
   }
 
+  /** Recounts the pending pages for an edit: straight away, so the first edit
+   *  after a sync shows at once, then at most every PENDING_RECOUNT_MS while
+   *  edits keep coming, and once more after the last. Each count is three
+   *  reads of the disk, and typing is an edit per keystroke. */
+  private recountSoon() {
+    if (this.recountTimer) {
+      this.recountAgain = true
+      return
+    }
+    void this.refreshPending()
+    this.recountTimer = setTimeout(() => {
+      this.recountTimer = null
+      if (!this.recountAgain) return
+      this.recountAgain = false
+      this.recountSoon()
+    }, PENDING_RECOUNT_MS)
+  }
+
   private async refreshPending(patch: Partial<SyncStatus> = {}) {
     const pending = await countPending(this.db)
 
@@ -603,6 +635,9 @@ export class SyncEngine {
       const now = Date.now()
       await writeMeta(this.db, META_LAST_SYNCED, now)
       this.failures = 0
+      // A retry still due from an earlier failure has nothing left to do.
+      if (this.retryTimer) clearTimeout(this.retryTimer)
+      this.retryTimer = null
       await this.refreshPending({
         phase: 'synced',
         lastSyncedAt: now,
@@ -629,7 +664,8 @@ export class SyncEngine {
       } else {
         const delay = Math.min(MAX_BACKOFF_MS, 1000 * 2 ** (this.failures - 1))
         if (this.retryTimer) clearTimeout(this.retryTimer)
-        this.retryTimer = setTimeout(() => this.request(), delay)
+        // Straight to run(): request() would be held back by this very backoff.
+        this.retryTimer = setTimeout(() => void this.run(), delay)
         await this.refreshPending({
           phase: 'error',
           error: message,

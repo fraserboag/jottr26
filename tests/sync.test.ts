@@ -979,6 +979,59 @@ describe('local-first sync', () => {
     }
   })
 
+  it('holds back syncs asked for by edits and events until the backoff is over', async () => {
+    const internals = laptop.engine as unknown as {
+      status: { phase: string; retryAt: number | null }
+      run?: () => Promise<boolean>
+    }
+    let runs = 0
+    internals.run = async () => {
+      runs += 1
+      return true
+    }
+    const status = internals.status
+    try {
+      internals.status = { ...status, phase: 'error', retryAt: Date.now() + 20_000 }
+      laptop.engine.request()
+      assert.equal(runs, 0, 'the retry is already scheduled')
+
+      internals.status = { ...status, phase: 'error', retryAt: Date.now() - 1 }
+      laptop.engine.request()
+      assert.equal(runs, 1)
+    } finally {
+      delete internals.run
+      internals.status = status
+    }
+  })
+
+  it('drops a retry still due from an earlier failure once a sync succeeds', async () => {
+    const internals = laptop.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+    internals.retryTimer = setTimeout(() => assert.fail('the retry should have been dropped'), 60_000)
+    await laptop.sync()
+    assert.equal(internals.retryTimer, null)
+  })
+
+  it('recounts pending pages at once for an edit, then at most every 300ms while typing goes on', async () => {
+    const internals = laptop.engine as unknown as {
+      recountSoon: () => void
+      refreshPending?: () => Promise<void>
+    }
+    let counts = 0
+    internals.refreshPending = async () => {
+      counts += 1
+    }
+    try {
+      for (let i = 0; i < 5; i++) internals.recountSoon()
+      assert.equal(counts, 1, 'the first edit is counted straight away')
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      assert.equal(counts, 2, 'and the rest once, after')
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      assert.equal(counts, 2)
+    } finally {
+      delete internals.refreshPending
+    }
+  })
+
   it('shows a change that could not be saved on this device as an error, and counts it', async () => {
     await laptop.focus()
     const id = await createPage()
