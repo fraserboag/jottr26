@@ -38,6 +38,9 @@ export const deleteLine: Command = (state, dispatch) => {
     start = $at.index(depth)
     end = start + 1
   } else {
+    // A caret between blocks, as beside a table, is on no line; the range
+    // around it would be whatever box it sits in.
+    if (selection.empty && !selection.$from.parent.inlineContent) return false
     const range = selection.$from.blockRange(selection.$to)
     if (!range) return false
     $at = range.$from

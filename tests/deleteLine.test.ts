@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { JSONContent } from '@tiptap/core'
 import { EditorState, NodeSelection, TextSelection } from '@tiptap/pm/state'
+import { GapCursor } from '@tiptap/pm/gapcursor'
 import { CellSelection } from '@tiptap/pm/tables'
 import { deleteLine } from '@/components/editor/extensions/deleteLine'
 import { BodySelection } from '@/components/editor/extensions/selectLine'
@@ -93,6 +94,13 @@ describe('deleting the line', () => {
     const { state } = run(caretOn(page({ type: 'horizontalRule' }, p('last')), 'last'), deleteLine)
     assert.deepEqual(body(state), ['horizontalRule'])
     assert.ok(state.selection instanceof NodeSelection)
+  })
+
+  it('has nothing to take with the caret between blocks', () => {
+    const state = page({ type: 'callout', content: [{ type: 'horizontalRule' }, p('after')] })
+    // Just inside the callout, ahead of its divider.
+    const gap = state.apply(state.tr.setSelection(new GapCursor(state.doc.resolve(8))))
+    assert.equal(run(gap, deleteLine).applied, false)
   })
 
   it('takes every line a selection runs across', () => {
