@@ -61,7 +61,7 @@ export class FakeServer {
   docs = new Map<string, DocRecord>()
   /** Monotonic, so ordering never depends on how fast the test runs. */
   private clock = Date.parse('2026-01-01T00:00:00.000Z')
-  counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0, delete: 0, purge: 0, blobFetch: 0 }
+  counts = { select: 0, upsert: 0, rpc: 0, rpcRejected: 0 }
   /** A network that never answers: queries hang until their signal aborts. */
   stalled = false
   /** Delay before push_page_doc answers, so overlapping pushes can be seen. */
@@ -80,12 +80,13 @@ export class FakeServer {
     const from = (table: string) => {
       const builder: Record<string, unknown> = {}
       let rows: Array<PageRecord | DocRecord> = []
-      let mode: 'select' | 'upsert' | 'delete' = 'select'
+      let mode: 'select' | 'upsert' = 'select'
       let payload: PageRecord[] = []
       let sinceIso: string | null = null
       let afterId: string | null = null
       let limit: number | null = null
       let inList: string[] | null = null
+      let unpurgedOnly = false
       let range: [number, number] | null = null
       let signal: AbortSignal | null = null
       const orders: string[] = []
@@ -104,22 +105,13 @@ export class FakeServer {
           return { data: out, error: null }
         }
 
-        if (mode === 'delete') {
-          this.counts.delete += 1
-          for (const id of inList ?? []) {
-            this.pages.delete(id)
-            this.docs.delete(id)
-          }
-          return { data: null, error: null }
-        }
-
         this.counts.select += 1
         rows = table === 'pages' ? [...this.pages.values()] : [...this.docs.values()]
 
         if (sinceIso) rows = rows.filter((row) => row.updated_at >= sinceIso!)
         if (afterId !== null) rows = rows.filter((row) => (row as PageRecord).id > afterId!)
+        if (unpurgedOnly) rows = rows.filter((row) => !(row as PageRecord).purged_at)
         if (inList) {
-          this.counts.blobFetch += 1
           const wanted = new Set(inList)
           rows = rows.filter((row) => wanted.has((row as DocRecord).page_id))
         }
@@ -146,8 +138,9 @@ export class FakeServer {
         order: (column: string) => (orders.push(column), builder),
         range: (a: number, b: number) => ((range = [a, b]), builder),
         in: (_column: string, values: string[]) => ((inList = values), builder),
+        // Only ever `.is('purged_at', null)`.
+        is: () => ((unpurgedOnly = true), builder),
         upsert: (value: PageRecord[]) => ((mode = 'upsert'), (payload = value), builder),
-        delete: () => ((mode = 'delete'), builder),
         abortSignal: (value: AbortSignal) => ((signal = value), builder),
         then: (resolve: (value: unknown) => void) => {
           if (!this.stalled) return resolve(run())
@@ -192,7 +185,6 @@ export class FakeServer {
 
     /** purge_pages: the document goes, the row stays behind as a tombstone. */
     const purge = (params: PurgeParams) => {
-      this.counts.purge += 1
       for (const id of params.p_ids) {
         this.docs.delete(id)
         const existing = this.pages.get(id)

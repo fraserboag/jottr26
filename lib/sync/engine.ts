@@ -759,14 +759,19 @@ export class SyncEngine {
     const live = new Set<string>()
     let after = ''
     for (;;) {
-      let query = this.supabase.from('pages').select('id, purged_at').order('id', { ascending: true })
+      // Tombstones are left out: a purged page is as gone as a missing one.
+      let query = this.supabase
+        .from('pages')
+        .select('id')
+        .is('purged_at', null)
+        .order('id', { ascending: true })
       if (after) query = query.gt('id', after)
       const { data, error } = await query.limit(PAGE_SIZE).abortSignal(signal)
 
       if (error) throw new Error(error.message)
-      const rows = (data ?? []) as Array<{ id: string; purged_at: string | null }>
+      const rows = (data ?? []) as Array<{ id: string }>
       if (rows.length === 0) break
-      for (const row of rows) if (!row.purged_at) live.add(row.id)
+      for (const row of rows) live.add(row.id)
       after = rows[rows.length - 1].id
     }
 

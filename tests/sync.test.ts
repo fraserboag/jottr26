@@ -496,6 +496,7 @@ describe('local-first sync', () => {
   it('drops pages deleted from the server outright, but keeps ones not yet uploaded', async () => {
     await laptop.focus()
     const gone = await createPage()
+    const tombstoned = await createPage()
     await laptop.sync()
     await phone.sync()
     assert.ok(await phone.page(gone))
@@ -503,6 +504,9 @@ describe('local-first sync', () => {
     // A delete that left no tombstone, as every purge did before tombstones.
     server.pages.delete(gone)
     server.docs.delete(gone)
+    // And a tombstone stamped before the phone's cursor, so no pull sees it.
+    const row = server.pages.get(tombstoned)!
+    server.pages.set(tombstoned, { ...row, purged_at: row.updated_at })
 
     await phone.focus()
     const fresh = await createPage()
@@ -510,6 +514,7 @@ describe('local-first sync', () => {
     await phone.sync()
 
     assert.equal(await phone.page(gone), undefined, 'the vanished page should be dropped')
+    assert.equal(await phone.page(tombstoned), undefined, 'the purged page should be dropped')
     assert.ok(await phone.page(fresh), 'a page the server has never seen must survive')
   })
 
