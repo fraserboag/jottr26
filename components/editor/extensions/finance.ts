@@ -374,7 +374,7 @@ export function gapBelowTable(state: EditorState): Selection | null {
     const $cell = state.doc.resolve($head.before(depth))
     if (nextCell($cell, 'vert', 1)) return null
     const $below = state.doc.resolve($cell.after(-1))
-    if (Selection.findFrom($below, 1) || !GapCursor.valid($below)) return null
+    if (Selection.findFrom($below, 1)) return null
     return new GapCursor($below)
   }
   return null
