@@ -56,8 +56,20 @@ export function activeDatabase(): JottrDB | null {
   return current?.db ?? null
 }
 
+/** Databases this app closed, as opposed to ones the browser closed under it,
+ *  which Dexie reopens on the next write. Dexie's own hasBeenClosed() cannot
+ *  tell them apart: it looks for an error name Dexie never uses. */
+const closedHere = new WeakSet<JottrDB>()
+
+export function closedByApp(db: JottrDB) {
+  return closedHere.has(db)
+}
+
 export function closeDatabase() {
-  for (const db of open.values()) db.close()
+  for (const db of open.values()) {
+    closedHere.add(db)
+    db.close()
+  }
   open.clear()
   current = null
 }
@@ -65,7 +77,9 @@ export function closeDatabase() {
 /** Used when signing out: the notes are cloud-backed, and leaving them in
  *  IndexedDB on a device someone else may use is not a tradeoff worth making. */
 export async function eraseDatabase(userId: string) {
-  open.get(userId)?.close()
+  const db = open.get(userId)
+  if (db) closedHere.add(db)
+  db?.close()
   open.delete(userId)
   if (current?.userId === userId) current = null
   await Dexie.delete(databaseName(userId))

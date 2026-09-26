@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import * as Y from 'yjs'
-import { activeDatabase, type JottrDB } from './dexie'
+import { activeDatabase, closedByApp, type JottrDB } from './dexie'
 import type { DocStateRow } from './schema'
 import { broadcastUpdate, onPeerUpdate } from './peers'
 
@@ -215,7 +215,7 @@ function markUnsaved(db: JottrDB, handle: DocHandle, error: unknown) {
     pageId,
     setTimeout(() => {
       resaveTimers.delete(pageId)
-      if (!unsaved.has(pageId) || handles.get(pageId) !== handle || !db.isOpen()) return
+      if (!unsaved.has(pageId) || handles.get(pageId) !== handle || closedByApp(db)) return
       const retry = resave(db, handle).catch((error) => markUnsaved(db, handle, error))
       persisting.add(retry)
       void retry.finally(() => persisting.delete(retry))
@@ -288,7 +288,12 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
       // is active when the write lands: an edit made just before signing out
       // must never end up in the next account's database.
       const write = (async () => {
-        if (!db.isOpen()) return
+        // Only a database this app closed, on signing out. One the browser
+        // closed (iOS can, in the background, and so does a page put in the
+        // back-forward cache), or another tab's upgrade closed, Dexie reopens
+        // on this write, so it has to be tried: skipped, the edit was lost
+        // while the status read synced.
+        if (closedByApp(db)) return
         if (unsaved.has(pageId)) await resave(db, handle)
         await db.docUpdates.add({ pageId, update })
         pending += 1

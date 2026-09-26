@@ -5,8 +5,9 @@ import { installBrowserGlobals } from './harness'
 
 installBrowserGlobals()
 
-const { openDatabase, closeDatabase, eraseDatabase } = await import('@/lib/db/dexie')
-const { openDoc, patchDocState, readPlainText, releaseAll, whenPersisted, DOC_FIELD } = await import(
+const { openDatabase, closeDatabase, databaseName, eraseDatabase } = await import('@/lib/db/dexie')
+const { default: Dexie } = await import('dexie')
+const { openDoc, patchDocState, readPlainText, releaseAll, saveFailure, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
 
@@ -142,6 +143,49 @@ describe('opening a page', () => {
     openDatabase(`compaction-${device++}`)
     const [, handle] = await Promise.all([openDoc('page'), openDoc('page', { seed: true })])
     assert.equal(handle.doc.getXmlFragment(DOC_FIELD).length, 2)
+  })
+})
+
+describe('a database the browser closes', () => {
+  const saved = (db: ReturnType<typeof openDatabase>) => db.docUpdates.where('pageId').equals('page').count()
+
+  it('saves an edit made after the browser dropped the connection', async () => {
+    const { db, text } = await freshPage()
+    await whenPersisted()
+    const before = await saved(db)
+    // What Dexie does when the browser closes the connection under it.
+    db.close({ disableAutoOpen: false })
+
+    text.insert(0, 'typed after')
+    await whenPersisted()
+    assert.equal(await saved(db), before + 1)
+    assert.equal(saveFailure(), null)
+    assert.match(readPlainText(await reload()), /typed after/)
+  })
+
+  it('writes nothing after this app closed it, as on signing out', async () => {
+    const { text } = await freshPage()
+    await whenPersisted()
+    closeDatabase()
+
+    text.insert(0, 'typed after')
+    await whenPersisted()
+    assert.equal(saveFailure(), null)
+  })
+
+  it('keeps saving once another tab has upgraded it to a newer version', async () => {
+    const { db, text } = await freshPage()
+    await whenPersisted()
+    const before = await saved(db)
+    const newer = new Dexie(databaseName(`compaction-${device - 1}`))
+    newer.version(9).stores({ docUpdates: '++seq, pageId' })
+    await newer.open()
+    newer.close()
+
+    text.insert(0, 'typed after')
+    await whenPersisted()
+    assert.equal(await saved(db), before + 1)
+    assert.equal(saveFailure(), null)
   })
 })
 
