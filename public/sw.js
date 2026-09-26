@@ -93,12 +93,11 @@ self.addEventListener('fetch', (event) => {
 /** Network first, so a deploy is picked up on the next load; cache second, so
  *  being offline is unremarkable. */
 async function handleNavigation(event, url) {
-  const cache = await caches.open(SHELL_CACHE)
+  let response
   try {
-    const response = await fetch(event.request)
-    if (response.ok) event.waitUntil(storeShell(url.pathname, response.clone()).catch(() => undefined))
-    return response
+    response = await fetch(event.request)
   } catch {
+    const cache = await caches.open(SHELL_CACHE)
     const exact = await cache.match(url.pathname)
     if (exact) return exact
 
@@ -118,6 +117,9 @@ async function handleNavigation(event, url) {
       headers: { 'content-type': 'text/html; charset=utf-8' },
     })
   }
+
+  if (response.ok) event.waitUntil(storeShell(url.pathname, response.clone()).catch(() => undefined))
+  return response
 }
 
 async function cachePage(path) {
