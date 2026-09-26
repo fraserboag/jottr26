@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { NodeSelection, Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
-import { CellSelection } from '@tiptap/pm/tables'
+import { CellSelection, columnResizingPluginKey } from '@tiptap/pm/tables'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 /** A click on the edge of a boxed block selects the block whole, ready to be
@@ -9,8 +9,10 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
  *  click on the text inside, or beside it, still puts the caret there.
  *
  *  A table's cells run right to its border, so its edge is the strip just
- *  around it, and the border itself. A folded accordion has no box
- *  showing, and so no edge to click.
+ *  around it, the border itself, and the outermost few pixels of the cells
+ *  inside it, short of any text. Where a column's resize grip is showing, the
+ *  grip has the click instead. A folded accordion has no box showing, and so
+ *  no edge to click.
  *
  *  A table selected whole comes out as every one of its cells selected, which
  *  is how the table editing is built, so a table in that state is marked, and
@@ -61,6 +63,23 @@ function boxOf(element: HTMLElement): Box {
       left: parseFloat(style.paddingLeft) || 0,
     },
   }
+}
+
+/** How far into a table its edge reaches: its border, and a little of the
+ *  cells' padding, which is 6px above and below the text and 9px beside it. */
+const TABLE_RIM = 6
+
+/** Whether a point is on a table's rim, just inside its outer border. */
+function onRim(table: HTMLElement, x: number, y: number) {
+  const { left, top, width, height } = table.getBoundingClientRect()
+  const padding = { top: TABLE_RIM, right: TABLE_RIM, bottom: TABLE_RIM, left: TABLE_RIM }
+  return onEdge({ left, top, width, height, padding }, x, y)
+}
+
+/** Whether the pointer is on a column's resize grip, which a click drags. */
+function onGrip(state: EditorState) {
+  const resizing = columnResizingPluginKey.getState(state)
+  return !!resizing && resizing.activeHandle > -1
 }
 
 const BOXES = 'div[data-type="callout"], div[data-type="accordionBody"], pre, .tableWrapper'
@@ -119,9 +138,12 @@ export const SelectBlock = Extension.create({
               const box = target.closest<HTMLElement>(BOXES)
               if (!box || !view.dom.contains(box)) return false
 
-              const hit = box.matches('.tableWrapper')
-                ? (target === box || target.matches('table')) && within(boxOf(box), event.clientX, event.clientY)
-                : onEdge(boxOf(box), event.clientX, event.clientY)
+              const { clientX: x, clientY: y } = event
+              const table = box.matches('.tableWrapper') && box.querySelector<HTMLElement>(':scope > table')
+              const hit = table
+                ? within(boxOf(box), x, y) &&
+                  (target === box || target === table || (onRim(table, x, y) && !onGrip(view.state)))
+                : onEdge(boxOf(box), x, y)
               if (!hit) return false
 
               const block = blockOf(box)
