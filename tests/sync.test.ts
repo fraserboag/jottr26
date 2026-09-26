@@ -650,6 +650,29 @@ describe('local-first sync', () => {
     assert.equal(pulled[0]?.title, 'Edited')
   })
 
+  it('downloads a new device\'s pages a few batches at a time', async () => {
+    await laptop.focus()
+    const ids: string[] = []
+    for (let i = 0; i < 45; i++) {
+      const id = await createPage()
+      await laptop.type(id, `page ${i}`)
+      ids.push(id)
+    }
+    await laptop.sync()
+
+    server.blobDelayMs = 20
+    server.maxBlobsInFlight = 0
+    const fresh = new Device('many-pages')
+    try {
+      await fresh.sync()
+    } finally {
+      server.blobDelayMs = 0
+    }
+    assert.ok(server.maxBlobsInFlight > 1, 'batches should overlap')
+    assert.equal(fresh.phase(), 'synced')
+    for (const [i, id] of ids.entries()) assert.match(await fresh.text(id), new RegExp(`page ${i}\\b`))
+  })
+
   it('keeps the pages a first sync pulled before it ran out of time', async () => {
     for (let i = 0; i < 600; i++) {
       const id = `slow-${String(i).padStart(3, '0')}`

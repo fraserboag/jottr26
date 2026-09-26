@@ -52,6 +52,7 @@ const OFFLINE_REALTIME_POLL_MS = 10_000
 /** Documents pushed at once. Catching up after a day offline should not mean
  *  one round trip per note, one after another. */
 const PUSH_CONCURRENCY = 4
+const PULL_CONCURRENCY = 4
 const EDIT_DEBOUNCE_MS = 1_200
 /** Trashing, moving, creating or deleting a page. Short enough to feel
  *  immediate, long enough to gather a whole emptied trash into one push. */
@@ -855,7 +856,22 @@ export class SyncEngine {
     let failure: Error | null = null
     let retryFrom = Infinity
 
-    for (const chunk of chunks(wanted, BLOB_CHUNK)) {
+    // A few batches at a time, as pushes go: a first sync on a new device
+    // downloads every page, and one batch after another made that a wait of
+    // one round trip per twenty pages. A batch that fails stops the others
+    // taking new work, and the pull reports it once the rest have settled.
+    const queue = chunks(wanted, BLOB_CHUNK)
+    const errors: unknown[] = []
+    const download = async () => {
+      for (let chunk = queue.shift(); chunk && errors.length === 0; chunk = queue.shift()) {
+        try {
+          await takeIn(chunk)
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+    }
+    const takeIn = async (chunk: string[]) => {
       const { data, error } = await this.supabase
         .from('page_docs')
         .select('page_id, ydoc, version')
@@ -884,6 +900,8 @@ export class SyncEngine {
         }
       }
     }
+    await Promise.all(Array.from({ length: Math.min(PULL_CONCURRENCY, queue.length) }, download))
+    if (errors.length) throw errors[0]
 
     // Held back to the first document that failed, so the next pull asks for
     // it again. Moved past it, the device would keep the old text for good

@@ -69,6 +69,11 @@ export class FakeServer {
   /** Fails push_page_doc for this page, as a server error would. */
   failDocPush: string | null = null
   rpcInFlight = 0
+  /** Delay before a download of document blobs answers, so overlapping
+   *  downloads can be seen. */
+  blobDelayMs = 0
+  blobsInFlight = 0
+  maxBlobsInFlight = 0
   /** What each client's realtime subscription was given, to fire events at. */
   realtimeHandlers: Array<(event: { new: Record<string, unknown> }) => void> = []
   maxRpcInFlight = 0
@@ -169,6 +174,15 @@ export class FakeServer {
         upsert: (value: PageRecord[]) => ((mode = 'upsert'), (payload = value), builder),
         abortSignal: (value: AbortSignal) => ((signal = value), builder),
         then: (resolve: (value: unknown) => void) => {
+          if (!this.stalled && inList && this.blobDelayMs) {
+            this.blobsInFlight += 1
+            this.maxBlobsInFlight = Math.max(this.maxBlobsInFlight, this.blobsInFlight)
+            setTimeout(() => {
+              this.blobsInFlight -= 1
+              resolve(run())
+            }, this.blobDelayMs)
+            return
+          }
           if (!this.stalled) return resolve(run())
           signal?.addEventListener('abort', () =>
             resolve({ data: null, error: { message: 'AbortError: signal is aborted' } }),
