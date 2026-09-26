@@ -29,9 +29,10 @@ export class ScrollingTableView extends TableView {
     return true
   }
 
-  /** Only a table with an undragged column is touched. Once every column has
-   *  been dragged the stock view pins the table to their sum, which is already
-   *  as wide as asked for. */
+  /** Only a table with an undragged column is touched. A drag always leaves
+   *  one, but a table whose every column has a width (pasted in, say) is
+   *  pinned by the stock view to their sum, which is already as wide as asked
+   *  for. */
   private floorUnsizedColumns() {
     const row = this.node.firstChild
     if (!row) return

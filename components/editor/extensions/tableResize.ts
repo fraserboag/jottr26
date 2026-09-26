@@ -172,9 +172,13 @@ function startTrade(view: EditorView, event: MouseEvent, cellMinWidth: number) {
     win.removeEventListener('mouseup', finish)
     const tr = view.state.tr.setMeta(columnResizingPluginKey, { setDragging: null })
     const dx = e.clientX - startX
+    // Found again from the handle, which the stock plugin carries through any
+    // edit, so an edit synced in above the table mid-drag does not lose it.
+    const now = columnResizingPluginKey.getState(view.state)?.activeHandle ?? -1
+    const $now = now === -1 ? null : view.state.doc.resolve(now)
     // A click on the line with no drag leaves the widths as they were.
-    if (dx !== 0 && view.state.doc.nodeAt(tablePos) === table) {
-      setColumnWidths(tr, tablePos, planTrade(drawn, stored, col, dx, cellMinWidth))
+    if (dx !== 0 && $now && TableMap.get($now.node(-1)).width === map.width) {
+      setColumnWidths(tr, $now.before(-1), planTrade(drawn, stored, col, dx, cellMinWidth))
     }
     view.dispatch(tr)
   }
