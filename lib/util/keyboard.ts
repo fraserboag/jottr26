@@ -33,7 +33,11 @@ export function raiseKeyboard() {
   // Gone as soon as anything else has focus, the editor or otherwise. If the
   // page never opens, the keyboard goes back down rather than staying up over
   // nothing.
-  const timer = window.setTimeout(() => standIn.blur(), 3000)
+  // Removed as well as blurred: one that never took focus fires no blur.
+  const timer = window.setTimeout(() => {
+    standIn.blur()
+    standIn.remove()
+  }, 3000)
   standIn.addEventListener(
     'blur',
     () => {
