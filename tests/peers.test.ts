@@ -20,8 +20,12 @@ openPeerChannel('peers')
 const otherTab = new NodeBroadcastChannel('jottr:peers:peers')
 
 function nextMessage() {
-  return new Promise<{ pageId: string; update: Uint8Array }>((resolve) => {
-    otherTab.onmessage = (event) => resolve((event as { data: { pageId: string; update: Uint8Array } }).data)
+  return new Promise<{ pageId: string; update: Uint8Array }>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('No message within 2s')), 2000)
+    otherTab.onmessage = (event) => {
+      clearTimeout(timer)
+      resolve((event as { data: { pageId: string; update: Uint8Array } }).data)
+    }
   })
 }
 

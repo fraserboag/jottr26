@@ -1,3 +1,4 @@
+import Dexie from 'dexie'
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
 import type { DocStateRow } from './schema'
@@ -86,10 +87,14 @@ async function readFromDisk(db: JottrDB, pageId: string) {
 async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc, origin: symbol = LOAD_ORIGIN) {
   const { state, updates } = await readFromDisk(db, pageId)
 
-  doc.transact(() => {
-    if (state?.snapshot?.byteLength) Y.applyUpdate(doc, state.snapshot, origin)
-    for (const row of updates) Y.applyUpdate(doc, row.update, origin)
-  }, origin)
+  // Outside any transaction the caller holds (a compaction does), so an
+  // observer on the document that touches the database is not pulled into it.
+  Dexie.ignoreTransaction(() =>
+    doc.transact(() => {
+      if (state?.snapshot?.byteLength) Y.applyUpdate(doc, state.snapshot, origin)
+      for (const row of updates) Y.applyUpdate(doc, row.update, origin)
+    }, origin),
+  )
 
   return { state, deltaCount: updates.length }
 }
