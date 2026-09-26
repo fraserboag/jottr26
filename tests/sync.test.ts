@@ -378,10 +378,12 @@ describe('local-first sync', () => {
     await emptyTrash()
     for (const id of family) assert.equal(await laptop.page(id), undefined)
     assert.equal(await activeDatabase()!.purges.count(), 3)
+    assert.equal(await laptop.pendingCount(), 3, 'queued deletes count as unsynced, so sign-out warns')
 
     setOnline(true)
     await laptop.sync()
     assert.equal(await activeDatabase()!.purges.count(), 0)
+    assert.equal(await laptop.pendingCount(), 0)
     for (const id of family) assert.ok(server.pages.get(id)?.purged_at, 'purged on the server')
   })
 

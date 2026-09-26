@@ -96,11 +96,15 @@ type StatusMessage =
 /** Pages with a change the server has not acknowledged, in the row, the
  *  document, or both. */
 export async function countPending(db: JottrDB) {
-  const [pages, docs] = await Promise.all([
+  // A delete made for good offline is waiting to upload like any edit, so it
+  // counts too: sign-out warns before erasing it, and the status is not
+  // 'synced' while it is queued.
+  const [pages, docs, purges] = await Promise.all([
     db.pages.where('dirty').equals(1).primaryKeys(),
     db.docStates.where('dirty').equals(1).primaryKeys(),
+    db.purges.toCollection().primaryKeys(),
   ])
-  return new Set([...pages, ...docs] as string[]).size
+  return new Set([...pages, ...docs, ...purges] as string[]).size
 }
 
 /** A server timestamp as an exact key, down to the microsecond Postgres keeps
