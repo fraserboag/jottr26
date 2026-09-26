@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
+import { isPlainLeftClick, looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
 
 /** The workspace URL a link would be clicked on. */
 const HERE = 'https://jottr.app/app?p=home'
@@ -134,5 +134,20 @@ describe('looksLikeUrl', () => {
 describe('pageHref', () => {
   it('addresses a page the same way the workspace does', () => {
     assert.deepEqual(resolveLink(pageHref('abc123'), HERE), { kind: 'page', pageId: 'abc123' })
+  })
+})
+
+describe('isPlainLeftClick', () => {
+  const click = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false }
+
+  it('follows a plain left click in place', () => {
+    assert.equal(isPlainLeftClick(click), true)
+  })
+
+  it('leaves a middle click or a held modifier to the browser', () => {
+    assert.equal(isPlainLeftClick({ ...click, button: 1 }), false)
+    for (const key of ['metaKey', 'ctrlKey', 'shiftKey', 'altKey'] as const) {
+      assert.equal(isPlainLeftClick({ ...click, [key]: true }), false, key)
+    }
   })
 })
