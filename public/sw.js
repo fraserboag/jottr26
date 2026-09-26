@@ -58,10 +58,13 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-const isStaticAsset = (url) =>
-  url.pathname.startsWith('/_next/static/') ||
-  url.pathname.startsWith('/icons/') ||
-  url.pathname === '/icon.svg'
+/** Content-hashed by the build, so a cached copy is never out of date. */
+const isStaticAsset = (url) => url.pathname.startsWith('/_next/static/')
+
+/** Kept for offline, but under a fixed name, so a changed one has to be
+ *  fetched again rather than served from the cache for good. */
+const isFixedFile = (url) =>
+  url.pathname === '/manifest.webmanifest' || url.pathname.startsWith('/icons/') || url.pathname === '/icon.svg'
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
@@ -85,8 +88,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.pathname === '/manifest.webmanifest') {
-    event.respondWith(staleWhileRevalidate(request, ASSET_CACHE))
+  if (isFixedFile(url)) {
+    event.respondWith(staleWhileRevalidate(event, ASSET_CACHE))
   }
 })
 
@@ -184,14 +187,18 @@ async function cacheFirst(event, cacheName) {
   return response
 }
 
-async function staleWhileRevalidate(request, cacheName) {
+async function staleWhileRevalidate(event, cacheName) {
+  const { request } = event
   const cache = await caches.open(cacheName)
   const hit = await cache.match(request)
   const network = fetch(request)
-    .then((response) => {
-      if (response.ok) cache.put(request, response.clone())
+    .then(async (response) => {
+      if (response.ok) await cache.put(request, response.clone())
       return response
     })
     .catch(() => hit)
+  // Kept alive until written, as in cacheFirst: answered from the cache, the
+  // worker could otherwise be stopped before the fresh copy is stored.
+  event.waitUntil(network.catch(() => undefined))
   return hit ?? network
 }
