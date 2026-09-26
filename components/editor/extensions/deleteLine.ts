@@ -1,8 +1,8 @@
 import type { Node as PMNode, ResolvedPos } from '@tiptap/pm/model'
-import { Selection, TextSelection, type Command } from '@tiptap/pm/state'
+import { Selection, type Command } from '@tiptap/pm/state'
 import { CellSelection } from '@tiptap/pm/tables'
 import { ACCORDION_BODY } from './accordion'
-import { isCellNode, isEmptyParagraph } from './helpers'
+import { isCellNode, isEmptyParagraph, replaceWithEmptyLine } from './helpers'
 import { selectsWholeTable } from './selectBlock'
 
 /** The boxes that are written in rather than being blocks of their own: a
@@ -55,12 +55,7 @@ export const deleteLine: Command = (state, dispatch) => {
 
     if (all && (depth === 0 || keepsALine(parent))) {
       if (parent.childCount === first + 1 && isEmptyParagraph(parent.child(first))) return false
-      if (dispatch) {
-        const from = $at.posAtIndex(first, depth)
-        const tr = state.tr.replaceWith(from, $at.end(depth), state.schema.nodes.paragraph.create())
-        dispatch(tr.setSelection(TextSelection.create(tr.doc, from + 1)).scrollIntoView())
-      }
-      return true
+      return replaceWithEmptyLine(state, dispatch, $at.posAtIndex(first, depth), $at.end(depth))
     }
 
     if (all || !parent.canReplace(start, end)) {

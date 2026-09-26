@@ -6,7 +6,6 @@ import {
   Selection,
   TextSelection,
   type Command,
-  type EditorState,
   type Transaction,
 } from '@tiptap/pm/state'
 import type { EditorView, NodeView, ViewMutationRecord } from '@tiptap/pm/view'
@@ -304,7 +303,7 @@ export function setAccordionOpen(pos: number, open: boolean): Command {
 }
 
 /** A position inside a folded box, if the selection has landed in one. */
-function hiddenAccordion(state: EditorState, $pos: ResolvedPos) {
+function hiddenAccordion($pos: ResolvedPos) {
   for (let depth = $pos.depth; depth > 0; depth -= 1) {
     if ($pos.node(depth).type.name !== ACCORDION_BODY) continue
     const accordion = $pos.node(depth - 1)
@@ -321,7 +320,7 @@ const skipFolded = new Plugin({
   appendTransaction(transactions, oldState, state) {
     if (!transactions.some((tr) => tr.selectionSet)) return null
     const { selection } = state
-    const hidden = hiddenAccordion(state, selection.$head)
+    const hidden = hiddenAccordion(selection.$head)
     if (!hidden) return null
 
     const { accordion, pos } = hidden

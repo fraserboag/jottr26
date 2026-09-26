@@ -1,7 +1,7 @@
 import { ListItem as BaseListItem } from '@tiptap/extension-list'
 import type { Node } from '@tiptap/pm/model'
-import { Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
-import { pm } from './helpers'
+import { TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { pm, removeBlockToAbove } from './helpers'
 
 /** A list item whose first line can be an accordion as well as a paragraph.
  *
@@ -71,13 +71,7 @@ export function backspaceNestedItem(): Command {
       return false
     }
 
-    if (dispatch) {
-      const start = $from.before(-1)
-      const tr = state.tr.delete(start, $from.after(-1))
-      tr.setSelection(Selection.near(tr.doc.resolve(start), -1))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    return removeBlockToAbove(state, dispatch, $from.before(-1), $from.after(-1))
   }
 }
 
@@ -96,13 +90,7 @@ export function backspaceAfterList(): Command {
     const index = $from.index(-1)
     if (index === 0 || !LISTS.includes($from.node(-1).child(index - 1).type.name)) return false
 
-    if (dispatch) {
-      const start = $from.before()
-      const tr = state.tr.delete(start, $from.after())
-      tr.setSelection(Selection.near(tr.doc.resolve(start), -1))
-      dispatch(tr.scrollIntoView())
-    }
-    return true
+    return removeBlockToAbove(state, dispatch, $from.before(), $from.after())
   }
 }
 
