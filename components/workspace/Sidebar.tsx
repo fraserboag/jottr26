@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { MenuItem, MenuSeparator, Popover } from '@/components/ui/Popover'
 import { PageMenu } from './PageMenu'
@@ -29,8 +30,8 @@ export function Sidebar({
   const forceSync = useForceSync()
   const expanded = useExpanded()
 
-  const tree: TreeNode[] = buildTree(pages)
-  const favourites = pages.filter((page) => page.isFavorite)
+  const tree: TreeNode[] = useMemo(() => buildTree(pages), [pages])
+  const favourites = useMemo(() => pages.filter((page) => page.isFavorite), [pages])
 
   return (
     <div className="sidebar-tones flex h-full flex-col bg-sidebar">

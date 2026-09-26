@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { searchPages } from '@/lib/db/search'
-import type { PageRow } from '@/lib/db/schema'
+import { usePages } from '@/components/workspace/PagesContext'
 import { looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
 
 /** One suggestion under the link field. The URL row is always present once
@@ -17,19 +17,20 @@ const LIMIT = 6
 
 export function LinkPicker({
   initialHref,
-  pages,
   onApply,
   onUnset,
   onClose,
   className = 'w-[19rem]',
 }: {
   initialHref: string
-  pages: PageRow[]
   onApply: (href: string) => void
   onUnset: () => void
   onClose: () => void
   className?: string
 }) {
+  // The picker searches the same local page list the sidebar reads, so
+  // linking to a note works offline like everything else here.
+  const pages = usePages()
   const [query, setQuery] = useState(initialHref)
   const [index, setIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)

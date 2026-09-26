@@ -4,8 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
-import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
-import { useAllPages } from '@/lib/db/hooks'
 import { useOpenPageId } from '@/lib/util/route'
 import { LinkPicker } from './LinkPicker'
 import { TableControls, useTableState } from './TableMenu'
@@ -34,8 +32,6 @@ export function MobileToolbar({
 }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
-  const { userId } = useWorkspace()
-  const pages = useAllPages(userId)
   const [, openPage] = useOpenPageId()
   const barRef = useRef<HTMLDivElement>(null)
   const table = useTableState(editor)
@@ -233,7 +229,6 @@ export function MobileToolbar({
           <LinkPicker
             className="min-w-0 flex-1 pt-1.5"
             initialHref={linkValue}
-            pages={pages ?? []}
             onApply={applyLink}
             onUnset={clearLink}
             onClose={closeLink}

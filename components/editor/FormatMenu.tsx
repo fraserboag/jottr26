@@ -7,8 +7,6 @@ import { NodeSelection } from '@tiptap/pm/state'
 import { CellSelection } from '@tiptap/pm/tables'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
-import { useWorkspace } from '@/components/workspace/WorkspaceProvider'
-import { useAllPages } from '@/lib/db/hooks'
 import { useOpenPageId } from '@/lib/util/route'
 import { LinkPicker } from './LinkPicker'
 import { linkToNewSubpage } from './subpageLink'
@@ -16,10 +14,6 @@ import { linkToNewSubpage } from './subpageLink'
 export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string }) {
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
-  // The picker searches the same local page list the sidebar reads, so
-  // linking to a note works offline like everything else here.
-  const { userId } = useWorkspace()
-  const pages = useAllPages(userId)
   const [, openPage] = useOpenPageId()
 
   // v3 does not re-render on every transaction by default, which is what keeps
@@ -84,7 +78,6 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
       {linkOpen ? (
         <LinkPicker
           initialHref={linkValue}
-          pages={pages ?? []}
           onApply={applyLink}
           onUnset={clearLink}
           onClose={() => setLinkOpen(false)}
