@@ -599,6 +599,49 @@ describe('local-first sync', () => {
     }
   })
 
+  it('keeps every page when the session lapses between two fetches of the check for deleted pages', async () => {
+    // More than one fetch's worth, so the check reads the server in two goes.
+    const ids: string[] = []
+    for (let i = 0; i < 600; i++) {
+      const id = `listed-${String(i).padStart(3, '0')}`
+      const at = server.stamp()
+      server.pages.set(id, {
+        id,
+        user_id: 'u',
+        title: id,
+        parent_id: null,
+        sort_key: `a${i}`,
+        deleted_at: null,
+        created_at: at,
+        updated_at: at,
+      })
+      ids.push(id)
+    }
+    await phone.sync()
+    await phone.focus()
+    assert.equal((await activeDatabase()!.pages.bulkGet(ids)).filter(Boolean).length, ids.length)
+
+    // The first fetch goes out with a good token, the second as the anon key,
+    // and the refresh has landed by the time the session is checked again.
+    server.afterSelect = (_table, query) => {
+      if (!query.unpurgedOnly) return
+      server.afterSelect = null
+      server.anonSelects = 1
+    }
+    try {
+      ;(phone.engine as unknown as { reconciledAt: number }).reconciledAt = 0
+      await phone.sync()
+      await phone.focus()
+      const kept = await activeDatabase()!.pages.bulkGet(ids)
+      assert.equal(kept.filter(Boolean).length, ids.length, 'pages the server still has must survive')
+    } finally {
+      server.afterSelect = null
+      server.anonSelects = 0
+      const internals = phone.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    }
+  })
+
   it('leaves nothing running when stopped while still starting', async () => {
     const engine = new SyncEngine(server.client(), 'stopped-early')
     const internals = engine as unknown as { pollTimer: unknown; cleanups: unknown[] }

@@ -978,17 +978,22 @@ export class SyncEngine {
     // a missed id here would mean deleting a page that still exists.
     const live = new Set<string>()
     let after = ''
+    // How many the first fetch said there are. A later fetch sent as the anon
+    // key, its token having expired in between, comes back empty and ends the
+    // scan early, and this is how that is told from having read them all.
+    let expected = 0
     for (;;) {
       // Tombstones are left out: a purged page is as gone as a missing one.
       let query = this.supabase
         .from('pages')
-        .select('id')
+        .select('id', after ? undefined : { count: 'exact' })
         .is('purged_at', null)
         .order('id', { ascending: true })
       if (after) query = query.gt('id', after)
-      const { data, error } = await query.limit(PAGE_SIZE).abortSignal(signal)
+      const { data, error, count } = await query.limit(PAGE_SIZE).abortSignal(signal)
 
       if (error) throw new Error(error.message)
+      if (!after) expected = count ?? 0
       const rows = (data ?? []) as Array<{ id: string }>
       if (rows.length === 0) break
       for (const row of rows) live.add(row.id)
@@ -1014,6 +1019,7 @@ export class SyncEngine {
     // which the pull applies, so a server with no pages at all is one this
     // device cannot see.
     if (live.size === 0) throw new Error('The server returned no pages; keeping them all')
+    if (live.size < expected) throw new Error('The server returned only some pages; keeping them all')
     await this.requireSession()
     await forgetPages(this.db, gone)
 

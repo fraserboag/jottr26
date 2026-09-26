@@ -79,7 +79,7 @@ export class FakeServer {
   maxRpcInFlight = 0
   /** Runs once a select has been answered, as another device writing between
    *  two page fetches would. */
-  afterSelect: ((table: string) => void) | null = null
+  afterSelect: ((table: string, query: { unpurgedOnly: boolean }) => void) | null = null
   /** A session whose token expired and could not be refreshed yet: Supabase
    *  hands back no session, and would send reads as the anon user, whom
    *  row-level security shows nothing. */
@@ -87,6 +87,10 @@ export class FakeServer {
   /** A token refresh the network never answers: getSession() does not
    *  return, and it takes no signal to abort it by. */
   sessionHung = false
+  /** Selects answered as the anon user though the session is back by the
+   *  time anyone asks: a request sent in the moment between a token expiring
+   *  and its refresh landing. */
+  anonSelects = 0
 
   stamp() {
     this.clock += 1
@@ -104,6 +108,7 @@ export class FakeServer {
       let limit: number | null = null
       let inList: string[] | null = null
       let unpurgedOnly = false
+      let counted = false
       let keyset: { at: string; column: string; id: string } | null = null
       let signal: AbortSignal | null = null
       const orders: string[] = []
@@ -123,7 +128,11 @@ export class FakeServer {
         }
 
         this.counts.select += 1
-        if (this.sessionLost) return { data: [], error: null }
+        if (this.sessionLost) return { data: [], error: null, count: counted ? 0 : null }
+        if (this.anonSelects > 0) {
+          this.anonSelects -= 1
+          return { data: [], error: null, count: counted ? 0 : null }
+        }
         rows = table === 'pages' ? [...this.pages.values()] : [...this.docs.values()]
 
         if (sinceIso) rows = rows.filter((row) => row.updated_at >= sinceIso!)
@@ -150,13 +159,14 @@ export class FakeServer {
             return row.updated_at > at || (row.updated_at === at && key > id)
           })
         }
+        const count = counted ? rows.length : null
         if (limit !== null) rows = rows.slice(0, limit)
-        this.afterSelect?.(table)
-        return { data: rows, error: null }
+        this.afterSelect?.(table, { unpurgedOnly })
+        return { data: rows, error: null, count }
       }
 
       Object.assign(builder, {
-        select: () => builder,
+        select: (_columns?: string, options?: { count?: string }) => ((counted = Boolean(options?.count)), builder),
         gte: (_column: string, value: string) => ((sinceIso = value), builder),
         gt: (_column: string, value: string) => ((afterId = value), builder),
         limit: (value: number) => ((limit = value), builder),
