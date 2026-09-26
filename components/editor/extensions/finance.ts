@@ -302,7 +302,7 @@ export const addRowBelow: Command = (state, dispatch) => {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !isInTable(state)) return false
   const { $from } = selection
-  if (!isCellNode($from.node($from.depth - 1))) return false
+  if ($from.parent.type.spec.code || !isCellNode($from.node($from.depth - 1))) return false
 
   if (dispatch) {
     const rect = selectedRect(state)
@@ -344,7 +344,10 @@ export const deleteEmptyRow: Command = (state, dispatch) => {
     removeRow(tr, rect, rect.top)
     const next = tr.doc.nodeAt(rect.tableStart - 1) as Node
     const row = Math.max(rect.top - 1, 0)
-    const cellPos = rect.tableStart + TableMap.get(next).positionAt(row, rect.left, next)
+    // From the map rather than positionAt, which has no answer for a slot a
+    // cell merged down from a row above covers.
+    const nextMap = TableMap.get(next)
+    const cellPos = rect.tableStart + nextMap.map[row * nextMap.width + rect.left]
     const cell = next.nodeAt(cellPos - rect.tableStart) as Node
     tr.setSelection(
       rect.top > 0

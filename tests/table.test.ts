@@ -204,6 +204,15 @@ describe('table block', () => {
     assert.equal(run(state, addRowBelow).applied, false)
   })
 
+  it('leaves Enter to a code block inside a cell, as a new line in the code', () => {
+    let state = page(2, 2)
+    const inner = cellAt(state, 1, 0)
+    state = state.apply(state.tr.replaceWith(inner + 1, inner + 3, schema.node('codeBlock', null, schema.text('x = 1'))))
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, inner + 2 + 'x = 1'.length)))
+    assert.equal(state.selection.$from.parent.type.name, 'codeBlock')
+    assert.equal(run(state, addRowBelow).applied, false)
+  })
+
   it('leaves Enter alone outside a table', () => {
     const state = page(2, 2)
     const inTitle = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)))
@@ -228,6 +237,22 @@ describe('table block', () => {
     assert.deepEqual(dimensions(after), { rows: 2, cols: 2 })
     assert.equal(after.selection.$from.parent.textContent, 'abc')
     assert.equal(after.selection.$from.parentOffset, 3)
+  })
+
+  it('drops an empty row under a cell merged down from the row above', () => {
+    const cell = (text = '', rowspan = 1) =>
+      schema.node('tableCell', { rowspan }, schema.node('paragraph', null, text ? schema.text(text) : []))
+    const table = schema.node('table', null, [
+      schema.node('tableRow', null, [cell('a'), cell('tall', 2)]),
+      schema.node('tableRow', null, [cell('b')]),
+      schema.node('tableRow', null, [cell(), cell()]),
+    ])
+    const doc = schema.node('doc', null, [schema.node('title', null, schema.text('Notes')), table])
+    const state = caretIn(EditorState.create({ doc, schema }), 2, 1)
+    const { state: after, applied } = run(state, deleteEmptyRow)
+    assert.equal(applied, true)
+    after.doc.check()
+    assert.equal(after.selection.$from.parent.textContent, 'tall')
   })
 
   it('leaves Backspace alone in a row with anything in it', () => {
