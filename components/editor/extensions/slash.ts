@@ -27,13 +27,6 @@ export interface SlashItem {
  *  block types; this app has the ones people actually use in notes. */
 export const slashItems: SlashItem[] = [
   {
-    id: 'text',
-    title: 'Text',
-    icon: 'text',
-    keywords: ['paragraph', 'body', 'plain'],
-    run: (editor, range) => editor.chain().focus().deleteRange(range).setParagraph().run(),
-  },
-  {
     id: 'title',
     title: 'Title',
     icon: 'title',
