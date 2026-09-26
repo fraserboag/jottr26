@@ -683,6 +683,13 @@ h1.page-title {
   margin-right: 1px;
   margin-left: -2.5px;
 }
+/* The caret beside a block that can't hold one, such as a table or divider.
+   Tiptap's own style draws it pure black, so it's drawn in the text colour
+   like every other caret. */
+.ProseMirror .ProseMirror-gapcursor::after {
+  border-top-color: var(--text);
+}
+
 @keyframes code-caret-blink {
   50% {
     border-left-color: transparent;
