@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { getExtensionField, getSchemaTypeByName, type KeyboardShortcutCommand } from '@tiptap/core'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { backspaceNestedItem, enterNestedList } from '@/components/editor/extensions/lists'
-import { pageSchema as schema, paragraph, run } from './editor'
+import { headlessEditor, pageSchema as schema, paragraph, run } from './editor'
 
 function list(type: string, ...items: Node[][]) {
   return schema.node(type, null, items.map((content) => schema.node('listItem', null, content)))
@@ -95,5 +96,29 @@ describe('Backspace in a nested list', () => {
     // A line with words on it.
     const words = caretAfter('one', list('bulletList', [paragraph('parent'), list('bulletList', [paragraph('one')], [paragraph('two')])]))
     assert.equal(run(words, backspaceNestedItem()).applied, false)
+  })
+})
+
+describe('list and table keys on a plain line', () => {
+  it('decline without dispatching an empty edit through every plugin', () => {
+    const line = { type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }
+    const instance = headlessEditor({ type: 'doc', content: [{ type: 'title', content: [{ type: 'text', text: 'N' }] }, line] }, 6)
+    let dispatched = 0
+    instance.on('transaction', () => (dispatched += 1))
+    for (const name of ['listItem', 'table']) {
+      const extension = instance.extensionManager.extensions.find((candidate) => candidate.name === name)!
+      const keys = getExtensionField<() => Record<string, KeyboardShortcutCommand>>(extension, 'addKeyboardShortcuts', {
+        name,
+        options: extension.options,
+        storage: extension.storage,
+        editor: instance,
+        type: getSchemaTypeByName(name, instance.schema),
+      })()
+      for (const key of ['Enter', 'Tab', 'Shift-Tab']) {
+        if (!keys[key]) continue
+        assert.equal(keys[key]({ editor: instance }), false, `${name} ${key}`)
+        assert.equal(dispatched, 0, `${name} ${key} dispatched`)
+      }
+    }
   })
 })

@@ -431,6 +431,10 @@ export const FinanceTable = Table.extend({
       // cell is selected.
       Backspace: (props) => deleteRow() || (parent.Backspace?.(props) ?? false),
       Enter: pm(this.editor, addRowBelow),
+      // Outside a table the stock bindings decline, but only after
+      // dispatching an empty transaction through every plugin.
+      Tab: (props) => isInTable(this.editor.state) && (parent.Tab?.(props) ?? false),
+      'Shift-Tab': (props) => isInTable(this.editor.state) && (parent['Shift-Tab']?.(props) ?? false),
       ArrowDown: () => {
         const { view } = this.editor
         const below = view.endOfTextblock('down') && gapBelowTable(view.state)

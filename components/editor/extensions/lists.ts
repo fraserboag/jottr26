@@ -111,9 +111,13 @@ export const ListItem = BaseListItem.extend({
 
   addKeyboardShortcuts() {
     const enter = pm(this.editor, enterNestedList())
+    // Asked first, since editor.commands dispatches even when the command
+    // declines, and outside a list these decline on every press.
+    const { editor, name } = this
     return {
-      ...this.parent?.(),
-      Enter: () => enter() || this.editor.commands.splitListItem(this.name),
+      Enter: () => enter() || (editor.can().splitListItem(name) && editor.commands.splitListItem(name)),
+      Tab: () => editor.can().sinkListItem(name) && editor.commands.sinkListItem(name),
+      'Shift-Tab': () => editor.can().liftListItem(name) && editor.commands.liftListItem(name),
       Backspace: pm(this.editor, backspaceNestedItem(), backspaceAfterList()),
     }
   },
