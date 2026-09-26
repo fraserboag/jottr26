@@ -60,10 +60,12 @@ export function parseMoney(text: string): number | null {
   return Number.isFinite(value) ? value : null
 }
 
-/** Cell text with the blocks kept apart, so two paragraphs holding '12' and
- *  '34' read as '12\n34' and fail to parse rather than totalling 1,234. */
+/** Cell text with the lines kept apart, so two paragraphs holding '12' and
+ *  '34' read as '12\n34' and fail to parse rather than totalling 1,234. The
+ *  leaf text does the same for a line break within one paragraph, which has no
+ *  text of its own and would otherwise vanish. */
 function cellText(cell: Node): string {
-  return cell.textBetween(0, cell.content.size, '\n')
+  return cell.textBetween(0, cell.content.size, '\n', '\n')
 }
 
 /** Walks a table's cells once each, skipping the header row and the repeats a

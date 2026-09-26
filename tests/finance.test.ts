@@ -46,7 +46,7 @@ function financePage(values: string[][]) {
 
 function textAt(state: EditorState, row: number, col: number) {
   const cell = state.doc.nodeAt(cellAt(state, row, col)) as Node
-  return cell.textBetween(0, cell.content.size, '\n')
+  return cell.textBetween(0, cell.content.size, '\n', '\n')
 }
 
 /** The caret after the last character of a cell, where typing actually happens. */
@@ -124,6 +124,24 @@ describe('finance mode', () => {
 
     state = caretIn(state, 1, 0)
     assert.equal(textAt(state, 1, 1), '12,005.00')
+  })
+
+  it('reads two lines split by a line break as two lines, not one number', () => {
+    let state = financePage([['Rent', '1']])
+    // What Shift-Enter between '12' and '34' leaves in the cell.
+    const from = cellAt(state, 1, 1) + 2
+    state = state.apply(
+      state.tr.replaceWith(from, from + 1, [
+        schema.text('12'),
+        schema.nodes.hardBreak.create(),
+        schema.text('34'),
+      ]),
+    )
+    state = caretIn(state, 1, 1)
+    assert.deepEqual(columnTotals(locate(state).node), [null, null])
+
+    state = caretIn(state, 1, 0)
+    assert.equal(textAt(state, 1, 1), '12\n34', 'leaving the cell keeps the break')
   })
 
   it('never reformats a cell because of an edit made on another device', () => {
