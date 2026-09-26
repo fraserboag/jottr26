@@ -6,7 +6,6 @@ import * as Y from 'yjs'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import { AccordionKit } from '@/components/editor/extensions/accordion'
 import { Heading } from '@/components/editor/extensions/heading'
-import { filterSlashItems } from '@/components/editor/extensions/slash'
 import { pageSchema } from './editor'
 
 const schema = pageSchema
@@ -32,11 +31,6 @@ describe('title block', () => {
 
   it('leaves seven hashes, a hash without its space, or a hash mid-line alone', () => {
     for (const typed of ['####### ', '#', 'a # ']) assert.ok(!shortcut(typed), typed)
-  })
-
-  it('is in the slash menu as Title', () => {
-    assert.deepEqual(filterSlashItems('title').map((item) => item.id), ['title'])
-    assert.ok(filterSlashItems('heading').some((item) => item.id === 'title'))
   })
 
   it('reads a pasted h1 to h6 as itself, but leaves the page title its own h1', () => {

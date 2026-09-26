@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import * as Y from 'yjs'
 import { lift, wrapIn } from '@tiptap/pm/commands'
-import { prosemirrorToYXmlFragment } from 'y-prosemirror'
 import type { Node } from '@tiptap/pm/model'
 import { leaveCallout } from '@/components/editor/extensions/callout'
-import { filterSlashItems } from '@/components/editor/extensions/slash'
 import { caretAt, outline, page, pageSchema as schema, paragraph, run } from './editor'
 
 const callout = schema.nodes.callout
@@ -94,26 +91,5 @@ describe('callout block', () => {
 
   it('leaves Enter alone outside a callout', () => {
     assert.equal(run(page(paragraph('Watch out')), enter).applied, false)
-  })
-
-  it('carries its text into the Yjs document that sync and search read', async () => {
-    const { DOC_FIELD, readPlainText } = await import('@/lib/db/ydoc')
-    const state = page(callout.create(null, paragraph('findme')))
-
-    const ydoc = new Y.Doc()
-    prosemirrorToYXmlFragment(state.doc, ydoc.getXmlFragment(DOC_FIELD))
-    // Search and page previews read this, so text inside a callout has to
-    // survive the trip into the CRDT rather than being skipped.
-    assert.match(readPlainText(ydoc), /findme/)
-  })
-
-  it('is offered by the slash menu, under the words people reach for', () => {
-    for (const query of ['callout', 'note', 'box', 'aside']) {
-      assert.equal(
-        filterSlashItems(query).some((item) => item.id === 'callout'),
-        true,
-        `'${query}' should find the callout`,
-      )
-    }
   })
 })

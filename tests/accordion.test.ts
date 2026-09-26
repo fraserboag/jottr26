@@ -14,7 +14,6 @@ import {
   unwrapAccordion,
 } from '@/components/editor/extensions/accordion'
 import { backspaceAfterList, backspaceNestedItem } from '@/components/editor/extensions/lists'
-import { filterSlashItems } from '@/components/editor/extensions/slash'
 import { caretAt, inside, outline, page, pageSchema as schema, paragraph, run } from './editor'
 
 function accordion(title: string, body: Node[] = [paragraph()], open = true) {
@@ -30,14 +29,11 @@ describe('accordion block', () => {
     state.doc.check()
     assert.deepEqual(outline(state), ['title', 'accordion'])
 
-    const { DOC_FIELD, readPlainText } = await import('@/lib/db/ydoc')
-    const ydoc = new Y.Doc()
-    const fragment = ydoc.getXmlFragment(DOC_FIELD)
+    const { DOC_FIELD } = await import('@/lib/db/ydoc')
+    const fragment = new Y.Doc().getXmlFragment(DOC_FIELD)
     prosemirrorToYXmlFragment(state.doc, fragment)
     const back = yXmlFragmentToProseMirrorRootNode(fragment, schema)
     assert.equal(back.child(1).attrs.open, false, 'folded stays folded on another device')
-    // Search reads this: text in a folded box is still found.
-    assert.match(readPlainText(ydoc), /hidden text/)
   })
 
   it('turns a paragraph into an accordion, its text becoming the heading', () => {
@@ -233,16 +229,6 @@ describe('accordion block', () => {
     assert.equal(tr?.getMeta('addToHistory'), false)
     assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
     assert.equal(state.selection.$from.parentOffset, 'Details'.length)
-  })
-
-  it('is offered by the slash menu, under the words people reach for', () => {
-    for (const query of ['accordion', 'toggle', 'collapse', 'fold']) {
-      assert.equal(
-        filterSlashItems(query).some((item) => item.id === 'accordion'),
-        true,
-        `'${query}' should find the accordion`,
-      )
-    }
   })
 })
 

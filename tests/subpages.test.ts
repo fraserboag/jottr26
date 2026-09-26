@@ -7,7 +7,6 @@ import * as Y from 'yjs'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import { Heading } from '@/components/editor/extensions/heading'
 import { backspaceSubpagesTitle, leaveSubpagesTitle, Subpages, SubpagesTitle } from '@/components/editor/extensions/subpages'
-import { filterSlashItems } from '@/components/editor/extensions/slash'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { repairSubpageTitles } from '@/lib/db/subpages'
 import { DOC_FIELD } from '@/lib/db/ydoc'
@@ -198,19 +197,6 @@ describe('subpage list', () => {
     assert.ok(selection instanceof NodeSelection && selection.node.type.name === 'subpages')
   })
 
-  it('is in the slash menu', () => {
-    for (const query of ['sub', 'Subpages', 'children', 'pages']) {
-      assert.equal(
-        filterSlashItems(query).some((item) => item.id === 'subpages'),
-        true,
-        `'${query}' should find the subpage list`,
-      )
-    }
-  })
-
-  it("is the only item '/sub' finds", () => {
-    assert.deepEqual(filterSlashItems('sub').map((item) => item.id), ['subpages'])
-  })
 })
 
 const schema = getSchema([

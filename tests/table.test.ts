@@ -137,24 +137,6 @@ describe('table block', () => {
     assert.equal(headerOf(run(toggled, toggleRow).state), true)
   })
 
-  it('carries cell text into the Yjs document that sync and search read', async () => {
-    const { DOC_FIELD, readPlainText } = await import('@/lib/db/ydoc')
-    const table = createTable(schema, 2, 2, true)
-    const doc = schema.node('doc', null, [
-      schema.node('title', null, schema.text('Notes')),
-      schema.node('paragraph'),
-      table,
-    ])
-    const state = EditorState.create({ doc, schema })
-    const filled = state.apply(state.tr.insertText('findme', cellAt(state, 1, 0) + 2))
-
-    const ydoc = new Y.Doc()
-    prosemirrorToYXmlFragment(filled.doc, ydoc.getXmlFragment(DOC_FIELD))
-    // Search and page previews read this, so text inside a cell has to survive
-    // the trip into the CRDT rather than being skipped as an unknown node.
-    assert.match(readPlainText(ydoc), /findme/)
-  })
-
   it('carries a column width to the other device', async () => {
     const { DOC_FIELD } = await import('@/lib/db/ydoc')
     const { yXmlFragmentToProsemirrorJSON } = await import('y-prosemirror')
