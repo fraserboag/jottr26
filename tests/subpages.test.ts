@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import * as Y from 'yjs'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import { Heading } from '@/components/editor/extensions/heading'
-import { leaveSubpagesTitle, Subpages, SubpagesTitle } from '@/components/editor/extensions/subpages'
+import { backspaceSubpagesTitle, leaveSubpagesTitle, Subpages, SubpagesTitle } from '@/components/editor/extensions/subpages'
 import { filterSlashItems } from '@/components/editor/extensions/slash'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
 import { repairSubpageTitles } from '@/lib/db/subpages'
@@ -127,6 +127,40 @@ describe('subpage list', () => {
     instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
     assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages', 'paragraph'])
     assert.equal(instance.state.selection.$from.index(0), 2)
+  })
+
+  it('jumps up to the end of the line above on Backspace at the start of the heading', () => {
+    const instance = editor([paragraph('Intro'), subpages(), paragraph('After')], 0)
+    inTitle(instance, 1)
+    assert.equal(instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch)), true)
+    assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages', 'paragraph'])
+    assert.equal(instance.state.doc.child(1).textContent, 'Subpages')
+    const { $from } = instance.state.selection
+    assert.equal($from.parent.textContent, 'Intro')
+    assert.equal($from.parentOffset, 'Intro'.length)
+  })
+
+  it('does so from an empty heading too, leaving the list where it is', () => {
+    const instance = editor([paragraph('Intro'), { type: 'subpages', content: [{ type: 'subpagesTitle' }] }], 0)
+    inTitle(instance, 1)
+    instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch))
+    assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages'])
+    assert.equal(instance.state.selection.$from.parent.textContent, 'Intro')
+  })
+
+  it('stays put on Backspace at the start of the heading with nothing above it', () => {
+    const instance = editor([subpages(), paragraph('After')], 1)
+    inTitle(instance, 0)
+    const before = instance.state
+    assert.equal(instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch)), true)
+    assert.equal(instance.state.doc, before.doc)
+    assert.equal(instance.state.selection.from, before.selection.from)
+  })
+
+  it('leaves Backspace alone past the start of the heading', () => {
+    const instance = editor([paragraph('Intro'), subpages()], 0)
+    inTitle(instance, 1, 3)
+    assert.equal(instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch)), false)
   })
 
   it('stays a subpage list when its heading is made a Title, a list or code', () => {

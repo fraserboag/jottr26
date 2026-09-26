@@ -1,5 +1,5 @@
 import { mergeAttributes, Node } from '@tiptap/core'
-import { NodeSelection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { NodeSelection, Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 
 /** A list of the page's subpages: the pages one level down, each a link — or,
  *  set to a depth of two, the pages two levels down, grouped under the child
@@ -62,6 +62,20 @@ export function leaveSubpagesTitle(): Command {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== SUBPAGES_TITLE) return false
     if (dispatch) dispatch(caretAfter(state.tr, $from.after(-1)))
+    return true
+  }
+}
+
+/** Backspace, at the very start of the heading: up to the end of the line
+ *  above, as Backspace would go from any line there is nothing to join into.
+ *  The heading is isolating, so it would otherwise do nothing at all. */
+export function backspaceSubpagesTitle(): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.parent.type.name !== SUBPAGES_TITLE || $from.parentOffset > 0) return false
+    // Nothing above to go to: stay put, rather than select the list.
+    const above = Selection.findFrom(state.doc.resolve($from.before(-1)), -1)
+    if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
     return true
   }
 }
@@ -164,8 +178,10 @@ export const Subpages = Node.create<SubpagesOptions>({
 
   addKeyboardShortcuts() {
     const leave = leaveSubpagesTitle()
+    const backspace = backspaceSubpagesTitle()
     return {
       Enter: () => this.editor.commands.command(({ state, dispatch }) => leave(state, dispatch)),
+      Backspace: () => this.editor.commands.command(({ state, dispatch }) => backspace(state, dispatch)),
     }
   },
 })
