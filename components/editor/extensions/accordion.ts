@@ -197,14 +197,24 @@ export function leaveAccordion(): Command {
   }
 }
 
-/** Backspace, at the very start of a heading: the accordion goes, and what was
- *  in it stays — the heading as a line of its own, the box's lines under it.
- *  The way back out of one opened with '>'. */
+/** Backspace, at the very start of a heading.
+ *
+ *  An empty heading: the accordion goes, and what was in it stays — the box's
+ *  lines back on the page. The way back out of one opened with '>'.
+ *
+ *  A heading with words in it: up to the end of the line above, as Backspace
+ *  would go from any line there is nothing to join into, rather than unmaking
+ *  a block that has been written in. */
 export function backspaceAccordion(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== ACCORDION_TITLE || $from.parentOffset > 0) return false
-    return unwrapAccordion()(state, dispatch)
+    if ($from.parent.content.size === 0) return unwrapAccordion()(state, dispatch)
+
+    // Nothing above to go to: stay put, rather than select the accordion.
+    const above = Selection.findFrom(state.doc.resolve($from.before(-1)), -1)
+    if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
+    return true
   }
 }
 

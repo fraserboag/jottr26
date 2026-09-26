@@ -190,14 +190,34 @@ describe('accordion block', () => {
     assert.equal(run(first, leaveAccordion()).applied, false)
   })
 
-  it('goes back to plain blocks on Backspace at the start of the heading', () => {
-    const start = page(accordion('Details', [paragraph('one'), paragraph('two')]))
+  it('goes back to plain blocks on Backspace in an empty heading', () => {
+    const start = page(accordion('', [paragraph('one'), paragraph('two')]))
     const at = caretAt(start, inside(start, 'accordionTitle'))
     const { state, applied } = run(at, backspaceAccordion())
     assert.equal(applied, true)
     assert.deepEqual(outline(state), ['title', 'paragraph', 'paragraph', 'paragraph'])
-    assert.deepEqual(state.doc.children.slice(1).map((node) => node.textContent), ['Details', 'one', 'two'])
+    assert.deepEqual(state.doc.children.slice(1).map((node) => node.textContent), ['', 'one', 'two'])
     assert.equal(state.selection.$from.parentOffset, 0)
+  })
+
+  it('jumps up to the end of the line above on Backspace at the start of a heading with words in it', () => {
+    const start = page(paragraph('above'), accordion('Details', [paragraph('one')]))
+    const at = caretAt(start, inside(start, 'accordionTitle'))
+    const { state, applied } = run(at, backspaceAccordion())
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'paragraph', 'accordion'])
+    assert.equal(state.doc.child(2).child(0).textContent, 'Details')
+    assert.equal(state.selection.$from.parent.textContent, 'above')
+    assert.equal(state.selection.$from.parentOffset, 'above'.length)
+  })
+
+  it('jumps up to the end of the page title from a heading straight under it', () => {
+    const start = page(accordion('Details'))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle')), backspaceAccordion())
+    assert.equal(applied, true)
+    assert.equal(state.selection.$from.parent.type.name, 'title')
+    assert.equal(state.selection.$from.parentOffset, 'Notes'.length)
+    assert.deepEqual(outline(state), ['title', 'accordion'])
   })
 
   it('leaves no blank line behind from a box that was never written in', () => {
@@ -350,8 +370,8 @@ describe('accordion as a list item', () => {
     assert.equal(state.selection.$from.node(-1), list.child(1), 'on the new item')
   })
 
-  it('goes back to a plain item on Backspace at the start of the heading', () => {
-    const start = page(bullets([accordion('Details', [paragraph('one')])]))
+  it('goes back to a plain item on Backspace in an empty heading', () => {
+    const start = page(bullets([accordion('', [paragraph('one')])]))
     const at = caretAt(start, inside(start, 'accordionTitle'))
     const { state, applied } = run(at, backspaceAccordion())
     assert.equal(applied, true)
@@ -360,10 +380,20 @@ describe('accordion as a list item', () => {
     assert.deepEqual(
       item.children.map((node) => [node.type.name, node.textContent]),
       [
-        ['paragraph', 'Details'],
+        ['paragraph', ''],
         ['paragraph', 'one'],
       ],
     )
+  })
+
+  it('jumps up to the item above on Backspace at the start of a heading with words in it', () => {
+    const start = page(bullets([paragraph('one')], [accordion('Details')]))
+    const heading = inside(start, 'accordionTitle')
+    const { state, applied } = run(caretAt(start, heading), backspaceAccordion())
+    assert.equal(applied, true)
+    assert.equal(state.doc, start.doc)
+    assert.equal(state.selection.$from.parent.textContent, 'one')
+    assert.equal(state.selection.$from.parentOffset, 'one'.length)
   })
 
   it('indents and outdents from the heading like any other item', () => {
