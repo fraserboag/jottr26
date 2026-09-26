@@ -31,7 +31,7 @@ export interface SubpagesOptions {
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     subpages: {
-      /** Put a subpage list where the caret is, and the caret on the line after. */
+      /** Put a subpage list where the caret is, and the caret at the end of its heading. */
       insertSubpages: () => ReturnType
     }
   }
@@ -150,29 +150,20 @@ export const Subpages = Node.create<SubpagesOptions>({
 
   addCommands() {
     return {
-      // The divider's insert, which has already worked out where the caret
-      // should land next to a block with no text in it.
+      // The insert leaves the caret at the end of the new heading, ready to
+      // write over it; Enter goes on to the line below from there.
       insertSubpages:
         () =>
-        ({ chain }) =>
-          chain()
-            .insertContent({
-              type: this.name,
-              content: [
-                {
-                  type: SUBPAGES_TITLE,
-                  content: [{ type: 'text', text: SUBPAGES_DEFAULT_TITLE, marks: [{ type: 'bold' }] }],
-                },
-              ],
-            })
-            .command(({ tr, dispatch }) => {
-              if (!dispatch) return true
-              // The insert leaves the caret at the end of the new heading.
-              const { $to } = tr.selection
-              caretAfter(tr, $to.parent.type.name === SUBPAGES_TITLE ? $to.after(-1) : $to.pos)
-              return true
-            })
-            .run(),
+        ({ commands }) =>
+          commands.insertContent({
+            type: this.name,
+            content: [
+              {
+                type: SUBPAGES_TITLE,
+                content: [{ type: 'text', text: SUBPAGES_DEFAULT_TITLE, marks: [{ type: 'bold' }] }],
+              },
+            ],
+          }),
     }
   },
 

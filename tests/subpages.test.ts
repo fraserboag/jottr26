@@ -53,17 +53,15 @@ describe('subpage list', () => {
     const instance = editor([paragraph('Intro'), paragraph(), paragraph('After')], 1)
     instance.commands.insertSubpages()
     assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages', 'paragraph'])
-    // The caret moves on to the line below rather than back up into the intro.
-    assert.equal(instance.state.selection.$from.parent.textContent, 'After')
   })
 
-  it('leaves a line to carry on typing on at the foot of a page', () => {
+  it('puts the caret at the end of its new heading', () => {
     const instance = editor([paragraph('Intro'), paragraph()], 1)
     instance.commands.insertSubpages()
-    assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages', 'paragraph'])
-    const { $from } = instance.state.selection
-    assert.equal($from.parent.type.name, 'paragraph')
-    assert.equal($from.index(0), 2)
+    const { $from, empty } = instance.state.selection
+    assert.equal(empty, true)
+    assert.equal($from.parent.type.name, 'subpagesTitle')
+    assert.equal($from.parentOffset, 'Subpages'.length)
   })
 
   it('holds its heading, saying Subpages in bold to start with, and its depth', () => {
