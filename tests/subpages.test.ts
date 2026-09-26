@@ -118,6 +118,25 @@ describe('subpage list', () => {
     assert.equal(instance.state.selection.$from.parent.textContent, 'After')
   })
 
+  it('goes into the first line of a list below on Enter, rather than selecting the list', () => {
+    const list = {
+      type: 'bulletList',
+      content: [{ type: 'listItem', content: [paragraph('milk')] }, { type: 'listItem', content: [paragraph('eggs')] }],
+    }
+    const instance = editor([subpages(), list], 0)
+    inTitle(instance, 0)
+    instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
+    assert.ok(instance.state.selection.empty)
+    assert.equal(instance.state.selection.$from.parent.textContent, 'milk')
+  })
+
+  it('selects a divider below on Enter, having no line to go into', () => {
+    const instance = editor([subpages(), { type: 'horizontalRule' }, paragraph('After')], 0)
+    inTitle(instance, 0)
+    instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
+    assert.equal((instance.state.selection as NodeSelection).node?.type.name, 'horizontalRule')
+  })
+
   it('makes a line to go on to on Enter at the foot of a page', () => {
     const instance = editor([paragraph('Intro'), subpages()], 0)
     inTitle(instance, 1)

@@ -1,5 +1,5 @@
 import { mergeAttributes, Node } from '@tiptap/core'
-import { NodeSelection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
+import { NodeSelection, Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 import { caretToLineAbove, pm, removeBlockToAbove, replaceWithEmptyLine, titleStyleAttribute } from './helpers'
 
 /** A list of the page's subpages: the pages one level down, each a link — or,
@@ -39,14 +39,18 @@ declare module '@tiptap/core' {
 }
 
 /** Onto the line after the block that ends at `after`: the next line if it is
- *  one to type on, the next block selected if it is not, or a new line if the
- *  page ends there. */
+ *  one to type on, the first line inside the next block (a list, a callout),
+ *  the next block selected if it has no line of its own (a divider), or a new
+ *  line if the page ends there. Selecting a list or callout whole would have
+ *  the next keystroke replace it. */
 function caretAfter(tr: Transaction, after: number) {
   const $after = tr.doc.resolve(after)
-  if ($after.nodeAfter?.isTextblock) {
+  const next = $after.nodeAfter
+  if (next?.isTextblock) {
     tr.setSelection(TextSelection.create(tr.doc, after + 1))
-  } else if ($after.nodeAfter?.isBlock) {
-    tr.setSelection(NodeSelection.create(tr.doc, after))
+  } else if (next?.isBlock) {
+    const line = Selection.findFrom($after, 1, true)
+    tr.setSelection(line && line.from < after + next.nodeSize ? line : NodeSelection.create(tr.doc, after))
   } else {
     const end = $after.end()
     tr.insert(end, tr.doc.type.schema.nodes.paragraph.create())
