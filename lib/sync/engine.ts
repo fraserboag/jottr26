@@ -90,6 +90,16 @@ type StatusMessage =
    *  the leader pushes now instead of on its next poll. */
   | { type: 'nudge' }
 
+/** Pages with a change the server has not acknowledged, in the row, the
+ *  document, or both. */
+export async function countPending(db: JottrDB) {
+  const [pages, docs] = await Promise.all([
+    db.pages.where('dirty').equals(1).primaryKeys(),
+    db.docStates.where('dirty').equals(1).primaryKeys(),
+  ])
+  return new Set([...pages, ...docs] as string[]).size
+}
+
 export class SyncEngine {
   private readonly supabase: SupabaseClient
   private readonly userId: string
@@ -202,9 +212,7 @@ export class SyncEngine {
     this.lockAbort = null
     this.runAbort?.abort()
     for (const resolve of this.leaderWaiters.splice(0)) resolve()
-    if (this.channel) void this.supabase.removeChannel(this.channel)
-    this.channel = null
-    this.realtimeUp = false
+    this.dropRealtime()
     this.statusChannel?.close()
     this.statusChannel = null
     if (this.pollTimer) clearInterval(this.pollTimer)
@@ -350,9 +358,7 @@ export class SyncEngine {
     if (this.running && this.isLeader && this.leaderAttempt === attempt) {
       // Another tab came to the front and took over. Queue up behind it.
       this.isLeader = false
-      if (this.channel) void this.supabase.removeChannel(this.channel)
-      this.channel = null
-      this.realtimeUp = false
+      this.dropRealtime()
       void this.electLeader()
     }
   }
@@ -381,8 +387,14 @@ export class SyncEngine {
       if (this.isLeader) this.request()
     } else if (message?.type === 'status' && !this.isLeader) {
       this.status = message.status
-      for (const listener of this.listeners) listener(this.status)
+      this.notify()
     }
+  }
+
+  private dropRealtime() {
+    if (this.channel) void this.supabase.removeChannel(this.channel)
+    this.channel = null
+    this.realtimeUp = false
   }
 
   private subscribeRealtime() {
@@ -415,20 +427,26 @@ export class SyncEngine {
 
   // --- status -------------------------------------------------------------
 
+  /** A status identical to the current one is dropped here. Every keystroke
+   *  recounts the pending pages, and mostly the count has not moved: passing
+   *  that on would re-render everything that shows the sync state, and post it
+   *  to every other tab, once per keystroke. */
   private emit(patch: Partial<SyncStatus>) {
+    const keys = Object.keys(patch) as Array<keyof SyncStatus>
+    if (keys.every((key) => patch[key] === this.status[key])) return
     this.status = { ...this.status, ...patch }
-    for (const listener of this.listeners) listener(this.status)
+    this.notify()
     if (this.isLeader) {
       this.statusChannel?.postMessage({ type: 'status', status: this.status } satisfies StatusMessage)
     }
   }
 
+  private notify() {
+    for (const listener of this.listeners) listener(this.status)
+  }
+
   private async refreshPending(patch: Partial<SyncStatus> = {}) {
-    const [pages, docs] = await Promise.all([
-      this.db.pages.where('dirty').equals(1).primaryKeys(),
-      this.db.docStates.where('dirty').equals(1).primaryKeys(),
-    ])
-    const pending = new Set([...pages, ...docs] as string[]).size
+    const pending = await countPending(this.db)
 
     // 'synced' claims everything on this device is on the server, so it can
     // only be told from 'pending' once the dirty rows have been counted — and

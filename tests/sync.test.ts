@@ -12,7 +12,7 @@ const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDeriv
 const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
-const { SyncEngine } = await import('@/lib/sync/engine')
+const { SyncEngine, countPending } = await import('@/lib/sync/engine')
 
 const server = new FakeServer()
 
@@ -118,12 +118,7 @@ class Device {
 
   async pendingCount() {
     await this.focus()
-    const db = activeDatabase()!
-    const [pages, docs] = await Promise.all([
-      db.pages.where('dirty').equals(1).primaryKeys(),
-      db.docStates.where('dirty').equals(1).primaryKeys(),
-    ])
-    return new Set([...pages, ...docs] as string[]).size
+    return countPending(activeDatabase()!)
   }
 }
 
