@@ -16,8 +16,9 @@ import { ScrollingTableView } from './tableView'
 import { JottrDocument, Title } from './title'
 
 /** Every block and mark a page can hold, with the keys that go with them, in
- *  the order the editor installs them — which is the order their shortcuts are
- *  tried in.
+ *  the order the editor installs them. Their shortcuts are tried the other way
+ *  round: Tiptap reverses the list before sorting it by priority, so for the
+ *  same key an extension further down gets it first.
  *
  *  Loadable under Node, so the tests build their schema from this same list
  *  rather than from a copy of it. What needs a browser or a live document —

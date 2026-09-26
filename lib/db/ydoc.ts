@@ -26,11 +26,6 @@ export const DOC_FIELD = 'default'
 export interface DocHandle {
   pageId: string
   doc: Y.Doc
-  /** Whether this document has content — either created here or pulled down.
-   *  An empty fragment for a page created on another device means the doc is
-   *  still in flight, and letting the editor fill it in would duplicate the
-   *  initial nodes when the two states merged. */
-  ready: boolean
   /** When this device last edited the document, or 0. Kept here rather than
    *  written per keystroke; the editor's debounced mirror copies it onto the
    *  page row. */
@@ -228,10 +223,7 @@ async function resave(db: JottrDB, handle: DocHandle) {
 export async function openDoc(pageId: string, options?: { seed?: boolean }): Promise<DocHandle> {
   const existing = handles.get(pageId)
   if (existing) {
-    if (options?.seed) {
-      seedDocument(existing.doc)
-      existing.ready = true
-    }
+    if (options?.seed) seedDocument(existing.doc)
     return existing
   }
 
@@ -243,23 +235,18 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     if (!db) throw new Error('openDoc called before sign-in')
 
     const doc = new Y.Doc({ gc: true })
-    const { state, deltaCount } = await loadFromDisk(db, pageId, doc)
+    const { deltaCount } = await loadFromDisk(db, pageId, doc)
 
-    const handle: DocHandle = { pageId, doc, ready: false, editedAt: 0 }
+    const handle: DocHandle = { pageId, doc, editedAt: 0 }
     let pending = deltaCount
 
     // Attached before anything else touches the document, so no edit — not even
     // the initial title and paragraph of a brand new page — can slip past
     // persistence.
     doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin === LOAD_ORIGIN) return
-      if (origin === PEER_ORIGIN) {
-        handle.ready = true
-        return
-      }
+      if (origin === LOAD_ORIGIN || origin === PEER_ORIGIN) return
 
       const isLocal = origin !== REMOTE_ORIGIN
-      handle.ready = true
       if (isLocal) handle.editedAt = Date.now()
 
       // Persisted immediately, one small row per transaction. The user's work is
@@ -293,7 +280,6 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     })
 
     if (options?.seed) seedDocument(doc)
-    handle.ready = doc.getXmlFragment(DOC_FIELD).length > 0 || (state?.version ?? 0) > 0
 
     handles.set(pageId, handle)
     return handle
@@ -313,7 +299,6 @@ export async function applyRemoteUpdate(pageId: string, update: Uint8Array) {
   if (!update.byteLength) return
   const handle = await openDoc(pageId)
   Y.applyUpdate(handle.doc, update, REMOTE_ORIGIN)
-  handle.ready = true
 }
 
 export function loadedDoc(pageId: string): DocHandle | undefined {
