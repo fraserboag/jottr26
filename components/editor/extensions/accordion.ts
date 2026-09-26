@@ -1,5 +1,5 @@
 import { InputRule, mergeAttributes, Node } from '@tiptap/core'
-import type { Fragment, Node as PMNode, ResolvedPos, Schema } from '@tiptap/pm/model'
+import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from '@tiptap/pm/model'
 import {
   Plugin,
   PluginKey,
@@ -197,23 +197,45 @@ export function leaveAccordion(): Command {
   }
 }
 
-/** Backspace, at the very start of a heading.
+/** Backspace, at the very start of a heading: up to the end of the line
+ *  above, as Backspace would go from any line there is nothing to join into.
  *
- *  An empty heading: the accordion goes, and what was in it stays — the box's
- *  lines back on the page. The way back out of one opened with '>'.
- *
- *  A heading with words in it: up to the end of the line above, as Backspace
- *  would go from any line there is nothing to join into, rather than unmaking
- *  a block that has been written in. */
+ *  An empty heading goes too, as an empty line would, and the accordion with
+ *  it — what was in the box stays, back on the page. The way back out of one
+ *  opened with '>'. One with words in it is left alone, rather than unmaking a
+ *  block that has been written in. */
 export function backspaceAccordion(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== ACCORDION_TITLE || $from.parentOffset > 0) return false
-    if ($from.parent.content.size === 0) return unwrapAccordion()(state, dispatch)
+    const pos = $from.before(-1)
+    const above = Selection.findFrom(state.doc.resolve(pos), -1)
 
-    // Nothing above to go to: stay put, rather than select the accordion.
-    const above = Selection.findFrom(state.doc.resolve($from.before(-1)), -1)
-    if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
+    if ($from.parent.content.size > 0) {
+      // Nothing above to go to: stay put, rather than select the accordion.
+      if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
+      return true
+    }
+
+    if (dispatch) {
+      const accordion = $from.node(-1)
+      const body = accordion.child(1)
+      const onlyBlank = body.childCount === 1 && body.firstChild!.type.name === 'paragraph' && body.firstChild!.content.size === 0
+      const blocks: PMNode[] = []
+      if (!onlyBlank) body.forEach((child) => blocks.push(child))
+
+      const parent = $from.node(-2)
+      const index = $from.index(-2)
+      // Where the page or a list item can't be left without a line here — the
+      // item's first line, the page's only one — the empty heading stays as
+      // one, with the caret on it.
+      if (!above || !parent.canReplace(index, index + 1, Fragment.from(blocks))) {
+        return unwrapAccordion()(state, dispatch)
+      }
+      const tr = state.tr.replaceWith(pos, pos + accordion.nodeSize, blocks)
+      tr.setSelection(above.map(tr.doc, tr.mapping))
+      dispatch(tr.scrollIntoView())
+    }
     return true
   }
 }

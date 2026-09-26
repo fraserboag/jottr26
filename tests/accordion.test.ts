@@ -190,14 +190,32 @@ describe('accordion block', () => {
     assert.equal(run(first, leaveAccordion()).applied, false)
   })
 
-  it('goes back to plain blocks on Backspace in an empty heading', () => {
-    const start = page(accordion('', [paragraph('one'), paragraph('two')]))
+  it('deletes an empty heading on Backspace, leaving the box on the page and the caret on the line above', () => {
+    const start = page(paragraph('above'), accordion('', [paragraph('one'), paragraph('two')]))
     const at = caretAt(start, inside(start, 'accordionTitle'))
     const { state, applied } = run(at, backspaceAccordion())
     assert.equal(applied, true)
+    state.doc.check()
     assert.deepEqual(outline(state), ['title', 'paragraph', 'paragraph', 'paragraph'])
-    assert.deepEqual(state.doc.children.slice(1).map((node) => node.textContent), ['', 'one', 'two'])
-    assert.equal(state.selection.$from.parentOffset, 0)
+    assert.deepEqual(state.doc.children.slice(1).map((node) => node.textContent), ['above', 'one', 'two'])
+    assert.equal(state.selection.$from.parent.textContent, 'above')
+    assert.equal(state.selection.$from.parentOffset, 'above'.length)
+  })
+
+  it('deletes an empty accordion outright, up to the end of the line above', () => {
+    const start = page(paragraph('above'), accordion(''), paragraph('below'))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle')), backspaceAccordion())
+    assert.equal(applied, true)
+    assert.deepEqual(state.doc.children.slice(1).map((node) => node.textContent), ['above', 'below'])
+    assert.equal(state.selection.$from.parentOffset, 'above'.length)
+  })
+
+  it('leaves an empty line where the accordion was the only block on the page', () => {
+    const start = page(accordion(''))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle')), backspaceAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    assert.deepEqual(outline(state), ['title', 'paragraph'])
   })
 
   it('jumps up to the end of the line above on Backspace at the start of a heading with words in it', () => {
@@ -370,20 +388,24 @@ describe('accordion as a list item', () => {
     assert.equal(state.selection.$from.node(-1), list.child(1), 'on the new item')
   })
 
-  it('goes back to a plain item on Backspace in an empty heading', () => {
-    const start = page(bullets([accordion('', [paragraph('one')])]))
+  it('deletes an empty heading on Backspace, the first line of the box taking its place in the item', () => {
+    const start = page(bullets([paragraph('zero')], [accordion('', [paragraph('one')])]))
     const at = caretAt(start, inside(start, 'accordionTitle'))
     const { state, applied } = run(at, backspaceAccordion())
     assert.equal(applied, true)
     state.doc.check()
-    const item = state.doc.child(1).child(0)
-    assert.deepEqual(
-      item.children.map((node) => [node.type.name, node.textContent]),
-      [
-        ['paragraph', ''],
-        ['paragraph', 'one'],
-      ],
-    )
+    const item = state.doc.child(1).child(1)
+    assert.deepEqual(item.children.map((node) => [node.type.name, node.textContent]), [['paragraph', 'one']])
+    assert.equal(state.selection.$from.parent.textContent, 'zero')
+    assert.equal(state.selection.$from.parentOffset, 'zero'.length)
+  })
+
+  it('goes back to an empty plain item where the item would be left with no line', () => {
+    const start = page(bullets([accordion('')]))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle')), backspaceAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    assert.deepEqual(state.doc.child(1).child(0).children.map((node) => node.type.name), ['paragraph'])
   })
 
   it('jumps up to the item above on Backspace at the start of a heading with words in it', () => {
