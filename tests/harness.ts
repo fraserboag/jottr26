@@ -79,6 +79,9 @@ export class FakeServer {
    *  hands back no session, and would send reads as the anon user, whom
    *  row-level security shows nothing. */
   sessionLost = false
+  /** A token refresh the network never answers: getSession() does not
+   *  return, and it takes no signal to abort it by. */
+  sessionHung = false
 
   stamp() {
     this.clock += 1
@@ -281,10 +284,10 @@ export class FakeServer {
     }
 
     const auth = {
-      getSession: async () => ({
-        data: { session: this.sessionLost ? null : { access_token: 'token' } },
-        error: null,
-      }),
+      getSession: async () => {
+        if (this.sessionHung) await new Promise(() => {})
+        return { data: { session: this.sessionLost ? null : { access_token: 'token' } }, error: null }
+      },
     }
 
     return { from, rpc, channel, auth, removeChannel: () => {} } as unknown as SupabaseClient

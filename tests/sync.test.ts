@@ -768,6 +768,34 @@ describe('local-first sync', () => {
     assert.equal(server.pages.get(id)?.title, 'Suspended mid-request')
   })
 
+  it('gives up on a sync stuck refreshing its session, and lets a cancel through', async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Refreshing in a lift')
+
+    const internals = laptop.engine as unknown as {
+      cycleTimeoutMs: number
+      inFlight: boolean
+      retryTimer: ReturnType<typeof setTimeout> | null
+    }
+    internals.cycleTimeoutMs = 30
+    server.sessionHung = true
+    await laptop.engine.syncOnce()
+    internals.cycleTimeoutMs = 90_000
+    if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    assert.equal(laptop.phase(), 'error', 'a refresh that never answers is a timeout')
+    assert.equal(internals.inFlight, false, 'the hung refresh must not hold later syncs')
+
+    const cancelled = laptop.engine.syncNow()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    laptop.engine.cancelSync()
+    assert.notEqual((await cancelled).phase, 'error', 'a cancel is not a failure')
+
+    server.sessionHung = false
+    assert.equal((await laptop.engine.syncNow()).phase, 'synced')
+    assert.equal(server.pages.get(id)?.title, 'Refreshing in a lift')
+  })
+
   it('has a tab that is not the leader ask the leader to push', async () => {
     await laptop.focus()
     const id = await createPage()

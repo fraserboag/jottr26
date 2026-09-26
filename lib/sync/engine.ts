@@ -626,11 +626,17 @@ export class SyncEngine {
       abort.abort()
     }, this.cycleTimeoutMs)
 
+    // The signal reaches each request's fetch, but not every wait in front of
+    // one: supabase-js refreshes an expiring token before it sends anything,
+    // and a refresh the network never answers holds getSession(), and every
+    // request behind it, with no signal to stop it. Racing the abort settles
+    // the cycle all the same, so a deadline or a cancel always frees the next.
+    const abandoned = new Promise<never>((_, reject) => {
+      abort.signal.addEventListener('abort', () => reject(new Error('Sync abandoned')), { once: true })
+    })
+
     try {
-      await this.requireSession()
-      await this.pull(abort.signal)
-      await this.reconcile(abort.signal)
-      await this.push(abort.signal)
+      await Promise.race([this.exchange(abort.signal), abandoned])
 
       const now = Date.now()
       await writeMeta(this.db, META_LAST_SYNCED, now)
@@ -887,6 +893,16 @@ export class SyncEngine {
       return
     }
     await this.db.pages.update(pageId, { title, searchText })
+  }
+
+  private async exchange(signal: AbortSignal) {
+    await this.requireSession()
+    // A session that took past the deadline to arrive: this cycle has been
+    // given up on, and a later one may already be running.
+    signal.throwIfAborted()
+    await this.pull(signal)
+    await this.reconcile(signal)
+    await this.push(signal)
   }
 
   /** With no session to hand — its token expired and the refresh has not
