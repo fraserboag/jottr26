@@ -7,7 +7,7 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName } =
   await import('@/lib/db/dexie')
-const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
+const { createPage, trashPage, restorePage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
   await import('@/lib/db/pages')
 const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
@@ -348,6 +348,32 @@ describe('local-first sync', () => {
 
     await phone.sync()
     assert.equal(await phone.page(id), undefined, 'the phone should drop it from its trash')
+  })
+
+  it('trashes, restores and purges a page together with everything under it', async () => {
+    await laptop.focus()
+    const parent = await createPage()
+    const child = await createPage({ parentId: parent })
+    const grandchild = await createPage({ parentId: child })
+    const family = [parent, child, grandchild]
+    await laptop.sync()
+
+    await trashPage(parent)
+    for (const id of family) assert.ok(((await laptop.page(id))?.deletedAt ?? 0) > 0)
+    await restorePage(parent)
+    for (const id of family) assert.equal((await laptop.page(id))?.deletedAt, 0)
+
+    // Emptied offline: the purges wait on this device, then go on reconnect.
+    await trashPage(parent)
+    setOnline(false)
+    await emptyTrash()
+    for (const id of family) assert.equal(await laptop.page(id), undefined)
+    assert.equal(await activeDatabase()!.purges.count(), 3)
+
+    setOnline(true)
+    await laptop.sync()
+    assert.equal(await activeDatabase()!.purges.count(), 0)
+    for (const id of family) assert.ok(server.pages.get(id)?.purged_at, 'purged on the server')
   })
 
   it('asks for a sync at once when a page is trashed, moved or deleted, but batches typing', async () => {

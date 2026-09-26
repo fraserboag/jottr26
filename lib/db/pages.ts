@@ -13,16 +13,17 @@ function db() {
 
 /** Every local write goes through here: it stamps the edit time and flags the
  *  row for the sync engine in one place, so no mutation can forget to. The
- *  engine passes the database it was started against. */
+ *  engine passes the database it was started against. Several ids are written
+ *  in one transaction, and announced as one edit. */
 export async function touch(
-  id: string,
+  ids: string | string[],
   patch: Partial<Pick<PageRow, PageField>>,
   database: JottrDB = db(),
 ) {
   const fields = Object.keys(patch) as PageField[]
   await database
     .pages.where('id')
-    .equals(id)
+    .anyOf(typeof ids === 'string' ? [ids] : ids)
     .modify((page) => {
       Object.assign(page, patch)
       page.updatedAt = Date.now()
@@ -157,9 +158,7 @@ async function descendantsOf(pageId: string): Promise<string[]> {
 /** Soft delete. Children follow their parent into the trash so the tree stays
  *  coherent, and everything is restorable. */
 export async function trashPage(pageId: string) {
-  const ids = [pageId, ...(await descendantsOf(pageId))]
-  const now = Date.now()
-  for (const id of ids) await touch(id, { deletedAt: now })
+  await touch([pageId, ...(await descendantsOf(pageId))], { deletedAt: Date.now() })
 }
 
 export async function restorePage(pageId: string) {
@@ -171,20 +170,25 @@ export async function restorePage(pageId: string) {
   const parent = page.parentId ? await db().pages.get(page.parentId) : null
   const parentId = parent && !parent.deletedAt ? page.parentId : ''
 
-  const ids = [pageId, ...(await descendantsOf(pageId))]
-  for (const id of ids) await touch(id, { deletedAt: 0 })
+  await touch([pageId, ...(await descendantsOf(pageId))], { deletedAt: 0 })
   if (parentId !== page.parentId) await touch(pageId, { parentId })
 }
 
 export async function deleteForever(pageId: string) {
-  const ids = [pageId, ...(await descendantsOf(pageId))]
+  await purge([pageId, ...(await descendantsOf(pageId))])
+}
+
+/** Forgets the pages here and queues them for the server, in one transaction,
+ *  so a purge made offline is held until it can be sent. */
+async function purge(ids: string[]) {
   const database = db()
+  const queuedAt = Date.now()
   await database.transaction(
     'rw',
     [database.pages, database.docStates, database.docUpdates, database.purges],
     async () => {
       await forgetPages(database, ids)
-      for (const id of ids) await database.purges.put({ id, queuedAt: Date.now() })
+      await database.purges.bulkPut(ids.map((id) => ({ id, queuedAt })))
     },
   )
   notifyLocalEdit('structure')
@@ -203,8 +207,12 @@ export async function forgetPages(database: JottrDB, ids: string[]) {
 }
 
 export async function emptyTrash() {
-  const trashed = await db().pages.where('deletedAt').above(0).primaryKeys()
-  for (const id of trashed as string[]) await deleteForever(id)
+  const trashed = (await db().pages.where('deletedAt').above(0).primaryKeys()) as string[]
+  if (trashed.length === 0) return
+  // Everything under a trashed page goes with it, as deleteForever takes it.
+  const ids = new Set(trashed)
+  for (const id of trashed) for (const child of await descendantsOf(id)) ids.add(child)
+  await purge([...ids])
 }
 
 export type DropZone = 'before' | 'after' | 'inside'
