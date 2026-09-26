@@ -110,9 +110,13 @@ export async function createPage(options: { id?: string; parentId?: string; titl
  *  text search reads. The title counts as a change worth syncing; the search
  *  text and edit time do not, so they are written without flagging the row. */
 export async function refreshDerived(pageId: string) {
-  const handle = await openDoc(pageId)
+  // The editor flushes this as it closes, which can be just after its page
+  // was purged or the account signed out of. The row is looked for first, so
+  // that doesn't open a fresh, empty document for a page that is gone.
+  if (!activeDatabase()) return
   const page = await db().pages.get(pageId)
   if (!page) return
+  const handle = await openDoc(pageId)
 
   const title = readTitle(handle.doc)
   if (page.title !== title) await touch(pageId, { title })
