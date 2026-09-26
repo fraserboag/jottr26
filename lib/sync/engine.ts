@@ -102,6 +102,18 @@ export async function countPending(db: JottrDB) {
   return new Set([...pages, ...docs] as string[]).size
 }
 
+/** A server timestamp as an exact key, down to the microsecond Postgres keeps
+ *  and Date.parse drops, so the same stamp read from two places — a push's
+ *  reply and a realtime event — compares equal whatever its formatting. Null
+ *  for anything that does not parse, which never matches. */
+function stampKey(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const ms = Date.parse(value)
+  if (Number.isNaN(ms)) return null
+  const fraction = /\.(\d+)/.exec(value)?.[1] ?? ''
+  return `${Math.floor(ms / 1000)}.${fraction.padEnd(6, '0').slice(0, 6)}`
+}
+
 function chunks<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
@@ -156,6 +168,11 @@ export class SyncEngine {
   /** The pending edit push is on the short fuse. */
   private editUrgent = false
   private realtimeTimer: ReturnType<typeof setTimeout> | null = null
+  /** The page row stamp each of this device's own writes left on the server.
+   *  Realtime hands every write straight back, and a cycle to pull what this
+   *  device just pushed is wasted; an event carrying anyone else's stamp still
+   *  starts one. */
+  private ownStamps = new Set<string>()
   private cleanups: Array<() => void> = []
 
   constructor(supabase: SupabaseClient, userId: string) {
@@ -404,6 +421,15 @@ export class SyncEngine {
     }
   }
 
+  private recordOwnStamp(pageId: string, stamp: unknown) {
+    const key = stampKey(stamp)
+    if (!key) return
+    // Echoes that never came, while realtime was down, would otherwise pile
+    // up. Forgetting them only ever costs a cycle.
+    if (this.ownStamps.size >= 1000) this.ownStamps.clear()
+    this.ownStamps.add(`${pageId} ${key}`)
+  }
+
   private dropRealtime() {
     if (this.channel) void this.supabase.removeChannel(this.channel)
     this.channel = null
@@ -412,7 +438,9 @@ export class SyncEngine {
 
   private subscribeRealtime() {
     if (this.channel) return
-    const bump = () => {
+    const bump = (event?: { new?: { id?: unknown; updated_at?: unknown } }) => {
+      const stamp = stampKey(event?.new?.updated_at)
+      if (stamp && this.ownStamps.delete(`${event?.new?.id} ${stamp}`)) return
       if (this.realtimeTimer) clearTimeout(this.realtimeTimer)
       this.realtimeTimer = setTimeout(() => this.request(), REALTIME_DEBOUNCE_MS)
     }
@@ -836,12 +864,9 @@ export class SyncEngine {
 
       if (error) throw new Error(error.message)
 
-      const stamps = new Map(
-        ((data ?? []) as Array<{ id: string; updated_at: string }>).map((row) => [
-          row.id,
-          Date.parse(row.updated_at),
-        ]),
-      )
+      const rows = (data ?? []) as Array<{ id: string; updated_at: string }>
+      const stamps = new Map(rows.map((row) => [row.id, Date.parse(row.updated_at)]))
+      for (const row of rows) this.recordOwnStamp(row.id, row.updated_at)
 
       await this.db.transaction('rw', this.db.pages, async () => {
         for (const page of batch) {
@@ -908,7 +933,9 @@ export class SyncEngine {
 
       if (error) throw new Error(error.message)
 
-      const result = (data as Array<{ ydoc: string; version: number; applied: boolean }>)?.[0]
+      const result = (
+        data as Array<{ ydoc: string; version: number; applied: boolean; saved_at?: string | null }>
+      )?.[0]
       if (!result) throw new Error('push_page_doc returned nothing')
 
       // The server has no live page for this document. If it once did, the
@@ -921,6 +948,9 @@ export class SyncEngine {
       }
 
       if (result.applied) {
+        // Absent from a server that has not had schema.sql re-run, and then
+        // nothing is recorded: the echo just costs a cycle, as it always did.
+        this.recordOwnStamp(state.pageId, result.saved_at)
         const movedHere = !sameBytes(before, Y.encodeStateVector(handle.doc))
         await patchDocState(this.db, state.pageId, (current) => ({
           version: result.version,

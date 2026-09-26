@@ -722,6 +722,39 @@ describe('local-first sync', () => {
     }
   })
 
+  it("skips realtime's echo of this device's own saves, but not another device's", async () => {
+    const internals = laptop.engine as unknown as {
+      subscribeRealtime: () => void
+      dropRealtime: () => void
+      realtimeTimer: ReturnType<typeof setTimeout> | null
+    }
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.setTitle(id, 'Echo')
+    server.realtimeHandlers = []
+    internals.subscribeRealtime()
+    const [fire] = server.realtimeHandlers
+    const event = () => ({ new: { id, updated_at: server.pages.get(id)!.updated_at } })
+
+    try {
+      // The row upsert and the document save each stamp the page; both come back.
+      await laptop.sync()
+      fire(event())
+      assert.equal(internals.realtimeTimer, null, 'its own save starts no cycle')
+
+      await phone.sync()
+      await phone.type(id, ' from the phone')
+      await phone.sync()
+      await laptop.focus()
+      fire(event())
+      assert.notEqual(internals.realtimeTimer, null, "the phone's save does")
+    } finally {
+      if (internals.realtimeTimer) clearTimeout(internals.realtimeTimer)
+      internals.realtimeTimer = null
+      internals.dropRealtime()
+    }
+  })
+
   it('pushes several documents at once, and stops cleanly when one fails', async () => {
     await laptop.focus()
     const ids: string[] = []

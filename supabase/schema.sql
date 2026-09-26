@@ -122,7 +122,9 @@ $$;
 -- push_page_doc: compare-and-swap write of a Yjs state blob.
 --
 -- On success only the new version comes back: the client already holds the
--- blob it sent, and echoing it would double the data every save costs.
+-- blob it sent, and echoing it would double the data every save costs. So does
+-- saved_at, the stamp the save left on the page row, which lets the client
+-- recognise its own save when realtime hands it straight back.
 --
 -- The client sends the version it last saw. If the server has moved on, nothing
 -- is written and the current blob comes back with applied = false; the client
@@ -131,19 +133,28 @@ $$;
 -- conflict story: there is no last-writer-wins anywhere near document content.
 --
 -- security invoker, so RLS still applies inside the function.
+--
+-- Dropped and recreated rather than replaced, because saved_at changed what it
+-- returns, which `create or replace` refuses to do. The transaction means no
+-- push ever arrives to find the function missing.
 -- ---------------------------------------------------------------------------
-create or replace function public.push_page_doc(
+begin;
+
+drop function if exists public.push_page_doc(uuid, text, bigint);
+
+create function public.push_page_doc(
   p_page_id      uuid,
   p_ydoc         text,
   p_base_version bigint
 )
-returns table (ydoc text, version bigint, applied boolean)
+returns table (ydoc text, version bigint, applied boolean, saved_at timestamptz)
 language plpgsql
 security invoker
 as $$
 declare
   v_ydoc    text;
   v_version bigint;
+  v_saved   timestamptz;
 begin
   -- Deleted for good, or never here: there is nothing to write the document
   -- into. Version 0 with applied = true tells the client to drop its copy.
@@ -151,7 +162,7 @@ begin
     select 1 from public.pages as p
      where p.id = p_page_id and p.purged_at is null
   ) then
-    return query select ''::text, 0::bigint, true;
+    return query select ''::text, 0::bigint, true, null::timestamptz;
     return;
   end if;
 
@@ -163,7 +174,8 @@ begin
 
     if found then
       perform public.page_doc_saved(p_page_id);
-      return query select ''::text, v_version, true;
+      select p.updated_at into v_saved from public.pages as p where p.id = p_page_id;
+      return query select ''::text, v_version, true, v_saved;
       return;
     end if;
   else
@@ -175,7 +187,8 @@ begin
 
     if found then
       perform public.page_doc_saved(p_page_id);
-      return query select ''::text, v_version, true;
+      select p.updated_at into v_saved from public.pages as p where p.id = p_page_id;
+      return query select ''::text, v_version, true, v_saved;
       return;
     end if;
   end if;
@@ -187,11 +200,13 @@ begin
     from public.page_docs as d
    where d.page_id = p_page_id;
 
-  return query select coalesce(v_ydoc, ''), coalesce(v_version, 0::bigint), false;
+  return query select coalesce(v_ydoc, ''), coalesce(v_version, 0::bigint), false, null::timestamptz;
 end;
 $$;
 
 grant execute on function public.push_page_doc(uuid, text, bigint) to authenticated;
+
+commit;
 
 -- ---------------------------------------------------------------------------
 -- purge_pages: delete pages for good, leaving a tombstone for other devices.

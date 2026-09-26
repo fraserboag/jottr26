@@ -69,6 +69,8 @@ export class FakeServer {
   /** Fails push_page_doc for this page, as a server error would. */
   failDocPush: string | null = null
   rpcInFlight = 0
+  /** What each client's realtime subscription was given, to fire events at. */
+  realtimeHandlers: Array<(event: { new: Record<string, unknown> }) => void> = []
   maxRpcInFlight = 0
 
   private stamp() {
@@ -209,7 +211,7 @@ export class FakeServer {
       this.counts.rpc += 1
       const page = this.pages.get(params.p_page_id)
       if (!page || page.purged_at) {
-        return Promise.resolve({ data: [{ ydoc: '', version: 0, applied: true }], error: null })
+        return Promise.resolve({ data: [{ ydoc: '', version: 0, applied: true, saved_at: null }], error: null })
       }
       const existing = this.docs.get(params.p_page_id)
 
@@ -222,7 +224,10 @@ export class FakeServer {
         }
         this.docs.set(record.page_id, record)
         touchPage(record.page_id)
-        return Promise.resolve({ data: [{ ydoc: '', version: 1, applied: true }], error: null })
+        return Promise.resolve({
+          data: [{ ydoc: '', version: 1, applied: true, saved_at: page.updated_at }],
+          error: null,
+        })
       }
 
       if (existing && existing.version === params.p_base_version) {
@@ -231,20 +236,26 @@ export class FakeServer {
         existing.updated_at = this.stamp()
         touchPage(existing.page_id)
         return Promise.resolve({
-          data: [{ ydoc: '', version: existing.version, applied: true }],
+          data: [{ ydoc: '', version: existing.version, applied: true, saved_at: page.updated_at }],
           error: null,
         })
       }
 
       this.counts.rpcRejected += 1
       return Promise.resolve({
-        data: [{ ydoc: existing?.ydoc ?? '', version: existing?.version ?? 0, applied: false }],
+        data: [{ ydoc: existing?.ydoc ?? '', version: existing?.version ?? 0, applied: false, saved_at: null }],
         error: null,
       })
     }
 
     const channel = () => {
-      const ch = { on: () => ch, subscribe: () => ch }
+      const ch = {
+        on: (_type: string, _filter: unknown, handler: (event: { new: Record<string, unknown> }) => void) => {
+          this.realtimeHandlers.push(handler)
+          return ch
+        },
+        subscribe: () => ch,
+      }
       return ch
     }
 
