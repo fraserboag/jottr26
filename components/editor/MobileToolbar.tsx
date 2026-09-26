@@ -53,6 +53,10 @@ export function MobileToolbar({
       strike: instance.isActive('strike'),
       code: instance.isActive('code'),
       link: instance.isActive('link'),
+      heading:
+        instance.isActive('heading') ||
+        instance.isActive('accordionTitle', { title: true }) ||
+        instance.isActive('subpagesTitle', { title: true }),
       bullet: instance.isActive('bulletList'),
       ordered: instance.isActive('orderedList'),
       canUndo: instance.can().undo(),
@@ -281,6 +285,12 @@ export function MobileToolbar({
                 onClick={() => linkToNewSubpage(editor, pageId, openPage)}
               />
               <span className="mx-1 h-7 w-px shrink-0 bg-line" />
+              <ToolButton
+                icon="title"
+                label="Title"
+                active={state.heading}
+                onClick={() => editor.chain().focus().toggleTitle().run()}
+              />
               <ToolButton icon="list" label="Bulleted list" active={state.bullet} onClick={() => editor.chain().focus().toggleBulletList().run()} />
               <ToolButton icon="listOrdered" label="Numbered list" active={state.ordered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
             </div>
