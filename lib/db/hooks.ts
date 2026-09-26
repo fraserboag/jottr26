@@ -78,16 +78,33 @@ export interface TreeNode {
 /** Builds the sidebar tree from pages already in sidebar order, as
  *  useAllPages returns them; each level keeps that order. A page whose parent
  *  is missing — deleted, or not pulled down yet — is shown at the root rather
- *  than disappearing. */
+ *  than disappearing. So is the first of a ring of pages that are each inside
+ *  another, which a merge of two offline moves can leave behind. */
 export function buildTree(pages: PageRow[]): TreeNode[] {
   const nodes = new Map<string, TreeNode>()
   for (const page of pages) nodes.set(page.id, { page, children: [] })
 
+  // Which pages sit at the root. A page in a ring never reaches one by
+  // walking up, so the walk that comes back round to its start cuts it loose.
+  const atRoot = new Set<string>()
+  for (const page of pages) {
+    if (!nodes.has(page.parentId)) {
+      atRoot.add(page.id)
+      continue
+    }
+    const seen = new Set([page.id])
+    let id = page.parentId
+    while (nodes.has(id) && !atRoot.has(id) && !seen.has(id)) {
+      seen.add(id)
+      id = nodes.get(id)!.page.parentId
+    }
+    if (id === page.id) atRoot.add(page.id)
+  }
+
   const roots: TreeNode[] = []
   for (const node of nodes.values()) {
-    const parent = node.page.parentId ? nodes.get(node.page.parentId) : undefined
-    if (parent) parent.children.push(node)
-    else roots.push(node)
+    if (atRoot.has(node.page.id)) roots.push(node)
+    else nodes.get(node.page.parentId)!.children.push(node)
   }
   return roots
 }

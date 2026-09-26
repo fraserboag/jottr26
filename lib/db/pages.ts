@@ -148,24 +148,31 @@ async function isDescendant(candidate: string, ancestor: string): Promise<boolea
   return false
 }
 
-async function descendantsOf(pageId: string): Promise<string[]> {
+/** The pages under this one, reached only through children `follow` accepts.
+ *  A merge of two offline moves can leave pages inside each other, so each
+ *  page is visited once rather than looping forever. */
+async function descendantsOf(pageId: string, follow: (page: PageRow) => boolean): Promise<string[]> {
+  const visited = new Set([pageId])
   const out: string[] = []
   const queue = [pageId]
   while (queue.length) {
     const id = queue.shift()!
-    const children = await db().pages.where('parentId').equals(id).primaryKeys()
-    for (const child of children as string[]) {
-      out.push(child)
-      queue.push(child)
+    for (const child of await db().pages.where('parentId').equals(id).toArray()) {
+      if (visited.has(child.id) || !follow(child)) continue
+      visited.add(child.id)
+      out.push(child.id)
+      queue.push(child.id)
     }
   }
   return out
 }
 
-/** Soft delete. Children follow their parent into the trash so the tree stays
- *  coherent, and everything is restorable. */
+/** Soft delete. Live children follow their parent into the trash so the tree
+ *  stays coherent, and everything is restorable. A child already in the trash
+ *  keeps its own deletion, so restoring the parent leaves it there. */
 export async function trashPage(pageId: string) {
-  await touch([pageId, ...(await descendantsOf(pageId))], { deletedAt: Date.now() })
+  const live = await descendantsOf(pageId, (page) => page.deletedAt === 0)
+  await touch([pageId, ...live], { deletedAt: Date.now() })
 }
 
 export async function restorePage(pageId: string) {
@@ -177,12 +184,16 @@ export async function restorePage(pageId: string) {
   const parent = page.parentId ? await db().pages.get(page.parentId) : null
   const parentId = parent && !parent.deletedAt ? page.parentId : ''
 
-  await touch([pageId, ...(await descendantsOf(pageId))], { deletedAt: 0 })
+  // Only the pages trashed along with this one, which share its timestamp.
+  const together = await descendantsOf(pageId, (child) => child.deletedAt === page.deletedAt)
+  await touch([pageId, ...together], { deletedAt: 0 })
   if (parentId !== page.parentId) await touch(pageId, { parentId })
 }
 
+/** Takes the trashed pages under this one with it. A live page under it, such
+ *  as one another device added after the trashing, stays. */
 export async function deleteForever(pageId: string) {
-  await purge([pageId, ...(await descendantsOf(pageId))])
+  await purge([pageId, ...(await descendantsOf(pageId, (page) => page.deletedAt > 0))])
 }
 
 /** Forgets the pages here and queues them for the server, in one transaction,
@@ -214,12 +225,11 @@ export async function forgetPages(database: JottrDB, ids: string[]) {
 }
 
 export async function emptyTrash() {
+  // Only what is in the trash, as the confirm counted it. A live page under a
+  // trashed one stays, as deleteForever leaves it.
   const trashed = (await db().pages.where('deletedAt').above(0).primaryKeys()) as string[]
   if (trashed.length === 0) return
-  // Everything under a trashed page goes with it, as deleteForever takes it.
-  const ids = new Set(trashed)
-  for (const id of trashed) for (const child of await descendantsOf(id)) ids.add(child)
-  await purge([...ids])
+  await purge(trashed)
 }
 
 export type DropZone = 'before' | 'after' | 'inside'

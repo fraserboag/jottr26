@@ -6,7 +6,9 @@ import type { PageRow } from '@/lib/db/schema'
 installBrowserGlobals()
 
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
-const { createPage, liveChildren, movePage, trashPage } = await import('@/lib/db/pages')
+const { createPage, deleteForever, emptyTrash, liveChildren, movePage, restorePage, trashPage } = await import(
+  '@/lib/db/pages'
+)
 const { buildTree } = await import('@/lib/db/hooks')
 const { releaseAll, whenPersisted } = await import('@/lib/db/ydoc')
 
@@ -38,6 +40,11 @@ describe('sidebar tree', () => {
     const tree = buildTree([row('a'), row('orphan', 'not-pulled-yet')])
     assert.deepEqual(shape(tree), ['a', 'orphan'])
   })
+
+  it('shows pages that are each inside the other, rather than dropping them', () => {
+    const tree = buildTree([row('a'), row('x', 'y'), row('y', 'x'), row('y1', 'y'), row('self', 'self')])
+    assert.deepEqual(shape(tree), ['a', { x: [{ y: ['y1'] }] }, 'self'])
+  })
 })
 
 describe('live children', () => {
@@ -68,5 +75,56 @@ describe('live children', () => {
 
     const ids = (await liveChildren(db, [a, b])).map((page) => page.id).sort()
     assert.deepEqual(ids, [underA, underB].sort())
+  })
+
+  it('trashes and deletes pages that are each inside the other, without looping', async () => {
+    const x = await createPage()
+    const y = await createPage({ parentId: x })
+    await db.pages.update(x, { parentId: y })
+
+    await trashPage(x)
+    assert.ok((await db.pages.get(y))!.deletedAt > 0)
+    await restorePage(y)
+    assert.equal((await db.pages.get(x))!.deletedAt, 0)
+    await trashPage(y)
+    await deleteForever(y)
+    assert.equal(await db.pages.get(x), undefined)
+  })
+
+  it('leaves a live page under a trashed one when the trash is emptied', async () => {
+    const parent = await createPage()
+    await trashPage(parent)
+    // Added by another device that hadn't seen the trashing yet.
+    const added = await createPage({ parentId: parent })
+
+    await emptyTrash()
+    assert.equal(await db.pages.get(parent), undefined)
+    assert.ok(await db.pages.get(added))
+  })
+
+  it('leaves a live page under a trashed one when that page is deleted for good', async () => {
+    const parent = await createPage()
+    const binned = await createPage({ parentId: parent })
+    await trashPage(parent)
+    const added = await createPage({ parentId: parent })
+
+    await deleteForever(parent)
+    assert.equal(await db.pages.get(binned), undefined)
+    assert.ok(await db.pages.get(added))
+  })
+
+  it('restores a parent without the children trashed on their own before it', async () => {
+    const parent = await createPage()
+    const kept = await createPage({ parentId: parent })
+    const binned = await createPage({ parentId: parent })
+    const under = await createPage({ parentId: binned })
+    await trashPage(binned)
+    await new Promise((resolve) => setTimeout(resolve, 2))
+    await trashPage(parent)
+
+    await restorePage(parent)
+    assert.equal((await db.pages.get(kept))!.deletedAt, 0)
+    assert.ok((await db.pages.get(binned))!.deletedAt > 0)
+    assert.ok((await db.pages.get(under))!.deletedAt > 0)
   })
 })
