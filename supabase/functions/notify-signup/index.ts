@@ -18,11 +18,17 @@ Deno.serve(async (req) => {
     return new Response("Forbidden", { status: 403 });
   }
 
-  const { email, total } = await req.json();
-  const to = env("SIGNUP_ALERT_TO");
-  if (typeof email !== "string") {
+  let body: { email?: unknown; total?: unknown };
+  try {
+    body = await req.json();
+  } catch {
     return new Response("Bad request", { status: 400 });
   }
+  const { email, total } = body ?? {};
+  if (typeof email !== "string" || typeof total !== "number") {
+    return new Response("Bad request", { status: 400 });
+  }
+  const to = env("SIGNUP_ALERT_TO");
   // Testing sign-up with your own address shouldn't send you an alert.
   if (email.toLowerCase() === to.toLowerCase()) {
     return new Response("Skipped");

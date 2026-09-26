@@ -23,7 +23,7 @@ function subscribe(callback: () => void) {
 const snapshot = () => window.location.search
 const serverSnapshot = () => ''
 
-export function useQuery() {
+function useQuery() {
   const search = useSyncExternalStore(subscribe, snapshot, serverSnapshot)
   return new URLSearchParams(search)
 }
