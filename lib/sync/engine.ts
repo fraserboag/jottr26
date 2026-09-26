@@ -17,6 +17,7 @@ import {
   type PageRow,
 } from '@/lib/db/schema'
 import { forgetPages, touch } from '@/lib/db/pages'
+import { writeSearchText } from '@/lib/db/searchText'
 import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
   applyRemoteUpdate,
@@ -796,7 +797,6 @@ export class SyncEngine {
           const next: PageRow = {
             id: row.id,
             ...server,
-            searchText: local?.searchText ?? '',
             createdAt: Date.parse(row.created_at),
             updatedAt: serverUpdatedAt,
             editedAt: local?.editedAt,
@@ -914,15 +914,11 @@ export class SyncEngine {
     const page = await this.db.pages.get(pageId)
     if (!page) return
 
+    await writeSearchText(this.db, pageId, readPlainText(handle.doc))
     const title = readTitle(handle.doc)
-    const searchText = readPlainText(handle.doc)
-    if (page.title === title && page.searchText === searchText) return
-    if (pushed && page.title !== title) {
-      await touch(pageId, { title }, this.db)
-      await this.db.pages.update(pageId, { searchText })
-      return
-    }
-    await this.db.pages.update(pageId, { title, searchText })
+    if (page.title === title) return
+    if (pushed) await touch(pageId, { title }, this.db)
+    else await this.db.pages.update(pageId, { title })
   }
 
   private async exchange(signal: AbortSignal) {

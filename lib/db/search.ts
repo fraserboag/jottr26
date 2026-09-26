@@ -5,23 +5,28 @@ export interface Hit {
   snippet: string | null
 }
 
-/** The search text is up to 8,000 characters a page. The page list is the
- *  same array of rows for every keystroke typed into the search box, so each
- *  page's text is lowercased once rather than once per keystroke. */
-const lowered = new WeakMap<PageRow, string>()
+/** Page ids to their search text, as searchText.ts reads them. */
+export type SearchTexts = ReadonlyMap<string, string>
 
-function lowerBody(page: PageRow) {
-  let body = lowered.get(page)
+/** The search text is up to 8,000 characters a page. The texts are the same
+ *  map for every keystroke typed into the search box, so each page's text is
+ *  lowercased once rather than once per keystroke. */
+const lowered = new WeakMap<SearchTexts, Map<string, string>>()
+
+function lowerBody(texts: SearchTexts, pageId: string) {
+  let bodies = lowered.get(texts)
+  if (!bodies) lowered.set(texts, (bodies = new Map()))
+  let body = bodies.get(pageId)
   if (body === undefined) {
-    body = page.searchText.toLowerCase()
-    lowered.set(page, body)
+    body = (texts.get(pageId) ?? '').toLowerCase()
+    bodies.set(pageId, body)
   }
   return body
 }
 
 /** Search runs over the local copy, so it answers as fast as you can type and
  *  keeps working on a train. Titles rank above body matches. */
-export function searchPages(pages: PageRow[], query: string): Hit[] {
+export function searchPages(pages: PageRow[], query: string, texts: SearchTexts = new Map()): Hit[] {
   const q = query.trim().toLowerCase()
   if (!q) {
     return pages
@@ -38,14 +43,14 @@ export function searchPages(pages: PageRow[], query: string): Hit[] {
     let score = -1
     if (title.startsWith(q)) score = 3
     else if (title.includes(q)) score = 2
-    else if (lowerBody(page).includes(q)) score = 1
+    else if (lowerBody(texts, page.id).includes(q)) score = 1
     if (score < 0) continue
 
     let snippet: string | null = null
     if (score === 1) {
-      const at = lowerBody(page).indexOf(q)
+      const at = lowerBody(texts, page.id).indexOf(q)
       const start = Math.max(0, at - 32)
-      snippet = `${start > 0 ? '…' : ''}${page.searchText.slice(start, at + q.length + 56).trim()}…`
+      snippet = `${start > 0 ? '…' : ''}${(texts.get(page.id) ?? '').slice(start, at + q.length + 56).trim()}…`
     }
     scored.push({ hit: { page, snippet }, score })
   }

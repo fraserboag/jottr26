@@ -34,9 +34,9 @@ export interface PageRow {
    *  of it on another. Missing on rows written before this existed, which are
    *  treated as dirty in every field. */
   dirtyFields?: PageField[]
-  /** A flattened copy of the page's text for local search. Derived from the
-   *  document and never sent to the server. */
-  searchText: string
+  /** Where the page's search text lived before it moved to `meta` (see
+   *  searchText.ts). Only on rows an older build wrote since the move. */
+  searchText?: string
   /** 'local' pages were created on this device and own their initial content;
    *  'remote' pages must wait for their document to arrive before editing. */
   origin: 'local' | 'remote'

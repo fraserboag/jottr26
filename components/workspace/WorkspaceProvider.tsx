@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session } from '@supabase/supabase-js'
 import { storedSession, supabaseClient } from '@/lib/supabase/client'
 import { closeDatabase, eraseDatabase, openDatabase } from '@/lib/db/dexie'
+import { moveSearchTexts } from '@/lib/db/searchText'
 import { releaseAll } from '@/lib/db/ydoc'
 import { SyncEngine } from '@/lib/sync/engine'
 import { initialStatus, type SyncStatus } from '@/lib/sync/types'
@@ -91,7 +92,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    openDatabase(userId)
+    const db = openDatabase(userId)
     const engine = new SyncEngine(supabaseClient(), userId)
     engineRef.current = engine
     // subscribe() hands over the current status straight away, so this is
@@ -100,9 +101,17 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setOpenFor(userId)
       setEngineStatus(next)
     })
-    void engine.start()
+    // The engine waits for the search text to move off the page rows: a pull
+    // rewrites a row whole, and would drop the text before it was copied.
+    let stopped = false
+    void moveSearchTexts(db)
+      .catch(() => undefined)
+      .then(() => {
+        if (!stopped) void engine.start()
+      })
 
     return () => {
+      stopped = true
       unsubscribe()
       engine.stop()
       engineRef.current = null

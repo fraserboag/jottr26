@@ -2,6 +2,7 @@ import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
 import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
+import { forgetSearchTexts, writeSearchText } from './searchText'
 import { DOC_FIELD, forgetDocs, notifyLocalEdit, openDoc, readPlainText, readTitle } from './ydoc'
 import { newId } from '@/lib/util/id'
 
@@ -77,7 +78,6 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     serverUpdatedAt: 0,
     dirty: 1,
     dirtyFields: [...PAGE_FIELDS],
-    searchText: '',
     // This device owns the document's initial shape. A page that arrived from
     // the server is marked 'remote' and waits for its content instead.
     origin: 'local',
@@ -106,9 +106,9 @@ export async function createPage(options: { id?: string; parentId?: string; titl
   return id
 }
 
-/** Mirrors the document back onto the row the sidebar and search read. The
- *  title counts as a change worth syncing; the search text and edit time do
- *  not, so they are written without flagging the row. */
+/** Mirrors the document back onto the row the sidebar reads, and into the
+ *  text search reads. The title counts as a change worth syncing; the search
+ *  text and edit time do not, so they are written without flagging the row. */
 export async function refreshDerived(pageId: string) {
   const handle = await openDoc(pageId)
   const page = await db().pages.get(pageId)
@@ -117,11 +117,8 @@ export async function refreshDerived(pageId: string) {
   const title = readTitle(handle.doc)
   if (page.title !== title) await touch(pageId, { title })
 
-  const patch: Partial<PageRow> = {}
-  const searchText = readPlainText(handle.doc)
-  if (page.searchText !== searchText) patch.searchText = searchText
-  if (handle.editedAt > (page.editedAt ?? 0)) patch.editedAt = handle.editedAt
-  if (Object.keys(patch).length) await db().pages.update(pageId, patch)
+  await writeSearchText(db(), pageId, readPlainText(handle.doc))
+  if (handle.editedAt > (page.editedAt ?? 0)) await db().pages.update(pageId, { editedAt: handle.editedAt })
 }
 
 export async function toggleFavorite(pageId: string) {
@@ -232,7 +229,7 @@ async function purge(ids: string[]) {
   const queuedAt = Date.now()
   await database.transaction(
     'rw',
-    [database.pages, database.docStates, database.docUpdates, database.purges],
+    [database.pages, database.docStates, database.docUpdates, database.purges, database.meta],
     async () => {
       await forgetPages(database, ids)
       await database.purges.bulkPut(ids.map((id) => ({ id, queuedAt })))
@@ -246,11 +243,16 @@ async function purge(ids: string[]) {
  *  device deleted them for good. */
 export async function forgetPages(database: JottrDB, ids: string[]) {
   if (ids.length === 0) return
-  await database.transaction('rw', [database.pages, database.docStates, database.docUpdates], async () => {
-    await database.pages.bulkDelete(ids)
-    await database.docStates.bulkDelete(ids)
-    await database.docUpdates.where('pageId').anyOf(ids).delete()
-  })
+  await database.transaction(
+    'rw',
+    [database.pages, database.docStates, database.docUpdates, database.meta],
+    async () => {
+      await database.pages.bulkDelete(ids)
+      await database.docStates.bulkDelete(ids)
+      await database.docUpdates.where('pageId').anyOf(ids).delete()
+      await forgetSearchTexts(database, ids)
+    },
+  )
   forgetDocs(ids)
 }
 
