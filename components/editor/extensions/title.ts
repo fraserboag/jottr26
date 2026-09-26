@@ -65,6 +65,30 @@ export function leaveTitle(name: string): Command {
   }
 }
 
+/** Backspace, at the very start of the body: up to the end of the title.
+ *
+ *  The title is isolating, so nothing joins into it, and ProseMirror would
+ *  fall back to selecting the whole title — one more keypress from wiping the
+ *  page's name. The caret goes to the end of it instead, as it would to the end
+ *  of any line above.
+ *
+ *  An empty first line with more below is left to ProseMirror, which already
+ *  deletes it and puts the caret at the end of the title. */
+export function backspaceIntoTitle(name: string): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.depth !== 1 || !$from.parent.isTextblock || $from.parentOffset !== 0) return false
+    if ($from.index(0) !== 1 || state.doc.firstChild?.type.name !== name) return false
+    if ($from.parent.content.size === 0 && state.doc.childCount > 2) return false
+
+    if (dispatch) {
+      const titleEnd = state.doc.firstChild.nodeSize - 1
+      dispatch(state.tr.setSelection(TextSelection.create(state.doc, titleEnd)).scrollIntoView())
+    }
+    return true
+  }
+}
+
 export const Title = Node.create({
   name: 'title',
   content: 'inline*',
@@ -90,6 +114,8 @@ export const Title = Node.create({
       'Mod-Enter': openLine,
       Tab: () =>
         this.editor.commands.command(({ state, dispatch }) => leaveTitle(this.name)(state, dispatch)),
+      Backspace: () =>
+        this.editor.commands.command(({ state, dispatch }) => backspaceIntoTitle(this.name)(state, dispatch)),
     }
   },
 })

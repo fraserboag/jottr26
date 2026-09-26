@@ -7,7 +7,7 @@ import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { Callout } from '@/components/editor/extensions/callout'
 import { FinanceTable } from '@/components/editor/extensions/finance'
-import { JottrDocument, Title, leaveTitle, openBodyLine } from '@/components/editor/extensions/title'
+import { JottrDocument, Title, backspaceIntoTitle, leaveTitle, openBodyLine } from '@/components/editor/extensions/title'
 
 /** The editor's real extension list, minus the ones that need a browser. */
 const schema = getSchema([
@@ -42,6 +42,7 @@ function caretAt(state: EditorState, pos: number) {
 /** The two keys the title binds, as the extension binds them. */
 const enter = openBodyLine('title')
 const tab = leaveTitle('title')
+const backspace = backspaceIntoTitle('title')
 
 /** Run a ProseMirror command the way the editor's chain does. */
 function run(state: EditorState, command: Command) {
@@ -137,5 +138,42 @@ describe('leaving the title', () => {
   it('leaves Tab alone in the body', () => {
     const start = page(paragraph('Body'))
     assert.equal(run(caretAt(start, start.doc.content.size - 1), tab).applied, false)
+  })
+})
+
+describe('backspacing into the title', () => {
+  /** The caret at the start of the first line of the body. */
+  const atBodyStart = (state: EditorState) => caretAt(state, state.doc.child(0).nodeSize + 1)
+  const titleEnd = (state: EditorState) => state.doc.child(0).nodeSize - 1
+
+  it('moves the caret to the end of the title rather than selecting it', () => {
+    const start = atBodyStart(page(paragraph('Body')))
+    const { state, applied } = run(start, backspace)
+    assert.equal(applied, true)
+    assert.ok(state.selection instanceof TextSelection && state.selection.empty)
+    assert.equal(state.selection.from, titleEnd(state))
+    assert.ok(state.doc.eq(start.doc), 'nothing is joined or deleted')
+  })
+
+  it('does the same from the only line of the page, when empty', () => {
+    const { state, applied } = run(atBodyStart(page(paragraph())), backspace)
+    assert.equal(applied, true)
+    assert.equal(state.selection.from, titleEnd(state))
+    assert.deepEqual(outline(state), ['title', 'paragraph'])
+  })
+
+  it('leaves an empty first line with more below to ProseMirror, which deletes it', () => {
+    assert.equal(run(atBodyStart(page(paragraph(), paragraph('Body'))), backspace).applied, false)
+  })
+
+  it('leaves Backspace alone part-way through the line, or on a later line', () => {
+    const start = page(paragraph('Body'), paragraph('More'))
+    assert.equal(run(caretAt(start, titleEnd(start) + 3), backspace).applied, false)
+    assert.equal(run(caretAt(start, start.doc.content.size - 1), backspace).applied, false)
+  })
+
+  it('leaves Backspace alone inside a block that starts the body', () => {
+    const start = page(schema.node('blockquote', null, [paragraph('Quoted')]))
+    assert.equal(run(caretAt(start, titleEnd(start) + 3), backspace).applied, false)
   })
 })
