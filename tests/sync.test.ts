@@ -1133,6 +1133,33 @@ describe('local-first sync', () => {
     assert.match(readPlainText(merged), /and the phone/)
   })
 
+  it('uploads and downloads around a document it cannot read, and asks for it again', async () => {
+    await laptop.focus()
+    const broken = await createPage()
+    await laptop.type(broken, 'garbled in transit')
+    const fine = await createPage()
+    await laptop.type(fine, 'arrives intact')
+    await laptop.sync()
+    const good = server.docs.get(broken)!.ydoc
+    server.docs.get(broken)!.ydoc = Buffer.from([1]).toString('base64')
+
+    await phone.focus()
+    const mine = await createPage()
+    await phone.setTitle(mine, 'Written on the phone')
+    await phone.sync()
+    const internals = phone.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+    if (internals.retryTimer) clearTimeout(internals.retryTimer)
+
+    assert.equal(phone.phase(), 'error', 'the document that failed is not quietly passed over')
+    assert.equal(server.pages.get(mine)?.title, 'Written on the phone', 'the upload still went out')
+    assert.match(await phone.text(fine), /arrives intact/)
+
+    server.docs.get(broken)!.ydoc = good
+    await phone.sync()
+    assert.equal(phone.phase(), 'synced')
+    assert.match(await phone.text(broken), /garbled in transit/)
+  })
+
   it('does not start a cancelled manual sync that was queued behind another', async () => {
     await laptop.focus()
     const id = await createPage()

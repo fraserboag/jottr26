@@ -693,9 +693,11 @@ export class SyncEngine {
 
   // --- pull ---------------------------------------------------------------
 
-  private async pull(signal: AbortSignal) {
+  /** A document that could not be taken in is left for the next pull, and
+   *  its error is returned rather than thrown, so the push still runs. */
+  private async pull(signal: AbortSignal): Promise<Error | null> {
     await this.pullPages(signal)
-    await this.pullDocs(signal)
+    return this.pullDocs(signal)
   }
 
   /** Every row of `table` changed since `cursor`, less the overlap, oldest
@@ -813,10 +815,11 @@ export class SyncEngine {
     if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
   }
 
-  private async pullDocs(signal: AbortSignal) {
+  private async pullDocs(signal: AbortSignal): Promise<Error | null> {
     const cursor = await readMeta<number>(this.db, META_DOCS_CURSOR, 0)
     let newest = cursor
     const stale: string[] = []
+    const changedAt = new Map<string, number>()
 
     // Versions first, blobs second. Most of what the overlap window returns is
     // this device's own last push, and re-downloading those blobs every cycle
@@ -831,8 +834,12 @@ export class SyncEngine {
     )) {
       const locals = await this.db.docStates.bulkGet(rows.map((row) => row.page_id))
       for (const [index, row] of rows.entries()) {
-        newest = Math.max(newest, Date.parse(row.updated_at))
-        if (locals[index]?.version !== row.version) stale.push(row.page_id)
+        const at = Date.parse(row.updated_at)
+        newest = Math.max(newest, at)
+        if (locals[index]?.version !== row.version) {
+          stale.push(row.page_id)
+          changedAt.set(row.page_id, at)
+        }
       }
     }
 
@@ -840,6 +847,8 @@ export class SyncEngine {
     // purge is sent. Downloading its document would bring it back.
     const queued = await this.db.purges.bulkGet(stale)
     const wanted = stale.filter((_, index) => !queued[index])
+    let failure: Error | null = null
+    let retryFrom = Infinity
 
     for (const chunk of chunks(wanted, BLOB_CHUNK)) {
       const { data, error } = await this.supabase
@@ -851,16 +860,32 @@ export class SyncEngine {
       if (error) throw new Error(error.message)
 
       for (const row of (data ?? []) as Array<{ page_id: string; ydoc: string; version: number }>) {
-        // Left at the old version when the disk refused it, so a push merges
-        // with the server rather than being accepted over it.
-        if (await applyRemoteUpdate(row.page_id, base64ToBytes(row.ydoc))) {
-          await this.recordServerVersion(row.page_id, row.version)
+        try {
+          // Left at the old version when the disk refused it, so a push merges
+          // with the server rather than being accepted over it.
+          if (await applyRemoteUpdate(row.page_id, base64ToBytes(row.ydoc))) {
+            await this.recordServerVersion(row.page_id, row.version)
+          } else {
+            failure ??= new Error('Could not save a page downloaded from the server')
+            retryFrom = Math.min(retryFrom, changedAt.get(row.page_id) ?? cursor)
+          }
+          await this.syncTitleFromDoc(row.page_id)
+        } catch (error) {
+          // One document that cannot be read or stored must not hold back
+          // every other page's download, or this device's uploads.
+          if (signal.aborted) throw error
+          failure ??= error instanceof Error ? error : new Error(String(error))
+          retryFrom = Math.min(retryFrom, changedAt.get(row.page_id) ?? cursor)
         }
-        await this.syncTitleFromDoc(row.page_id)
       }
     }
 
-    if (newest > cursor) await writeMeta(this.db, META_DOCS_CURSOR, newest)
+    // Held back to the first document that failed, so the next pull asks for
+    // it again. Moved past it, the device would keep the old text for good
+    // once the copy in memory was gone.
+    const reached = Math.min(newest, retryFrom)
+    if (reached > cursor) await writeMeta(this.db, META_DOCS_CURSOR, reached)
+    return failure
   }
 
   private async recordServerVersion(pageId: string, version: number) {
@@ -900,9 +925,10 @@ export class SyncEngine {
     // A session that took past the deadline to arrive: this cycle has been
     // given up on, and a later one may already be running.
     signal.throwIfAborted()
-    await this.pull(signal)
+    const pullFailure = await this.pull(signal)
     await this.reconcile(signal)
     await this.push(signal)
+    if (pullFailure) throw pullFailure
   }
 
   /** With no session to hand — its token expired and the refresh has not
