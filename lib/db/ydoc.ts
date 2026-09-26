@@ -72,18 +72,41 @@ export function seedDocument(doc: Y.Doc) {
   })
 }
 
-async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc) {
-  const [state, updates] = await Promise.all([
-    db.docStates.get(pageId),
-    db.docUpdates.where('pageId').equals(pageId).sortBy('seq'),
-  ])
+/** The snapshot and every delta row, read in one transaction. Read apart, a
+ *  compaction in another tab could land between them and hand back the old
+ *  snapshot with none of the rows it has just folded into the new one. */
+async function readFromDisk(db: JottrDB, pageId: string) {
+  return db.transaction('r', db.docStates, db.docUpdates, async () => {
+    const state = await db.docStates.get(pageId)
+    const updates = await db.docUpdates.where('pageId').equals(pageId).sortBy('seq')
+    return { state, updates }
+  })
+}
+
+async function loadFromDisk(db: JottrDB, pageId: string, doc: Y.Doc, origin: symbol = LOAD_ORIGIN) {
+  const { state, updates } = await readFromDisk(db, pageId)
 
   doc.transact(() => {
-    if (state?.snapshot?.byteLength) Y.applyUpdate(doc, state.snapshot, LOAD_ORIGIN)
-    for (const row of updates) Y.applyUpdate(doc, row.update, LOAD_ORIGIN)
-  }, LOAD_ORIGIN)
+    if (state?.snapshot?.byteLength) Y.applyUpdate(doc, state.snapshot, origin)
+    for (const row of updates) Y.applyUpdate(doc, row.update, origin)
+  }, origin)
 
   return { state, deltaCount: updates.length }
+}
+
+/** Bring an open document up to what is on disk. Tabs share the disk but not
+ *  their documents, and the disk also takes rows this tab never applied: a
+ *  pull the leader tab wrote, or another tab's edit whose relay was missed.
+ *  Anything that treats this tab's copy as the whole page — a push, a
+ *  compaction — has to read those in first, or it throws them away. Applied
+ *  as a peer edit, since it is already stored. */
+async function catchUp(db: JottrDB, pageId: string, doc: Y.Doc) {
+  await loadFromDisk(db, pageId, doc, PEER_ORIGIN)
+}
+
+export async function refreshFromDisk(handle: DocHandle) {
+  const db = activeDatabase()
+  if (db) await catchUp(db, handle.pageId, handle.doc)
 }
 
 /** One compaction at a time per page: two crossing the threshold together would
@@ -102,9 +125,10 @@ async function compact(db: JottrDB, pageId: string, doc: Y.Doc) {
 
 async function compactNow(db: JottrDB, pageId: string, doc: Y.Doc) {
   await db.transaction('rw', db.docStates, db.docUpdates, async () => {
-    // Encoded inside the transaction, so it covers every delta row the delete
-    // below can reach: a row written before the transaction opened is already
-    // in the document, and one written after it waits until this commits.
+    // Caught up and encoded inside the transaction, so it covers every delta
+    // row the delete below can reach, including ones this tab never applied.
+    // A row written after it opened waits until this commits.
+    await catchUp(db, pageId, doc)
     const snapshot = Y.encodeStateAsUpdate(doc)
     const existing = await db.docStates.get(pageId)
     await db.docStates.put({ ...blankDocState(pageId), ...existing, snapshot })
@@ -187,8 +211,11 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
         await db.docUpdates.add({ pageId, update })
         pending += 1
 
+        // Pulls too: only the leader tab pulls, and without this every other
+        // tab showing the page would sit on the old text until a reload.
+        broadcastUpdate(pageId, update)
+
         if (isLocal) {
-          broadcastUpdate(pageId, update)
           await patchDocState(db, pageId, (current) => ({ dirty: 1, edits: current.edits + 1 }))
           notifyLocalEdit()
         }
@@ -230,10 +257,19 @@ export function loadedDoc(pageId: string): DocHandle | undefined {
   return handles.get(pageId)
 }
 
-/** Relay deltas from sibling tabs into whichever documents are open here. */
+/** Relay deltas from sibling tabs into whichever documents are open here. One
+ *  still loading gets it once loaded, whether or not its read of the disk
+ *  already caught the row: applying an update twice changes nothing. */
 onPeerUpdate(({ pageId, update }) => {
   const handle = handles.get(pageId)
-  if (handle) Y.applyUpdate(handle.doc, update, PEER_ORIGIN)
+  if (handle) {
+    Y.applyUpdate(handle.doc, update, PEER_ORIGIN)
+    return
+  }
+  loading.get(pageId)?.then(
+    (loaded) => Y.applyUpdate(loaded.doc, update, PEER_ORIGIN),
+    () => {},
+  )
 })
 
 export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {

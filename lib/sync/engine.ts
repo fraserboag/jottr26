@@ -25,6 +25,7 @@ import {
   patchDocState,
   readPlainText,
   readTitle,
+  refreshFromDisk,
   loadedDoc,
   sameBytes,
 } from '@/lib/db/ydoc'
@@ -919,6 +920,10 @@ export class SyncEngine {
       // the document's, never null for a page nobody had open. An edit made
       // after this point moves it, and keeps the document dirty.
       const handle = await openDoc(state.pageId)
+      // Another tab may have written rows this one never applied, such as a
+      // pull it made while it was the leader. Pushed without them, the
+      // compare-and-swap would accept this copy and erase them from the server.
+      await refreshFromDisk(handle)
       const editsBefore = (await this.db.docStates.get(state.pageId))?.edits ?? 0
       const before = Y.encodeStateVector(handle.doc)
       const bytes = Y.encodeStateAsUpdate(handle.doc)

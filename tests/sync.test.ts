@@ -9,9 +9,8 @@ const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName
   await import('@/lib/db/dexie')
 const { createPage, trashPage, restorePage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
   await import('@/lib/db/pages')
-const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, DOC_FIELD } = await import(
-  '@/lib/db/ydoc'
-)
+const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, patchDocState, DOC_FIELD } =
+  await import('@/lib/db/ydoc')
 const { SyncEngine, countPending } = await import('@/lib/sync/engine')
 
 const server = new FakeServer()
@@ -690,6 +689,38 @@ describe('local-first sync', () => {
     assert.ok(leader.current, 'the leader should start a sync on the nudge')
     await leader.current
     assert.equal(server.pages.get(id)?.title, 'Typed in the other window')
+  })
+
+  it("pushes another tab's pull along with this tab's edit, rather than over it", async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.type(id, 'Laptop')
+    await laptop.sync()
+    await phone.sync()
+    await phone.type(id, ' phone')
+    await phone.sync()
+
+    // This tab has the page open. The leader tab pulls the phone's edit onto
+    // the disk they share, and this tab's copy of the document never hears.
+    await laptop.focus()
+    const db = activeDatabase()!
+    const handle = await openDoc(id)
+    const remote = new Y.Doc()
+    Y.applyUpdate(remote, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    await db.docUpdates.add({ pageId: id, update: Y.encodeStateAsUpdate(remote, Y.encodeStateVector(handle.doc)) })
+    await patchDocState(db, id, () => ({ version: server.docs.get(id)!.version }))
+
+    // Then this tab becomes the leader, and the user types.
+    const paragraph = handle.doc.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement
+    handle.doc.transact(() => paragraph.insert(paragraph.length, [new Y.XmlText(' desk')]))
+    await settle()
+    await laptop.engine.syncOnce()
+
+    const pushed = new Y.Doc()
+    Y.applyUpdate(pushed, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(pushed), /phone/)
+    assert.match(readPlainText(pushed), /desk/)
+    assert.match(readPlainText(handle.doc), /phone/, 'the open page should show it too')
   })
 
   it('polls every 10 seconds while realtime is down, and every 45 once it is up', async () => {

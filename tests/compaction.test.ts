@@ -56,6 +56,23 @@ describe('delta compaction', () => {
     assert.equal(readPlainText(await reload()), expected)
   })
 
+  it('keeps a delta another tab wrote that this tab never applied', async () => {
+    const { db, doc, text } = await freshPage()
+    await whenPersisted()
+    const theirs = new Y.Doc()
+    Y.applyUpdate(theirs, Y.encodeStateAsUpdate(doc))
+    const before = Y.encodeStateVector(theirs)
+    const paragraph = theirs.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement
+    paragraph.insert(0, [new Y.XmlText('from the leader tab')])
+    await db.docUpdates.add({ pageId: 'page', update: Y.encodeStateAsUpdate(theirs, before) })
+
+    for (let i = 0; i < 200; i += 1) text.insert(text.length, 'x')
+    await whenPersisted()
+
+    assert.ok((await db.docUpdates.where('pageId').equals('page').count()) < 150, 'it compacted')
+    assert.match(readPlainText(await reload()), /from the leader tab/)
+  })
+
   it('leaves the page dirty and at its server version after compacting', async () => {
     const { db, text } = await freshPage()
     await patchDocState(db, 'page', () => ({ version: 7 }))

@@ -9,7 +9,9 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
 const { closePeerChannel, openPeerChannel } = await import('@/lib/db/peers')
-const { openDoc, readPlainText, releaseAll, whenPersisted, DOC_FIELD } = await import('@/lib/db/ydoc')
+const { applyRemoteUpdate, openDoc, readPlainText, releaseAll, whenPersisted, DOC_FIELD } = await import(
+  '@/lib/db/ydoc'
+)
 
 /** This process is one tab; the channel below stands in for another tab of the
  *  same account, which shares the IndexedDB but has its own documents. */
@@ -53,6 +55,27 @@ describe('tabs of the same account', () => {
     Y.applyUpdate(copy, Y.encodeStateAsUpdate(handle.doc))
     Y.applyUpdate(copy, message.update)
     assert.match(readPlainText(copy), /from this tab/)
+  })
+
+  it('passes an edit this tab pulled from the server to the other tabs', async () => {
+    const handle = await openDoc('pulled', { seed: true })
+    await whenPersisted()
+
+    // Only the leader tab pulls, so the others hear of the server's copy from it.
+    const server = new Y.Doc()
+    Y.applyUpdate(server, Y.encodeStateAsUpdate(handle.doc))
+    const paragraph = server.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement
+    paragraph.insert(0, [new Y.XmlText('from another device')])
+    const before = Y.encodeStateAsUpdate(handle.doc)
+    const received = nextMessage()
+    await applyRemoteUpdate('pulled', Y.encodeStateAsUpdate(server))
+
+    const message = await received
+    assert.equal(message.pageId, 'pulled')
+    const copy = new Y.Doc()
+    Y.applyUpdate(copy, before)
+    Y.applyUpdate(copy, message.update)
+    assert.match(readPlainText(copy), /from another device/)
   })
 
   it('shows an edit from another tab without storing or pushing it a second time', async () => {
