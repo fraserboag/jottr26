@@ -229,6 +229,23 @@ body {
   background: transparent;
 }
 
+/* The buttons and trail that float over the top of the page: the line they
+   sit on, level with the sidebar's settings button, which is centred on the
+   Jottr wordmark a few pixels below the header's padding — 3.6px, and 3.2px
+   with a touch screen's larger text. */
+@utility float-top {
+  top: calc(max(0.5rem, env(safe-area-inset-top)) + 3.6px);
+  @media (pointer: coarse) {
+    top: calc(max(0.5rem, env(safe-area-inset-top)) + 3.2px);
+  }
+}
+
+/* Their backdrop, for the page scrolling underneath: frosted, and on a touch
+   screen, where they are always showing, outlined as well. */
+@utility float-backdrop {
+  @apply rounded-md bg-surface/85 backdrop-blur-md pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90;
+}
+
 /* ---------------------------------------------------------------------------
    Editor
    --------------------------------------------------------------------------- */
@@ -918,13 +935,6 @@ h1.page-title {
 .ProseMirror-focused .ProseMirror-selectednode {
   background: var(--accent-soft);
   border-radius: 4px;
-}
-
-/* Yjs paints a class on text it just merged in from elsewhere; keeping it
-   invisible avoids a flash of highlight on every pull. */
-.ProseMirror .ychange,
-.ProseMirror ychange {
-  background: none;
 }
 
 /* A new page slides in from the right to say the screen changed rather than

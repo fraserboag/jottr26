@@ -47,7 +47,7 @@ export function Breadcrumb({
       aria-label="Breadcrumb"
       className={`pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 pointer-coarse:h-9 ${
         floating
-          ? 'overflow-hidden rounded-md bg-surface/85 px-2 backdrop-blur-md pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90'
+          ? 'float-backdrop overflow-hidden px-2'
           : 'overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
       }`}
     >

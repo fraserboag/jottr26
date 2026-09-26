@@ -131,7 +131,7 @@ export function Workspace() {
               opposite corner — same top, same height, same distance in from the
               edge — and stop short of it. The row itself lets clicks through to
               the page; only what is drawn in it takes them. */}
-          <div className="pointer-events-none absolute left-2 right-12 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 flex min-w-0 items-center gap-2 pointer-coarse:right-[3.25rem] pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)]">
+          <div className="float-top pointer-events-none absolute left-2 right-12 z-30 flex min-w-0 items-center gap-2 pointer-coarse:right-[3.25rem]">
             {/* It keeps the old top bar's backdrop: on a phone the page's left
                 edge passes underneath. There it is always on screen, so it gets
                 an outline rather than being a bare icon that looks like part of
@@ -141,7 +141,7 @@ export function Workspace() {
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Show sidebar"
-                className="pointer-events-auto grid size-8 shrink-0 place-items-center rounded-md bg-surface/85 text-faint backdrop-blur-md transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90 pointer-coarse:text-muted"
+                className="float-backdrop pointer-events-auto grid size-8 shrink-0 place-items-center text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-9 pointer-coarse:text-muted"
               >
                 <Icon name="panel" size={18} />
               </button>
@@ -150,14 +150,12 @@ export function Workspace() {
           </div>
 
           {/* The top-right counterpart of the sidebar button, with the same
-              backdrop for the same reason. It sits where the settings button
-              sits in the sidebar's header: that button is centred on the Jottr
-              wordmark's line, which puts it a few pixels below the header's
-              padding — 3.6px, and 3.2px with a touch screen's larger text. */}
+              backdrop for the same reason, on the same line as the settings
+              button in the sidebar's header. */}
           {wide && page && (
             <StarButton
               page={page}
-              className="absolute right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-30 rounded-md bg-surface/85 backdrop-blur-md pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:rounded-lg pointer-coarse:border pointer-coarse:border-line pointer-coarse:bg-raised/90"
+              className="float-top float-backdrop absolute right-2 z-30"
             />
           )}
 
@@ -170,7 +168,7 @@ export function Workspace() {
                   it, but scroll away with the text rather than floating over
                   it, so they need no backdrop. */}
               {!wide && page && (
-                <div className="pointer-events-none absolute left-2 right-2 top-[calc(max(0.5rem,env(safe-area-inset-top))+3.6px)] z-10 flex min-w-0 items-center gap-2 pl-10 pointer-coarse:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.2px)] pointer-coarse:pl-11">
+                <div className="float-top pointer-events-none absolute left-2 right-2 z-10 flex min-w-0 items-center gap-2 pl-10 pointer-coarse:pl-11">
                   {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} />}
                   <StarButton page={page} className="ml-auto rounded-md" />
                 </div>
