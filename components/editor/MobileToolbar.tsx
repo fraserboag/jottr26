@@ -75,14 +75,17 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
       // scrolls past that. The rest is left for the line being typed on.
       const height = viewport ? viewport.height : window.innerHeight
       bar.style.setProperty('--blocks-height', `${Math.min(312, Math.round(height * 0.45))}px`)
-      bar.style.transform = `translateY(${bottom - bar.offsetHeight}px)`
+      // Read once, after the writes that can change it and before the ones
+      // that cannot, so placing the bar lays the page out only the once.
+      const barHeight = bar.offsetHeight
+      bar.style.transform = `translateY(${bottom - barHeight}px)`
       // The page scrolls inside a box as tall as the layout viewport, so on
       // the last line it has already run out of scroll with the keyboard and
       // the bar still over it. The page pads its foot by this much for as long
       // as the bar is up, which leaves room to lift that line clear.
       document.documentElement.style.setProperty(
         '--toolbar-inset',
-        `${Math.max(0, window.innerHeight - bottom) + bar.offsetHeight}px`,
+        `${Math.max(0, window.innerHeight - bottom) + barHeight}px`,
       )
     }
 
@@ -108,6 +111,8 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
   useEffect(() => {
     if (!visible) return
     let frame = 0
+    // Looked up once: finding it reads the computed style of every ancestor.
+    const scroller = scrollParent(editor.view.dom)
 
     const keepCaretClear = () => {
       const bar = barRef.current
@@ -121,7 +126,7 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
       const { top, bottom } = bar.getBoundingClientRect()
       const overlap = caret.bottom - (top - 40)
       if (overlap <= 0 || caret.bottom > bottom + 200) return
-      scrollParent(editor.view.dom)?.scrollBy({ top: overlap })
+      scroller?.scrollBy({ top: overlap })
     }
 
     const schedule = () => {

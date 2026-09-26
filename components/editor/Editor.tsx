@@ -35,7 +35,7 @@ import { repairSubpageTitles } from '@/lib/db/subpages'
 import { useDocReady } from '@/lib/db/hooks'
 import { refreshDerived } from '@/lib/db/pages'
 import { debounce } from '@/lib/util/debounce'
-import { resolveLink } from '@/lib/util/links'
+import { isPlainLeftClick, resolveLink } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
 import { useCoarsePointer } from '@/lib/util/pointer'
 
@@ -230,12 +230,7 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         // An anchor inside a contenteditable does nothing on its own, so
         // following a link is this handler's job.
         handleClick: (_view, _pos, event) => {
-          // A held modifier or a middle click is the browser being asked for a
-          // tab or a window explicitly; the anchor's href is real, so letting
-          // it through does the right thing for internal links too.
-          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-            return false
-          }
+          if (!isPlainLeftClick(event)) return false
           const node = event.target
           const anchor = node instanceof HTMLElement ? node.closest('a[href]') : null
           if (!anchor) return false

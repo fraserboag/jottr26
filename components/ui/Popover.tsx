@@ -52,6 +52,12 @@ export function Popover({
   useLayoutEffect(() => {
     if (!open || !anchor) return
 
+    // Placing runs on every scroll anywhere on the page while the panel is
+    // open; a position that has not moved keeps the same object, so React
+    // skips the render.
+    const moveTo = (top: number, left: number) =>
+      setPosition((current) => (current?.top === top && current.left === left ? current : { top, left }))
+
     const place = () => {
       const rect = anchor.getBoundingClientRect()
       const height = panelRef.current?.offsetHeight ?? 240
@@ -61,7 +67,7 @@ export function Popover({
       if (side === 'right') {
         let left = rect.right + 6
         if (left + panelWidth > window.innerWidth - margin) left = rect.left - panelWidth - 6
-        setPosition({ top: rect.top + rect.height / 2 - height / 2, left: Math.max(margin, left) })
+        moveTo(rect.top + rect.height / 2 - height / 2, Math.max(margin, left))
         return
       }
 
@@ -77,7 +83,7 @@ export function Popover({
             : rect.left
       left = Math.min(Math.max(margin, left), window.innerWidth - panelWidth - margin)
 
-      setPosition({ top: Math.max(margin, top), left })
+      moveTo(Math.max(margin, top), left)
     }
 
     place()

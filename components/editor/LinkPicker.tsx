@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon'
 import { searchPages } from '@/lib/db/search'
 import { usePages } from '@/components/workspace/PagesContext'
 import { looksLikeUrl, normalizeHref, pageHref, resolveLink } from '@/lib/util/links'
+import { scrollIntoList } from '@/lib/util/scroll'
 
 /** One suggestion under the link field. The URL row is always present once
  *  something has been typed, so a page you meant to find is never the only way
@@ -45,7 +46,9 @@ export function LinkPicker({
   }, [])
 
   useEffect(() => {
-    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+    const list = listRef.current
+    const active = list?.querySelector<HTMLElement>('[data-active="true"]')
+    if (list && active) scrollIntoList(list, active)
   }, [index])
 
   const rows = useMemo<Row[]>(() => {

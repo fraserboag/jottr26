@@ -84,3 +84,16 @@ export function looksLikeUrl(input: string): boolean {
   // A bare host: no spaces, and a dot with something either side of it.
   return !/\s/.test(value) && /^[^\s.]+\.[^\s.]{2,}/.test(value)
 }
+
+/** A plain left click, the only kind a link is followed in place for. A held
+ *  modifier or a middle click is the browser being asked for a tab or a window
+ *  explicitly, and the anchor's real href does the right thing with it. */
+export function isPlainLeftClick(event: {
+  button: number
+  metaKey: boolean
+  ctrlKey: boolean
+  shiftKey: boolean
+  altKey: boolean
+}): boolean {
+  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+}

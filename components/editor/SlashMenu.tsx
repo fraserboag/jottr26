@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import type { SlashItem } from './extensions/slash'
+import { scrollIntoList } from '@/lib/util/scroll'
 
 export interface SlashMenuState {
   items: SlashItem[]
@@ -67,17 +68,10 @@ export function SlashList({
   // only a real change of position picks a row.
   const pointer = useRef({ x: -1, y: -1 })
 
-  // Scrolls the list alone. `scrollIntoView` would scroll every ancestor too,
-  // and on a phone that includes the visual viewport, which drags the page
-  // about under the keyboard.
   useEffect(() => {
     const list = listRef.current
     const active = list?.querySelector<HTMLElement>('[data-active="true"]')
-    if (!list || !active) return
-    if (active.offsetTop < list.scrollTop) list.scrollTop = active.offsetTop
-    else if (active.offsetTop + active.offsetHeight > list.scrollTop + list.clientHeight) {
-      list.scrollTop = active.offsetTop + active.offsetHeight - list.clientHeight
-    }
+    if (list && active) scrollIntoList(list, active)
   }, [state.index])
 
   if (state.items.length === 0) {

@@ -8,7 +8,7 @@ import { PageMenu } from '@/components/workspace/PageMenu'
 import { useChildPages, useGrandchildPages } from '@/lib/db/hooks'
 import { createPage, dropRelative } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
-import { pageHref } from '@/lib/util/links'
+import { isPlainLeftClick, pageHref } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
 import type { PageRow } from '@/lib/db/schema'
 import type { SubpagesOptions } from './extensions/subpages'
@@ -59,7 +59,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
   const pointerType = useRef('')
 
   const follow = (event: MouseEvent, id: string) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (!isPlainLeftClick(event)) return
     // Clicks in the menu, including on its items, which React bubbles up here
     // from the portal they're drawn in, are the menu's own.
     const target = event.target
@@ -204,13 +204,14 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
     </li>
   )
 
+  const items = depth === 2 ? groups : pages
   const list =
-    depth === 2 ? (
-      groups === undefined ? null : groups.length === 0 ? (
-        <p className="subpages-empty">No subpages yet</p>
-      ) : (
-        <div ref={listRef}>
-          {groups.map(({ page, children }) => (
+    items === undefined ? null : items.length === 0 ? (
+      <p className="subpages-empty">No subpages yet</p>
+    ) : (
+      <div ref={listRef}>
+        {depth === 2 && groups ? (
+          groups.map(({ page, children }) => (
             <div key={page.id} className="subpages-group">
               <div
                 className="subpages-group-head"
@@ -238,14 +239,10 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
               </div>
               {children.length > 0 && <ul>{children.map((child) => entry(child.page))}</ul>}
             </div>
-          ))}
-        </div>
-      )
-    ) : pages === undefined ? null : pages.length === 0 ? (
-      <p className="subpages-empty">No subpages yet</p>
-    ) : (
-      <div ref={listRef}>
-        <ul>{pages.map(entry)}</ul>
+          ))
+        ) : (
+          <ul>{pages?.map(entry)}</ul>
+        )}
       </div>
     )
 
