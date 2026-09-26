@@ -22,6 +22,10 @@ export function linkToNewSubpage(
   // anyone can see.
   if (!title) return
   const id = newId()
-  editor.chain().focus().setLink({ href: pageHref(id) }).run()
+  const link = { href: pageHref(id) }
+  // Inline code keeps every other mark out. A page made anyway would be
+  // linked from nowhere.
+  if (!editor.can().setLink(link)) return
+  editor.chain().focus().setLink(link).run()
   void createPage({ id, parentId, title }).then(open)
 }
