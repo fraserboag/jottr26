@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
 import { useOpenPageId } from '@/lib/util/route'
 import { LinkPicker } from './LinkPicker'
+import { SlashList } from './SlashMenu'
+import { useSlashMenu } from './useSlashMenu'
 import { TableControls, useTableState } from './TableMenu'
 import { linkToNewSubpage } from './subpageLink'
 
@@ -21,15 +23,16 @@ import { linkToNewSubpage } from './subpageLink'
  *  The / block menu opens on the bar too, as `blocks`. Pinned to the caret it
  *  had a few hundred pixels between the keyboard and the top of the screen to
  *  find room in, and usually ended up half behind the keys. */
-export function MobileToolbar({
-  editor,
-  pageId,
-  blocks,
-}: {
-  editor: Editor
-  pageId: string
-  blocks?: ReactNode
-}) {
+export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: string }) {
+  const { slash, pick, hover } = useSlashMenu()
+  const blocks = slash && (
+    <SlashList
+      state={slash}
+      onSelect={pick}
+      onHover={hover}
+      className="max-h-[var(--blocks-height,312px)] p-1.5"
+    />
+  )
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const [, openPage] = useOpenPageId()

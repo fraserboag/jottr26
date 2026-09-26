@@ -1,7 +1,8 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
+import type { Extensions } from '@tiptap/core'
 import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -20,9 +21,10 @@ import { ScrollingTableView } from './extensions/tableView'
 import { JottrDocument, Title } from './extensions/title'
 import { SelectLine } from './extensions/selectLine'
 import { SelectBlock } from './extensions/selectBlock'
-import { createSlashExtension, type SlashHandlers, type SlashItem } from './extensions/slash'
-import { claimSlashBridge, releaseSlashBridge, slashHandlers } from './slashBridge'
-import { SlashList, SlashMenu, type SlashMenuState } from './SlashMenu'
+import { createSlashExtension } from './extensions/slash'
+import { slashHandlers } from './slashBridge'
+import { SlashMenu } from './SlashMenu'
+import { useSlashMenu } from './useSlashMenu'
 import { SubpageList } from './SubpageList'
 import { FormatMenu } from './FormatMenu'
 import { MobileToolbar } from './MobileToolbar'
@@ -81,68 +83,120 @@ function Loader({ pageId }: { pageId: string }) {
   return <Surface key={pageId} pageId={pageId} doc={handle.doc} />
 }
 
+/** Everything the editor is built from, for one page's document. */
+function editorExtensions(doc: Y.Doc, pageId: string): Extensions {
+  return [
+    JottrDocument,
+    Title,
+    StarterKit.configure({
+      document: false,
+      // Collaboration brings its own Yjs-aware undo stack. Keeping
+      // ProseMirror's would undo other devices' edits along with yours.
+      undoRedo: false,
+      // StarterKit brings Heading unless this is exactly false. Its six
+      // levels give way to the one-size Heading added below.
+      heading: false,
+      // Same again for Blockquote: without this, '>' and Mod-Shift-B still
+      // make quotes. A callout is the block that sets a passage apart, and
+      // '>' opens an accordion instead.
+      blockquote: false,
+      // Added below instead, as a version whose first line can be an
+      // accordion.
+      listItem: false,
+      // Added below instead, as versions a new line doesn't carry over.
+      bold: false,
+      italic: false,
+      underline: false,
+      strike: false,
+      code: false,
+      link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
+      // Enter's way out is CodeBlockExit's, below, rather than Tiptap's
+      // two blank lines.
+      codeBlock: { HTMLAttributes: { spellcheck: 'false' }, exitOnTripleEnter: false },
+      // Added below instead, as a version whose '---' reuses a blank line
+      // already under it.
+      horizontalRule: false,
+      // The accent, like every other drop line and resize handle, rather
+      // than the text colour it defaults to.
+      dropcursor: { color: 'var(--accent)' },
+    }),
+    ...FormattingMarks,
+    Heading,
+    SelectLine,
+    SelectBlock,
+    ListItem,
+    Callout,
+    CodeBlockExit,
+    Divider,
+    Subpages.extend({
+      addNodeView: () =>
+        ReactNodeViewRenderer(SubpageList, {
+          // The entries, headings and buttons are the list's own: a click
+          // opens a page or adds one and a drag reorders, and
+          // ProseMirror would read any of them as an edit to the
+          // document. The block's own heading is written in like any other
+          // line.
+          stopEvent: ({ event }) =>
+            event.target instanceof Element &&
+            !event.target.closest('.subpages-title') &&
+            !!event.target.closest('li, .subpages-group-head, button, a'),
+        }),
+    }).configure({ pageId }),
+    SubpagesTitle,
+    ...AccordionKit,
+    // Rows, cells and headers come from the kit; the table node itself is
+    // the finance-aware one, so its extra attribute and plugin are in the
+    // schema from the start.
+    TableKit.configure({ table: false }),
+    FinanceTable.configure({
+      resizable: true,
+      // Dragging a line trades width between the two columns either side
+      // of it (see tableResize.ts), and never takes away a table's last
+      // unsized column, so the table keeps filling the page. This is the
+      // floor a drag stops at; the columns nobody dragged stop shrinking
+      // sooner, and the table scrolls.
+      cellMinWidth: 40,
+      // The table's own edges are not lines between columns.
+      lastColumnResizable: false,
+      View: ScrollingTableView,
+      // Only reaches serialised HTML: while the editor is editable the
+      // resizing plugin renders the table through TableView, which brings
+      // the wrapper the sideways scroll hangs off.
+      renderWrapper: true,
+    }),
+    Collaboration.configure({ document: doc }),
+    Placeholder.configure({
+      // Shown on every empty node so the title always reads 'Untitled',
+      // while body placeholders appear only where the caret is.
+      showOnlyCurrent: false,
+      // Looks inside blocks too, which is where an accordion's heading is.
+      includeChildren: true,
+      emptyNodeClass: 'is-empty',
+      placeholder: ({ editor: instance, node, hasAnchor }) => {
+        if (node.type.name === 'title') return 'Untitled'
+        // An empty heading would leave a chevron with nothing beside it.
+        if (node.type.name === 'accordionTitle') return 'Title'
+        if (!hasAnchor || node.type.name !== 'paragraph') return ''
+        // Only while the page has no body yet: nothing after the title but
+        // empty paragraphs, however many. A blank line on a page with
+        // content gets none.
+        const { doc: page } = instance.state
+        for (let index = 1; index < page.childCount; index += 1) {
+          const block = page.child(index)
+          if (block.type.name !== 'paragraph' || block.childCount > 0) return ''
+        }
+        return "Write something, or press '/' for blocks"
+      },
+    }),
+    createSlashExtension(slashHandlers),
+  ]
+}
+
 function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
   // Stable across renders, so the click handler below can be captured once
   // when the editor is built without going stale.
   const [, openPage] = useOpenPageId()
   const coarse = useCoarsePointer()
-  const [slash, setSlash] = useState<SlashMenuState | null>(null)
-  const slashRef = useRef<{ items: SlashItem[]; index: number; command: (item: SlashItem) => void }>({
-    items: [],
-    index: 0,
-    command: () => {},
-  })
-  const move = useCallback((delta: number) => {
-    const { items, index } = slashRef.current
-    if (items.length === 0) return
-    const next = (index + delta + items.length) % items.length
-    slashRef.current.index = next
-    setSlash((current) => (current ? { ...current, index: next } : current))
-  }, [])
-  const pick = useCallback((item: SlashItem) => slashRef.current.command(item), [])
-  const hover = useCallback((index: number) => {
-    slashRef.current.index = index
-    setSlash((current) => (current ? { ...current, index } : current))
-  }, [])
-
-  useEffect(() => {
-    const handlers: SlashHandlers = {
-      onStart: (props) => {
-        slashRef.current = { items: props.items, index: 0, command: props.command }
-        setSlash({ items: props.items, index: 0, rect: props.clientRect?.() ?? null })
-      },
-      onUpdate: (props) => {
-        const index = Math.min(slashRef.current.index, Math.max(0, props.items.length - 1))
-        slashRef.current = { items: props.items, index, command: props.command }
-        setSlash({ items: props.items, index, rect: props.clientRect?.() ?? null })
-      },
-      onKeyDown: ({ event }) => {
-        if (slashRef.current.items.length === 0 && event.key !== 'Escape') return false
-        if (event.key === 'ArrowDown') {
-          move(1)
-          return true
-        }
-        if (event.key === 'ArrowUp') {
-          move(-1)
-          return true
-        }
-        if (event.key === 'Enter' || event.key === 'Tab') {
-          const item = slashRef.current.items[slashRef.current.index]
-          if (!item) return false
-          slashRef.current.command(item)
-          return true
-        }
-        if (event.key === 'Escape') {
-          setSlash(null)
-          return true
-        }
-        return false
-      },
-      onExit: () => setSlash(null),
-    }
-    claimSlashBridge(handlers)
-    return () => releaseSlashBridge(handlers)
-  })
 
   // Two timers, both mirroring the document onto the page row. A title edit
   // gets its own, so typing on into the body straight after naming a page
@@ -159,117 +213,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
     repairSubpageTitles(doc)
   })
 
+  const extensions = useMemo(() => editorExtensions(doc, pageId), [doc, pageId])
+
   const editor = useEditor(
     {
       // The editor is mounted by a client-only dynamic import, but Tiptap still
       // wants this off so React 19 never renders it during hydration.
       immediatelyRender: false,
-      extensions: [
-        JottrDocument,
-        Title,
-        StarterKit.configure({
-          document: false,
-          // Collaboration brings its own Yjs-aware undo stack. Keeping
-          // ProseMirror's would undo other devices' edits along with yours.
-          undoRedo: false,
-          // StarterKit brings Heading unless this is exactly false. Its six
-          // levels give way to the one-size Heading added below.
-          heading: false,
-          // Same again for Blockquote: without this, '>' and Mod-Shift-B still
-          // make quotes. A callout is the block that sets a passage apart, and
-          // '>' opens an accordion instead.
-          blockquote: false,
-          // Added below instead, as a version whose first line can be an
-          // accordion.
-          listItem: false,
-          // Added below instead, as versions a new line doesn't carry over.
-          bold: false,
-          italic: false,
-          underline: false,
-          strike: false,
-          code: false,
-          link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: 'noopener noreferrer' } },
-          // Enter's way out is CodeBlockExit's, below, rather than Tiptap's
-          // two blank lines.
-          codeBlock: { HTMLAttributes: { spellcheck: 'false' }, exitOnTripleEnter: false },
-          // Added below instead, as a version whose '---' reuses a blank line
-          // already under it.
-          horizontalRule: false,
-          // The accent, like every other drop line and resize handle, rather
-          // than the text colour it defaults to.
-          dropcursor: { color: 'var(--accent)' },
-        }),
-        ...FormattingMarks,
-        Heading,
-        SelectLine,
-        SelectBlock,
-        ListItem,
-        Callout,
-        CodeBlockExit,
-        Divider,
-        Subpages.extend({
-          addNodeView: () =>
-            ReactNodeViewRenderer(SubpageList, {
-              // The entries, headings and buttons are the list's own: a click
-              // opens a page or adds one and a drag reorders, and
-              // ProseMirror would read any of them as an edit to the
-              // document. The block's own heading is written in like any other
-              // line.
-              stopEvent: ({ event }) =>
-                event.target instanceof Element &&
-                !event.target.closest('.subpages-title') &&
-                !!event.target.closest('li, .subpages-group-head, button, a'),
-            }),
-        }).configure({ pageId }),
-        SubpagesTitle,
-        ...AccordionKit,
-        // Rows, cells and headers come from the kit; the table node itself is
-        // the finance-aware one, so its extra attribute and plugin are in the
-        // schema from the start.
-        TableKit.configure({ table: false }),
-        FinanceTable.configure({
-          resizable: true,
-          // Dragging a line trades width between the two columns either side
-          // of it (see tableResize.ts), and never takes away a table's last
-          // unsized column, so the table keeps filling the page. This is the
-          // floor a drag stops at; the columns nobody dragged stop shrinking
-          // sooner, and the table scrolls.
-          cellMinWidth: 40,
-          // The table's own edges are not lines between columns.
-          lastColumnResizable: false,
-          View: ScrollingTableView,
-          // Only reaches serialised HTML: while the editor is editable the
-          // resizing plugin renders the table through TableView, which brings
-          // the wrapper the sideways scroll hangs off.
-          renderWrapper: true,
-        }),
-        Collaboration.configure({ document: doc }),
-        Placeholder.configure({
-          // Shown on every empty node so the title always reads 'Untitled',
-          // while body placeholders appear only where the caret is.
-          showOnlyCurrent: false,
-          // Looks inside blocks too, which is where an accordion's heading is.
-          includeChildren: true,
-          emptyNodeClass: 'is-empty',
-          placeholder: ({ editor: instance, node, hasAnchor }) => {
-            if (node.type.name === 'title') return 'Untitled'
-            // An empty heading would leave a chevron with nothing beside it.
-            if (node.type.name === 'accordionTitle') return 'Title'
-            if (!hasAnchor) return ''
-            // Only while the page has no body yet: nothing after the title but
-            // empty paragraphs, however many. A blank line on a page with
-            // content gets none.
-            const { doc: page } = instance.state
-            let emptyBody = true
-            page.forEach((block, _offset, index) => {
-              if (index > 0 && (block.type.name !== 'paragraph' || block.childCount > 0)) emptyBody = false
-            })
-            if (node.type.name === 'paragraph' && emptyBody) return "Write something, or press '/' for blocks"
-            return ''
-          },
-        }),
-        createSlashExtension(slashHandlers),
-      ],
+      extensions,
       editorProps: {
         attributes: {
           spellcheck: 'true',
@@ -327,29 +278,23 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
           where the system's own copy and paste callout does, so touch screens
           get a bar on top of the keyboard instead. */}
       {coarse ? (
-        <MobileToolbar
-          editor={editor}
-          pageId={pageId}
-          blocks={
-            slash && (
-              <SlashList
-                state={slash}
-                onSelect={pick}
-                onHover={hover}
-                className="max-h-[var(--blocks-height,312px)] p-1.5"
-              />
-            )
-          }
-        />
+        <MobileToolbar editor={editor} pageId={pageId} />
       ) : (
         <>
           <FormatMenu editor={editor} pageId={pageId} />
           <TableMenu editor={editor} />
-          {slash && <SlashMenu state={slash} onSelect={pick} onHover={hover} />}
+          <DesktopSlashMenu />
         </>
       )}
     </>
   )
+}
+
+/** The desktop's / menu, against the caret. Its own component so that typing
+ *  a filter into it re-renders the menu alone. */
+function DesktopSlashMenu() {
+  const { slash, pick, hover } = useSlashMenu()
+  return slash && <SlashMenu state={slash} onSelect={pick} onHover={hover} />
 }
 
 function EditorSkeleton() {
