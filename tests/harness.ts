@@ -75,6 +75,10 @@ export class FakeServer {
   /** Runs once a select has been answered, as another device writing between
    *  two page fetches would. */
   afterSelect: ((table: string) => void) | null = null
+  /** A session whose token expired and could not be refreshed yet: Supabase
+   *  hands back no session, and would send reads as the anon user, whom
+   *  row-level security shows nothing. */
+  sessionLost = false
 
   stamp() {
     this.clock += 1
@@ -111,6 +115,7 @@ export class FakeServer {
         }
 
         this.counts.select += 1
+        if (this.sessionLost) return { data: [], error: null }
         rows = table === 'pages' ? [...this.pages.values()] : [...this.docs.values()]
 
         if (sinceIso) rows = rows.filter((row) => row.updated_at >= sinceIso!)
@@ -275,6 +280,13 @@ export class FakeServer {
       return ch
     }
 
-    return { from, rpc, channel, removeChannel: () => {} } as unknown as SupabaseClient
+    const auth = {
+      getSession: async () => ({
+        data: { session: this.sessionLost ? null : { access_token: 'token' } },
+        error: null,
+      }),
+    }
+
+    return { from, rpc, channel, auth, removeChannel: () => {} } as unknown as SupabaseClient
   }
 }

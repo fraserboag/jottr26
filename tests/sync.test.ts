@@ -557,6 +557,34 @@ describe('local-first sync', () => {
     assert.ok(await phone.page(fresh), 'a page the server has never seen must survive')
   })
 
+  it('keeps every page while the session is lost, rather than reading the empty answer as deletes', async () => {
+    await laptop.focus()
+    const kept = await createPage()
+    await laptop.sync()
+    await phone.sync()
+    assert.ok(await phone.page(kept))
+
+    server.sessionLost = true
+    try {
+      ;(phone.engine as unknown as { reconciledAt: number }).reconciledAt = 0
+      await phone.sync()
+      assert.ok(await phone.page(kept), 'a page the server still has must survive')
+      assert.equal(phone.phase(), 'error')
+    } finally {
+      server.sessionLost = false
+    }
+  })
+
+  it('leaves nothing running when stopped while still starting', async () => {
+    const engine = new SyncEngine(server.client(), 'stopped-early')
+    const internals = engine as unknown as { pollTimer: unknown; cleanups: unknown[] }
+    const starting = engine.start()
+    engine.stop()
+    await starting
+    assert.equal(internals.pollTimer, null)
+    assert.equal(internals.cleanups.length, 0)
+  })
+
   it('pulls every changed page even when one changes between two page fetches', async () => {
     // More than one page of changes, as a first sync pulls.
     const ids: string[] = []

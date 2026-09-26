@@ -210,6 +210,10 @@ export class SyncEngine {
     // a finished sync would move it on. A slow first sync announces itself.
     const lastSyncedAt = await readMeta<number | null>(this.db, META_LAST_SYNCED, null)
     await this.refreshPending({ lastSyncedAt, phase: navigator.onLine ? 'synced' : 'offline' })
+    // Stopped while those reads were out — a StrictMode remount, or a sign-out
+    // straight after sign-in. stop() has already run its cleanups, so nothing
+    // registered from here on would ever be removed.
+    if (!this.running) return
 
     this.listen(window, 'online', () => {
       if (!this.isLeader) return
@@ -407,9 +411,11 @@ export class SyncEngine {
     }
 
     if (this.running && this.isLeader && this.leaderAttempt === attempt) {
-      // Another tab came to the front and took over. Queue up behind it.
+      // Another tab came to the front and took over. Queue up behind it, and
+      // leave the syncing to it rather than finishing a cycle alongside it.
       this.isLeader = false
       this.dropRealtime()
+      this.runAbort?.abort()
       void this.electLeader()
     }
   }
@@ -589,6 +595,7 @@ export class SyncEngine {
     }, this.cycleTimeoutMs)
 
     try {
+      await this.requireSession()
       await this.pull(abort.signal)
       await this.reconcile(abort.signal)
       await this.push(abort.signal)
@@ -841,6 +848,17 @@ export class SyncEngine {
       return
     }
     await this.db.pages.update(pageId, { title, searchText })
+  }
+
+  /** With no session to hand — its token expired and the refresh has not
+   *  gone through yet — supabase-js sends the anon key instead, and row-level
+   *  security answers every read with an empty list rather than an error. A
+   *  pull would learn nothing, and reconcile would take that emptiness as
+   *  every page having been deleted and drop them all from this device. So a
+   *  cycle waits for a real session, as it waits out any other failure. */
+  private async requireSession() {
+    const { data } = await this.supabase.auth.getSession()
+    if (!data.session) throw new Error('Waiting to sign back in to the server')
   }
 
   // --- reconcile ----------------------------------------------------------
