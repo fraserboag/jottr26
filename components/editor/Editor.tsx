@@ -253,10 +253,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
             // An empty heading would leave a chevron with nothing beside it.
             if (node.type.name === 'accordionTitle') return 'Title'
             if (!hasAnchor) return ''
-            // Only while the page has no body yet: the title followed by this
-            // one empty paragraph. A blank line on a page with content gets none.
+            // Only while the page has no body yet: nothing after the title but
+            // empty paragraphs, however many. A blank line on a page with
+            // content gets none.
             const { doc: page } = instance.state
-            const emptyBody = page.childCount === 2 && page.lastChild === node
+            let emptyBody = true
+            page.forEach((block, _offset, index) => {
+              if (index > 0 && (block.type.name !== 'paragraph' || block.childCount > 0)) emptyBody = false
+            })
             if (node.type.name === 'paragraph' && emptyBody) return "Write something, or press '/' for blocks"
             return ''
           },
