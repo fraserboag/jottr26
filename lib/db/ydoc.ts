@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
+import type { DocStateRow } from './schema'
 import { broadcastUpdate, onPeerUpdate } from './peers'
 
 /** Origin tags on Yjs transactions. The registry uses these to tell an edit the
@@ -100,18 +101,42 @@ async function compact(db: JottrDB, pageId: string, doc: Y.Doc) {
 }
 
 async function compactNow(db: JottrDB, pageId: string, doc: Y.Doc) {
-  const snapshot = Y.encodeStateAsUpdate(doc)
   await db.transaction('rw', db.docStates, db.docUpdates, async () => {
+    // Encoded inside the transaction, so it covers every delta row the delete
+    // below can reach: a row written before the transaction opened is already
+    // in the document, and one written after it waits until this commits.
+    const snapshot = Y.encodeStateAsUpdate(doc)
     const existing = await db.docStates.get(pageId)
-    await db.docStates.put({
-      pageId,
-      snapshot,
-      version: existing?.version ?? 0,
-      dirty: existing?.dirty ?? 0,
-      updateCount: 0,
-    })
+    await db.docStates.put({ ...blankDocState(pageId), ...existing, snapshot })
     await db.docUpdates.where('pageId').equals(pageId).delete()
   })
+}
+
+function blankDocState(pageId: string): DocStateRow {
+  return { pageId, snapshot: new Uint8Array(), version: 0, dirty: 0, edits: 0 }
+}
+
+/** Every change to a page's doc state row other than compaction goes through
+ *  here, as one read-and-write transaction. Writing back a row read outside a
+ *  transaction would put back whatever snapshot it held, and a compaction that
+ *  landed in between has already deleted the deltas the old snapshot needs. */
+export async function patchDocState(
+  db: JottrDB,
+  pageId: string,
+  patch: (current: DocStateRow) => Partial<Omit<DocStateRow, 'pageId' | 'snapshot'>>,
+) {
+  await db.transaction('rw', db.docStates, async () => {
+    const current = { ...blankDocState(pageId), ...(await db.docStates.get(pageId)) }
+    await db.docStates.put({ ...current, ...patch(current) })
+  })
+}
+
+/** Persistence is fire-and-forget so typing never waits on the disk. This is
+ *  for the few callers — tests, mostly — that need to know it has landed. */
+const persisting = new Set<Promise<void>>()
+
+export async function whenPersisted() {
+  while (persisting.size > 0) await Promise.all(persisting)
 }
 
 export async function openDoc(pageId: string, options?: { seed?: boolean }): Promise<DocHandle> {
@@ -157,21 +182,14 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
       // The database is the one this document was opened against, not whichever
       // is active when the write lands: an edit made just before signing out
       // must never end up in the next account's database.
-      void (async () => {
+      const write = (async () => {
         if (!db.isOpen()) return
         await db.docUpdates.add({ pageId, update })
         pending += 1
 
         if (isLocal) {
           broadcastUpdate(pageId, update)
-          const current = await db.docStates.get(pageId)
-          await db.docStates.put({
-            pageId,
-            snapshot: current?.snapshot ?? new Uint8Array(),
-            version: current?.version ?? 0,
-            dirty: 1,
-            updateCount: pending,
-          })
+          await patchDocState(db, pageId, (current) => ({ dirty: 1, edits: current.edits + 1 }))
           notifyLocalEdit()
         }
 
@@ -180,6 +198,8 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
           await compact(db, pageId, doc)
         }
       })()
+      persisting.add(write)
+      void write.finally(() => persisting.delete(write))
     })
 
     if (options?.seed) seedDocument(doc)
@@ -216,28 +236,10 @@ onPeerUpdate(({ pageId, update }) => {
   if (handle) Y.applyUpdate(handle.doc, update, PEER_ORIGIN)
 })
 
-/** Taken before a push and compared after it: if the document moved while the
- *  request was in flight, the dirty flag has to survive the round trip. */
-export function stateVector(pageId: string): Uint8Array | null {
-  const handle = handles.get(pageId)
-  return handle ? Y.encodeStateVector(handle.doc) : null
-}
-
-export function sameBytes(a: Uint8Array | null, b: Uint8Array | null): boolean {
-  if (!a || !b) return false
+export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) return false
   for (let i = 0; i < a.byteLength; i += 1) if (a[i] !== b[i]) return false
   return true
-}
-
-/** Full state for pushing. Falls back to reading straight from disk when the
- *  document is not currently open, so the sync engine never has to instantiate
- *  editors for pages the user is not looking at. */
-export async function encodeState(pageId: string): Promise<Uint8Array> {
-  const handle = handles.get(pageId)
-  if (handle) return Y.encodeStateAsUpdate(handle.doc)
-  const loaded = await openDoc(pageId)
-  return Y.encodeStateAsUpdate(loaded.doc)
 }
 
 /** The title is the document's first node, so it is part of the CRDT and merges

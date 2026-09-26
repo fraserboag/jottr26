@@ -78,7 +78,7 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     snapshot: new Uint8Array(),
     version: 0,
     dirty: 1,
-    updateCount: 0,
+    edits: 0,
   })
 
   const handle = await openDoc(id, { seed: true })

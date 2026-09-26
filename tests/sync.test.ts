@@ -9,7 +9,7 @@ const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName
   await import('@/lib/db/dexie')
 const { createPage, trashPage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
   await import('@/lib/db/pages')
-const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, DOC_FIELD } = await import(
+const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, DOC_FIELD } = await import(
   '@/lib/db/ydoc'
 )
 const { SyncEngine } = await import('@/lib/sync/engine')
@@ -129,7 +129,7 @@ class Device {
 
 /** Document persistence is fire-and-forget by design, so tests wait for the
  *  IndexedDB writes the update listener kicked off. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 25))
+const settle = () => whenPersisted()
 
 let laptop: Device
 let phone: Device
@@ -281,11 +281,25 @@ describe('local-first sync', () => {
     await laptop.sync()
     assert.equal(await laptop.pendingCount(), 0)
 
+    // Typed while push_page_doc is on the wire: the server gets the state from
+    // before it, so the document must still be waiting to go afterwards.
     await laptop.type(id, ' second')
-    assert.equal(await laptop.pendingCount(), 1)
+    server.rpcDelayMs = 30
+    const pushing = laptop.engine.syncOnce()
+    while (server.rpcInFlight === 0) await new Promise((resolve) => setTimeout(resolve, 1))
+    await laptop.type(id, ' third')
+    await pushing
+    server.rpcDelayMs = 0
+
+    assert.equal(await laptop.pendingCount(), 1, 'the edit made mid-push is still pending')
+    const pushed = new Y.Doc()
+    Y.applyUpdate(pushed, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.doesNotMatch(readPlainText(pushed), /third/)
+
     await laptop.sync()
     assert.equal(await laptop.pendingCount(), 0)
-    assert.match(server.docs.get(id)!.ydoc.length > 0 ? 'ok' : '', /ok/)
+    Y.applyUpdate(pushed, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(pushed), /first second third/)
   })
 
   it('syncs the trash, and purges permanently deleted pages from the server', async () => {

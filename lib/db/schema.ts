@@ -54,8 +54,11 @@ export interface DocStateRow {
   version: number
   /** Document content differs from the server and needs pushing. */
   dirty: 0 | 1
-  /** Number of un-compacted delta rows. */
-  updateCount: number
+  /** Counts local edits, and never goes down. A push clears `dirty` only if
+   *  this has not moved since it started, so an edit that lands mid-push — in
+   *  this tab or another — is never marked as already on the server. Rows
+   *  written before it existed read as 0. */
+  edits: number
 }
 
 export interface DocUpdateRow {

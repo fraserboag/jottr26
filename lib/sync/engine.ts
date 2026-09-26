@@ -1,4 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
+import * as Y from 'yjs'
 import {
   activeDatabase,
   openDatabase,
@@ -19,13 +20,13 @@ import { forgetPages, touch } from '@/lib/db/pages'
 import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
   applyRemoteUpdate,
-  encodeState,
   onLocalEdit,
+  openDoc,
+  patchDocState,
   readPlainText,
   readTitle,
   loadedDoc,
   sameBytes,
-  stateVector,
 } from '@/lib/db/ydoc'
 import { base64ToBytes, bytesToBase64 } from '@/lib/util/base64'
 import { initialStatus, type SyncStatus } from './types'
@@ -677,16 +678,9 @@ export class SyncEngine {
   }
 
   private async recordServerVersion(pageId: string, version: number) {
-    const existing = await this.db.docStates.get(pageId)
-    await this.db.docStates.put({
-      pageId,
-      snapshot: existing?.snapshot ?? new Uint8Array(),
-      version,
-      // A pull never clears dirty: local edits merged into the incoming state
-      // still have to reach the server.
-      dirty: existing?.dirty ?? 0,
-      updateCount: existing?.updateCount ?? 0,
-    })
+    // A pull never clears dirty: local edits merged into the incoming state
+    // still have to reach the server.
+    await patchDocState(this.db, pageId, () => ({ version }))
   }
 
   /** The sidebar reads titles from the page row, but the truth is node 0 of the
@@ -858,8 +852,13 @@ export class SyncEngine {
     let base = state.version
 
     for (let attempt = 0; attempt < MAX_CAS_ATTEMPTS; attempt += 1) {
-      const before = stateVector(state.pageId)
-      const bytes = await encodeState(state.pageId)
+      // Opened before anything is read from it, so the state vector below is
+      // the document's, never null for a page nobody had open. An edit made
+      // after this point moves it, and keeps the document dirty.
+      const handle = await openDoc(state.pageId)
+      const editsBefore = (await this.db.docStates.get(state.pageId))?.edits ?? 0
+      const before = Y.encodeStateVector(handle.doc)
+      const bytes = Y.encodeStateAsUpdate(handle.doc)
 
       const { data, error } = await this.supabase
         .rpc('push_page_doc', {
@@ -884,16 +883,13 @@ export class SyncEngine {
       }
 
       if (result.applied) {
-        const after = stateVector(state.pageId)
-        const movedWhileInFlight = before !== null && !sameBytes(before, after)
-        const current = await this.db.docStates.get(state.pageId)
-        await this.db.docStates.put({
-          pageId: state.pageId,
-          snapshot: current?.snapshot ?? new Uint8Array(),
+        const movedHere = !sameBytes(before, Y.encodeStateVector(handle.doc))
+        await patchDocState(this.db, state.pageId, (current) => ({
           version: result.version,
-          dirty: movedWhileInFlight ? 1 : 0,
-          updateCount: current?.updateCount ?? 0,
-        })
+          // `edits` also catches another tab's edit whose relay has not
+          // reached this tab's copy of the document yet.
+          dirty: movedHere || current.edits !== editsBefore ? 1 : 0,
+        }))
         await this.syncTitleFromDoc(state.pageId, true)
         break
       }
