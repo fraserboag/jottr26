@@ -84,7 +84,7 @@ export function LinkPicker({
           name="link"
           size={19}
           strokeWidth={1.8}
-          className="shrink-0 text-faint pointer-coarse:size-[22px]"
+          className="shrink-0 text-faint pointer-coarse:size-5"
         />
 
         <input

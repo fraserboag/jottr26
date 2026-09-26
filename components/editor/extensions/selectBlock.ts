@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core'
-import { NodeSelection, Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
+import { NodeSelection, Plugin, PluginKey, type EditorState, type Selection } from '@tiptap/pm/state'
 import { CellSelection, columnResizingPluginKey } from '@tiptap/pm/tables'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
@@ -106,12 +106,16 @@ function posOf(view: EditorView, element: Element) {
   return null
 }
 
+/** Whether a selection is every cell of a table, which is how a table
+ *  selected whole comes out. */
+export function selectsWholeTable(selection: Selection): selection is CellSelection {
+  return selection instanceof CellSelection && selection.isRowSelection() && selection.isColSelection()
+}
+
 /** The table whose cells are all selected, marked `table-selected`. */
 export function wholeTable(state: EditorState) {
   const { selection } = state
-  if (!(selection instanceof CellSelection) || !selection.isRowSelection() || !selection.isColSelection()) {
-    return DecorationSet.empty
-  }
+  if (!selectsWholeTable(selection)) return DecorationSet.empty
   // The cell's row, then the row's table.
   const $cell = selection.$anchorCell
   const pos = $cell.before($cell.depth - 1)

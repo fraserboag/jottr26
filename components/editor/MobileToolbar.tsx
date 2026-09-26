@@ -6,6 +6,7 @@ import { useEditorState } from '@tiptap/react'
 import { ToolButton } from '@/components/ui/ToolButton'
 import { FormatButtons, formatFlags, useLinkEditing } from './formatActions'
 import { LinkPicker } from './LinkPicker'
+import { deleteLine } from './extensions/deleteLine'
 import { SlashList } from './SlashMenu'
 import { useSlashMenu } from './useSlashMenu'
 import { TableControls, useTableState } from './TableMenu'
@@ -45,6 +46,7 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
       // and a code block takes none either.
       hidden: instance.isActive('title') || instance.isActive('codeBlock'),
       selected: !instance.state.selection.empty,
+      canDelete: deleteLine(instance.state),
       canUndo: instance.can().undo(),
       canRedo: instance.can().redo(),
     }),
@@ -197,10 +199,10 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
         <div
           // Padded as the formatting row is, so the bar keeps its height and
           // nothing under it moves when the field opens.
-          className="flex items-start gap-1 px-2 py-1"
+          className="flex items-start gap-0.5 px-1.5 py-1"
         >
           <LinkPicker
-            className="min-w-0 flex-1 pt-1.5"
+            className="min-w-0 flex-1 pt-1"
             initialHref={link.value}
             onApply={link.apply}
             onUnset={link.clear}
@@ -217,27 +219,33 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
             <div
               role="group"
               aria-label="Table"
-              className="flex items-center gap-1 overflow-x-auto border-b border-line px-2 py-1 [scrollbar-width:none]"
+              className="flex items-center gap-0.5 overflow-x-auto border-b border-line px-1.5 py-1 [scrollbar-width:none]"
             >
               <TableControls editor={editor} state={table} />
             </div>
           )}
-          <div className="flex items-center gap-1 px-2 py-1">
+          {/* One row that scrolls as a whole, so on a narrow screen as many
+              buttons show as fit, whichever they are. Its right-hand margin
+              is an item rather than padding, which Safari leaves off the end
+              of a row that scrolls. */}
+          <div className="flex items-center gap-0.5 overflow-x-auto py-1 pl-1.5 [scrollbar-width:none] after:w-1 after:shrink-0 after:content-['']">
             <ToolButton icon="slash" label="Insert block" onClick={openBlocks} />
-            <span className="mx-1 h-7 w-px shrink-0 bg-line" />
-            {/* Only the formatting scrolls; the block and undo buttons stay
-                pinned at either end so they are always in reach. */}
-            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
-              <FormatButtons
-                editor={editor}
-                pageId={pageId}
-                flags={state}
-                onLink={link.start}
-                separatorClassName="mx-1 h-7 w-px shrink-0 bg-line"
-                selected={state.selected}
-              />
-            </div>
-            <span className="mx-1 h-7 w-px shrink-0 bg-line" />
+            <span className={SEPARATOR} />
+            <FormatButtons
+              editor={editor}
+              pageId={pageId}
+              flags={state}
+              onLink={link.start}
+              separatorClassName={SEPARATOR}
+              selected={state.selected}
+            />
+            <span className={SEPARATOR} />
+            <ToolButton
+              icon="trash"
+              label="Delete line"
+              disabled={!state.canDelete}
+              onClick={() => editor.chain().focus().command(({ state, dispatch }) => deleteLine(state, dispatch)).run()}
+            />
             <ToolButton icon="undo" label="Undo" disabled={!state.canUndo} onClick={() => editor.chain().focus().undo().run()} />
             <ToolButton icon="redo" label="Redo" disabled={!state.canRedo} onClick={() => editor.chain().focus().redo().run()} />
           </div>
@@ -246,6 +254,8 @@ export function MobileToolbar({ editor, pageId }: { editor: Editor; pageId: stri
     </div>
   )
 }
+
+const SEPARATOR = 'mx-1 h-6 w-px shrink-0 bg-line'
 
 function scrollParent(node: HTMLElement): HTMLElement | null {
   for (let element = node.parentElement; element; element = element.parentElement) {
