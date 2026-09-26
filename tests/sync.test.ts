@@ -968,6 +968,15 @@ describe('local-first sync', () => {
     assert.equal(laptop.phase(), 'error')
     assert.equal(await countPending(db), 1, 'sign-out must warn about it')
 
+    // Already dirty, but held back: pushed from memory, the server would move
+    // past an edit the disk has never seen.
+    await patchDocState(db, id, () => ({ dirty: 1 }))
+    const before = server.docs.get(id)!.version
+    await laptop.engine.syncOnce()
+    const internals = laptop.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+    if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    assert.equal(server.docs.get(id)!.version, before)
+
     // Straight into the open document: focus() would release it, and the
     // unsaved edit with it.
     const handle = await openDoc(id)

@@ -515,6 +515,9 @@ export class SyncEngine {
     if (!failure) return this.status
     return {
       ...this.status,
+      // Another tab's count, when this one is not the leader, leaves out this
+      // tab's unsaved edits, and sign-out warns only on a count above zero.
+      pending: Math.max(this.status.pending, unsavedPages().length),
       phase: 'error',
       error: `A change couldn't be saved on this device: ${failure}`,
       retryAt: null,
@@ -971,7 +974,13 @@ export class SyncEngine {
   }
 
   private async pushDocs(signal: AbortSignal) {
-    const dirty = await this.db.docStates.where('dirty').equals(1).toArray()
+    // A document with an edit the disk refused waits until it is saved: pushed
+    // from memory, the server and the version would move on while the disk
+    // still lacked the edit, and a reload would push over it.
+    const unsaved = new Set(unsavedPages())
+    const dirty = (await this.db.docStates.where('dirty').equals(1).toArray()).filter(
+      (state) => !unsaved.has(state.pageId),
+    )
     const queue = [
       ...dirty.filter((state) => !this.failedDocs.has(state.pageId)),
       ...dirty.filter((state) => this.failedDocs.has(state.pageId)),
