@@ -145,6 +145,15 @@ describe('subpage list', () => {
     assert.equal(instance.state.selection.$from.index(0), 2)
   })
 
+  it('takes a divider straight above on Backspace at the start of the heading, the caret staying put', () => {
+    const instance = editor([paragraph('Intro'), { type: 'horizontalRule' }, subpages()], 0)
+    inTitle(instance, 2)
+    assert.equal(instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch)), true)
+    assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages'])
+    assert.equal(instance.state.selection.$from.parent.type.name, 'subpagesTitle')
+    assert.equal(instance.state.selection.$from.parentOffset, 0)
+  })
+
   it('jumps up to the end of the line above on Backspace at the start of the heading', () => {
     const instance = editor([paragraph('Intro'), subpages(), paragraph('After')], 0)
     inTitle(instance, 1)

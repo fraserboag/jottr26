@@ -37,9 +37,16 @@ export const titleStyleAttribute = {
 
 /** Up to the end of the line above the block at `pos`, leaving the block
  *  alone. With nothing above to go to, the caret stays put rather than
- *  selecting the block. Always takes the key. */
+ *  selecting the block. A divider straight above goes instead, the caret
+ *  staying put, as it does under any line. Always takes the key. */
 export function caretToLineAbove(state: EditorState, dispatch: ((tr: Transaction) => void) | undefined, pos: number) {
-  const above = Selection.findFrom(state.doc.resolve(pos), -1)
+  const $pos = state.doc.resolve(pos)
+  const rule = $pos.nodeBefore
+  if (rule?.type.name === 'horizontalRule') {
+    if (dispatch) dispatch(state.tr.delete(pos - rule.nodeSize, pos).scrollIntoView())
+    return true
+  }
+  const above = Selection.findFrom($pos, -1, true)
   if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
   return true
 }

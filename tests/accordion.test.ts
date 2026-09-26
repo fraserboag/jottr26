@@ -243,6 +243,16 @@ describe('accordion block', () => {
     assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
   })
 
+  it('takes a divider straight above on Backspace at the start of a heading with words in it', () => {
+    const start = page(schema.node('horizontalRule'), accordion('Details', [paragraph('text')]))
+    const at = caretAt(start, inside(start, 'accordionTitle'))
+    const { state, applied } = run(at, backspaceAccordion())
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'accordion'])
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+    assert.equal(state.selection.$from.parentOffset, 0)
+  })
+
   it('leaves Backspace alone below an open box', () => {
     const start = page(accordion('Details', [paragraph('shown')]), paragraph('next'))
     const at = caretAt(start, inside(start, 'paragraph', 0) + 'shown'.length + 4)
