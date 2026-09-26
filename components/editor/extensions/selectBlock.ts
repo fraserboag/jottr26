@@ -9,7 +9,7 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
  *  click on the text inside, or beside it, still puts the caret there.
  *
  *  A table's cells run right to its border, so its edge is the strip just
- *  above and below it, and the border itself. A folded accordion has no box
+ *  around it, and the border itself. A folded accordion has no box
  *  showing, and so no edge to click.
  *
  *  A table selected whole comes out as every one of its cells selected, which

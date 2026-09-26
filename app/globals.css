@@ -718,9 +718,11 @@ h1.page-title {
   /* A grid wider than the column scrolls sideways on its own rather than
      stretching the page, which on a phone is most tables. */
   overflow-x: auto;
-  /* Padding rather than margin, so the strip above and below the table is
-     something to click, which selects it whole. */
-  padding: 10px 0;
+  /* Padding rather than margin, so the strip around the table is something
+     to click, which selects it whole. The sides reach out into the page's
+     gutter, so the table itself still lines up with the text. */
+  padding: 10px;
+  margin-inline: -10px;
 }
 
 /* Separate borders rather than collapsed, so the grid can be rounded off like
