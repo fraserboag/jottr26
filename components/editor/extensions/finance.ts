@@ -19,6 +19,7 @@ import {
 import type { Mark, Node, ResolvedPos } from '@tiptap/pm/model'
 import { Table } from '@tiptap/extension-table'
 import { ySyncPluginKey } from 'y-prosemirror'
+import { columnTrade } from './tableResize'
 
 /** Finance mode: a per-table switch that formats the numbers in a table as
  *  money and prints a row of column totals under it.
@@ -384,6 +385,10 @@ export const FinanceTable = Table.extend({
   },
 
   addProseMirrorPlugins() {
-    return [...(this.parent?.() ?? []), financePlugin()]
+    // Ahead of the stock resizing plugin, so a drag on a column line is
+    // handled here first.
+    const { resizable, cellMinWidth, handleWidth } = this.options
+    const trade = resizable && this.editor.isEditable ? [columnTrade(cellMinWidth, handleWidth)] : []
+    return [...trade, ...(this.parent?.() ?? []), financePlugin()]
   },
 })

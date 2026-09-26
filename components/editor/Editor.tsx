@@ -226,12 +226,14 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
         TableKit.configure({ table: false }),
         FinanceTable.configure({
           resizable: true,
-          // Dragging writes a colwidth onto one column only, so the rest stay
-          // unsized and the table keeps filling the page. It pins to an exact
-          // width just once every column has been dragged, which by then is
-          // what was asked for. This is the floor a drag stops at; the columns
-          // nobody dragged stop shrinking sooner, and the table scrolls.
+          // Dragging a line trades width between the two columns either side
+          // of it (see tableResize.ts), and never takes away a table's last
+          // unsized column, so the table keeps filling the page. This is the
+          // floor a drag stops at; the columns nobody dragged stop shrinking
+          // sooner, and the table scrolls.
           cellMinWidth: 40,
+          // The table's own edges are not lines between columns.
+          lastColumnResizable: false,
           View: ScrollingTableView,
           // Only reaches serialised HTML: while the editor is editable the
           // resizing plugin renders the table through TableView, which brings
