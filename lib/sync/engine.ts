@@ -135,6 +135,25 @@ function chunks<T>(items: T[], size: number): T[][] {
   return out
 }
 
+/** Runs `work` on every item, a few at a time. The first to fail stops the
+ *  others taking new items, and is thrown once every one already started has
+ *  settled. */
+async function inParallel<T>(items: T[], concurrency: number, work: (item: T) => Promise<void>) {
+  const queue = [...items]
+  const errors: unknown[] = []
+  const worker = async () => {
+    for (let item = queue.shift(); item !== undefined && errors.length === 0; item = queue.shift()) {
+      try {
+        await work(item)
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker))
+  if (errors.length) throw errors[0]
+}
+
 /** Whether writing `patch` over `row` would change anything. */
 function changes<T extends object>(row: T, patch: Partial<T>) {
   return (Object.keys(patch) as Array<keyof T>).some((key) => row[key] !== patch[key])
@@ -863,17 +882,6 @@ export class SyncEngine {
     // downloads every page, and one batch after another made that a wait of
     // one round trip per twenty pages. A batch that fails stops the others
     // taking new work, and the pull reports it once the rest have settled.
-    const queue = chunks(wanted, BLOB_CHUNK)
-    const errors: unknown[] = []
-    const download = async () => {
-      for (let chunk = queue.shift(); chunk && errors.length === 0; chunk = queue.shift()) {
-        try {
-          await takeIn(chunk)
-        } catch (error) {
-          errors.push(error)
-        }
-      }
-    }
     const takeIn = async (chunk: string[]) => {
       const { data, error } = await this.supabase
         .from('page_docs')
@@ -903,8 +911,7 @@ export class SyncEngine {
         }
       }
     }
-    await Promise.all(Array.from({ length: Math.min(PULL_CONCURRENCY, queue.length) }, download))
-    if (errors.length) throw errors[0]
+    await inParallel(chunks(wanted, BLOB_CHUNK), PULL_CONCURRENCY, takeIn)
 
     // Held back to the first document that failed, so the next pull asks for
     // it again. Moved past it, the device would keep the old text for good
@@ -1124,24 +1131,19 @@ export class SyncEngine {
       ...dirty.filter((state) => !this.failedDocs.has(state.pageId)),
       ...dirty.filter((state) => this.failedDocs.has(state.pageId)),
     ]
-    const errors: unknown[] = []
 
     // A few at a time. Each document is its own compare-and-swap, so they are
     // independent; one failing stops the others taking new work, and the
     // cycle reports it only once every request already sent has settled.
-    const worker = async () => {
-      for (let state = queue.shift(); state && errors.length === 0; state = queue.shift()) {
-        try {
-          await this.pushDoc(state, signal)
-          this.failedDocs.delete(state.pageId)
-        } catch (error) {
-          if (!signal.aborted) this.failedDocs.add(state.pageId)
-          errors.push(error)
-        }
+    await inParallel(queue, PUSH_CONCURRENCY, async (state) => {
+      try {
+        await this.pushDoc(state, signal)
+        this.failedDocs.delete(state.pageId)
+      } catch (error) {
+        if (!signal.aborted) this.failedDocs.add(state.pageId)
+        throw error
       }
-    }
-    await Promise.all(Array.from({ length: Math.min(PUSH_CONCURRENCY, queue.length) }, worker))
-    if (errors.length) throw errors[0]
+    })
   }
 
   private async pushDoc(state: DocStateRow, signal: AbortSignal) {
