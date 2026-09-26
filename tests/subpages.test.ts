@@ -138,12 +138,25 @@ describe('subpage list', () => {
     assert.equal($from.parentOffset, 'Intro'.length)
   })
 
-  it('does so from an empty heading too, leaving the list where it is', () => {
-    const instance = editor([paragraph('Intro'), { type: 'subpages', content: [{ type: 'subpagesTitle' }] }], 0)
+  it('takes the list away on Backspace in an empty heading, and jumps up a line', () => {
+    const empty = { type: 'subpages', content: [{ type: 'subpagesTitle' }] }
+    const instance = editor([paragraph('Intro'), empty, paragraph('After')], 0)
     inTitle(instance, 1)
+    assert.equal(instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch)), true)
+    assert.deepEqual(blockTypes(instance), ['paragraph', 'paragraph'])
+    const { $from } = instance.state.selection
+    assert.equal($from.parent.textContent, 'Intro')
+    assert.equal($from.parentOffset, 'Intro'.length)
+  })
+
+  it('leaves an empty line for an empty heading with nothing above it', () => {
+    const instance = editor([{ type: 'subpages', content: [{ type: 'subpagesTitle' }] }, paragraph('After')], 1)
+    inTitle(instance, 0)
     instance.commands.command(({ state, dispatch }) => backspaceSubpagesTitle()(state, dispatch))
-    assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages'])
-    assert.equal(instance.state.selection.$from.parent.textContent, 'Intro')
+    assert.deepEqual(blockTypes(instance), ['paragraph', 'paragraph'])
+    const { $from } = instance.state.selection
+    assert.equal($from.index(0), 0)
+    assert.equal($from.parent.content.size, 0)
   })
 
   it('stays put on Backspace at the start of the heading with nothing above it', () => {

@@ -68,14 +68,40 @@ export function leaveSubpagesTitle(): Command {
 
 /** Backspace, at the very start of the heading: up to the end of the line
  *  above, as Backspace would go from any line there is nothing to join into.
- *  The heading is isolating, so it would otherwise do nothing at all. */
+ *  The heading is isolating, so it would otherwise do nothing at all.
+ *
+ *  An empty heading goes too, as an empty line would, and the list with it:
+ *  the list is read from the page's children, so nothing written is lost. One
+ *  with words in it is left alone. */
 export function backspaceSubpagesTitle(): Command {
   return (state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== SUBPAGES_TITLE || $from.parentOffset > 0) return false
-    // Nothing above to go to: stay put, rather than select the list.
-    const above = Selection.findFrom(state.doc.resolve($from.before(-1)), -1)
-    if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
+    const pos = $from.before(-1)
+    const above = Selection.findFrom(state.doc.resolve(pos), -1)
+
+    if ($from.parent.content.size > 0) {
+      // Nothing above to go to: stay put, rather than select the list.
+      if (above && dispatch) dispatch(state.tr.setSelection(above).scrollIntoView())
+      return true
+    }
+
+    if (dispatch) {
+      const end = $from.after(-1)
+      const parent = $from.node(-2)
+      const index = $from.index(-2)
+      // Where the page or a list item can't be left without a line here, the
+      // list becomes an empty line, with the caret on it.
+      if (!above || !parent.canReplace(index, index + 1)) {
+        const tr = state.tr.replaceWith(pos, end, state.schema.nodes.paragraph.create())
+        tr.setSelection(TextSelection.create(tr.doc, pos + 1))
+        dispatch(tr.scrollIntoView())
+        return true
+      }
+      const tr = state.tr.delete(pos, end)
+      tr.setSelection(above.map(tr.doc, tr.mapping))
+      dispatch(tr.scrollIntoView())
+    }
     return true
   }
 }
