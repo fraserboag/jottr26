@@ -981,6 +981,18 @@ export class SyncEngine {
       .each((page) => {
         gone.push(page.id)
       })
+    if (gone.length === 0) {
+      this.reconciledAt = Date.now()
+      return
+    }
+    // The session was there when the cycle began, but a token that expired
+    // mid-scan sends the rest as the anon key, which is shown nothing. So the
+    // session is checked again before anything is dropped, and an empty
+    // answer is never trusted: a page deleted for good leaves a tombstone,
+    // which the pull applies, so a server with no pages at all is one this
+    // device cannot see.
+    if (live.size === 0) throw new Error('The server returned no pages; keeping them all')
+    await this.requireSession()
     await forgetPages(this.db, gone)
 
     this.reconciledAt = Date.now()

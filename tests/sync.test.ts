@@ -575,6 +575,28 @@ describe('local-first sync', () => {
     }
   })
 
+  it('keeps every page when the session lapses partway through a sync', async () => {
+    await laptop.focus()
+    const kept = await createPage()
+    await laptop.sync()
+    await phone.sync()
+    assert.ok(await phone.page(kept))
+
+    server.afterSelect = (table) => {
+      if (table === 'page_docs') server.sessionLost = true
+    }
+    try {
+      ;(phone.engine as unknown as { reconciledAt: number }).reconciledAt = 0
+      await phone.sync()
+      assert.ok(await phone.page(kept), 'a page the server still has must survive')
+    } finally {
+      server.afterSelect = null
+      server.sessionLost = false
+      const internals = phone.engine as unknown as { retryTimer: ReturnType<typeof setTimeout> | null }
+      if (internals.retryTimer) clearTimeout(internals.retryTimer)
+    }
+  })
+
   it('leaves nothing running when stopped while still starting', async () => {
     const engine = new SyncEngine(server.client(), 'stopped-early')
     const internals = engine as unknown as { pollTimer: unknown; cleanups: unknown[] }
