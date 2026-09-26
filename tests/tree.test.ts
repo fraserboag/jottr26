@@ -127,4 +127,34 @@ describe('live children', () => {
     assert.ok((await db.pages.get(binned))!.deletedAt > 0)
     assert.ok((await db.pages.get(under))!.deletedAt > 0)
   })
+
+  it('drops a page between two siblings that share a sort key', async () => {
+    const parent = await createPage()
+    const a = await createPage({ parentId: parent })
+    const b = await createPage({ parentId: parent })
+    const c = await createPage({ parentId: parent })
+    const moved = await createPage()
+    // Two devices each added a page offline and picked the same key.
+    await db.pages.update(b, { sortKey: (await db.pages.get(a))!.sortKey })
+
+    const [first, ...rest] = (await liveChildren(db, parent)).map((page) => page.id)
+    await movePage(moved, parent, 1)
+    const ids = (await liveChildren(db, parent)).map((page) => page.id)
+    assert.deepEqual(ids, [first, moved, ...rest])
+    assert.deepEqual(rest.at(-1), c)
+    const keys = (await liveChildren(db, parent)).map((page) => page.sortKey)
+    assert.equal(new Set(keys).size, keys.length)
+  })
+
+  it('restores a page to the end of the root when its parent is in the trash', async () => {
+    const parent = await createPage()
+    const child = await createPage({ parentId: parent })
+    await trashPage(child)
+    await trashPage(parent)
+
+    await restorePage(child)
+    const roots = await liveChildren(db, '')
+    assert.equal(roots.at(-1)!.id, child)
+    assert.equal(roots.filter((page) => page.sortKey === roots.at(-1)!.sortKey).length, 1)
+  })
 })

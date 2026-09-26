@@ -1,4 +1,4 @@
-import { generateKeyBetween } from 'fractional-indexing'
+import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
 import { activeDatabase, type JottrDB } from './dexie'
 import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
@@ -134,7 +134,23 @@ export async function movePage(pageId: string, parentId: string, index: number) 
   const siblings = (await siblingsOf(parentId)).filter((p) => p.id !== pageId)
   const before = siblings[index - 1]?.sortKey ?? null
   const after = siblings[index]?.sortKey ?? null
-  await touch(pageId, { parentId, sortKey: generateKeyBetween(before, after) })
+  if (before === null || before !== after) {
+    await touch(pageId, { parentId, sortKey: generateKeyBetween(before, after) })
+    return
+  }
+
+  // Two devices can each pick the same key offline, and there is no key
+  // between equal ones. Give the run that shares it fresh keys, with the page
+  // at its place among them.
+  let start = index - 1
+  while (start > 0 && siblings[start - 1].sortKey === after) start -= 1
+  let end = index
+  while (end < siblings.length && siblings[end].sortKey === after) end += 1
+  const run = [...siblings.slice(start, index).map((p) => p.id), pageId, ...siblings.slice(index, end).map((p) => p.id)]
+  const keys = generateNKeysBetween(siblings[start - 1]?.sortKey ?? null, siblings[end]?.sortKey ?? null, run.length)
+  for (const [i, id] of run.entries()) {
+    await touch(id, id === pageId ? { parentId, sortKey: keys[i] } : { sortKey: keys[i] })
+  }
 }
 
 async function isDescendant(candidate: string, ancestor: string): Promise<boolean> {
@@ -187,7 +203,11 @@ export async function restorePage(pageId: string) {
   // Only the pages trashed along with this one, which share its timestamp.
   const together = await descendantsOf(pageId, (child) => child.deletedAt === page.deletedAt)
   await touch([pageId, ...together], { deletedAt: 0 })
-  if (parentId !== page.parentId) await touch(pageId, { parentId })
+  // Its old key belongs to its old siblings, and may equal a root page's.
+  if (parentId !== page.parentId) {
+    const last = (await siblingsOf(parentId)).at(-1)
+    await touch(pageId, { parentId, sortKey: generateKeyBetween(last?.sortKey ?? null, null) })
+  }
 }
 
 /** Takes the trashed pages under this one with it. A live page under it, such
