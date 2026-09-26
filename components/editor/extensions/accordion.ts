@@ -97,6 +97,11 @@ export function unwrapAccordion(): Command {
       const { heading, paragraph } = state.schema.nodes
       const blocks: PMNode[] = [(title.attrs.title && heading ? heading : paragraph).create(null, title.content)]
       if (!isBlankBody(body)) body.forEach((child) => blocks.push(child))
+      // Except as the first line of a list item, which has to be a plain one.
+      const $pos = state.doc.resolve(pos)
+      if (!$pos.parent.canReplace($pos.index(), $pos.index() + 1, Fragment.from(blocks))) {
+        blocks[0] = paragraph.create(null, title.content)
+      }
 
       const tr = state.tr.replaceWith(pos, pos + node.nodeSize, blocks)
       tr.setSelection(TextSelection.create(tr.doc, pos + 1))
@@ -242,6 +247,32 @@ export function backspaceIntoHeading(): Command {
       const tr = state.tr
       if ($from.parent.content.size === 0 && body.childCount > 1) tr.delete($from.before(), $from.after())
       tr.setSelection(TextSelection.create(tr.doc, titleEnd))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
+  }
+}
+
+/** Backspace, at the start of a line straight after a folded accordion: up to
+ *  the end of its heading. Joining the line on, as Backspace would after any
+ *  other block, would put it at the bottom of the folded box, out of sight. An
+ *  empty line goes, as it would anywhere; one with words in it stays. */
+export function backspaceAfterFolded(): Command {
+  return (state, dispatch) => {
+    const { $from, empty } = state.selection
+    if (!empty || $from.parentOffset > 0 || !['paragraph', 'heading'].includes($from.parent.type.name)) return false
+    const container = $from.node(-1)
+    const index = $from.index(-1)
+    const before = index > 0 ? container.child(index - 1) : null
+    if (before?.type.name !== ACCORDION || before.attrs.open) return false
+
+    if (dispatch) {
+      const pos = $from.before() - before.nodeSize
+      const tr = state.tr
+      if ($from.parent.content.size === 0 && container.canReplace(index, index + 1, Fragment.empty)) {
+        tr.delete($from.before(), $from.after())
+      }
+      tr.setSelection(TextSelection.create(tr.doc, pos + before.child(0).nodeSize))
       dispatch(tr.scrollIntoView())
     }
     return true
@@ -472,7 +503,7 @@ export const Accordion = Node.create({
   addKeyboardShortcuts() {
     return {
       Enter: pm(this.editor, enterAccordionBody(), leaveAccordion()),
-      Backspace: pm(this.editor, backspaceAccordion(), backspaceIntoHeading()),
+      Backspace: pm(this.editor, backspaceAccordion(), backspaceIntoHeading(), backspaceAfterFolded()),
     }
   },
 

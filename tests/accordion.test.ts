@@ -6,6 +6,7 @@ import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror'
 import {
   backspaceAccordion,
+  backspaceAfterFolded,
   backspaceIntoHeading,
   enterAccordionBody,
   leaveAccordion,
@@ -221,6 +222,32 @@ describe('accordion block', () => {
     assert.equal(run(second, backspaceIntoHeading()).applied, false)
   })
 
+  it('jumps to the end of a folded heading on Backspace from the line below, rather than into the box', () => {
+    const start = page(accordion('Details', [paragraph('hidden')], false), paragraph('next'))
+    const { state, applied } = run(caretAt(start, inside(start, 'paragraph', 0) + 'hidden'.length + 4), backspaceAfterFolded())
+    assert.equal(applied, true)
+    assert.equal(state.doc.child(1).child(1).textContent, 'hidden', 'nothing joined into the box')
+    assert.equal(state.doc.child(2).textContent, 'next')
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+    assert.equal(state.selection.$from.parentOffset, 'Details'.length)
+  })
+
+  it('deletes an empty line below a folded accordion, up to its heading', () => {
+    const start = page(accordion('Details', [paragraph('hidden')], false), paragraph(), paragraph('after'))
+    const empty = inside(start, 'paragraph', 0) + 'hidden'.length + 4
+    const { state, applied } = run(caretAt(start, empty), backspaceAfterFolded())
+    assert.equal(applied, true)
+    assert.deepEqual(outline(state), ['title', 'accordion', 'paragraph'])
+    assert.equal(state.doc.child(2).textContent, 'after')
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+  })
+
+  it('leaves Backspace alone below an open box', () => {
+    const start = page(accordion('Details', [paragraph('shown')]), paragraph('next'))
+    const at = caretAt(start, inside(start, 'paragraph', 0) + 'shown'.length + 4)
+    assert.equal(run(at, backspaceAfterFolded()).applied, false)
+  })
+
   it('folds without an undo step, lifting a caret out of the box', () => {
     const start = page(accordion('Details', [paragraph('text')]))
     const { state, applied, tr } = run(start, setAccordionOpen(start.doc.child(0).nodeSize, false))
@@ -400,6 +427,32 @@ describe('accordion as a list item', () => {
     )
     assert.equal(state.selection.$from.parent.textContent, 'a')
     assert.equal(state.selection.$from.parentOffset, 1)
+  })
+
+  it('turns a heading drawn as a Title back into a plain first line of the item', () => {
+    const titled = schema.node('accordion', null, [
+      schema.node('accordionTitle', { title: true }, [schema.text('Plan')]),
+      schema.node('accordionBody', null, [paragraph('step')]),
+    ])
+    const start = page(bullets([titled]))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle', 2)), unwrapAccordion())
+    assert.equal(applied, true)
+    state.doc.check()
+    const item = state.doc.child(1).child(0)
+    assert.deepEqual(item.children.map((node) => [node.type.name, node.textContent]), [
+      ['paragraph', 'Plan'],
+      ['paragraph', 'step'],
+    ])
+    assert.equal(state.selection.$from.parent.textContent, 'Plan')
+  })
+
+  it('jumps to the end of a folded heading from the next line of the item', () => {
+    const start = page(bullets([accordion('Details', [paragraph('hidden')], false), paragraph('next')]))
+    const at = caretAt(start, inside(start, 'paragraph', 0) + 'hidden'.length + 4)
+    assert.equal(at.selection.$from.parent.textContent, 'next')
+    const { state, applied } = run(at, backspaceAfterFolded())
+    assert.equal(applied, true)
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
   })
 
   it('survives the trip through Yjs', () => {
