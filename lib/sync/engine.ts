@@ -631,6 +631,9 @@ export class SyncEngine {
     // and a refresh the network never answers holds getSession(), and every
     // request behind it, with no signal to stop it. Racing the abort settles
     // the cycle all the same, so a deadline or a cancel always frees the next.
+    // The abandoned one may still finish a local write it was in the middle
+    // of, alongside the next cycle; any request it makes after that fails on
+    // the aborted signal, and the pull's overlap absorbs a cursor it rewinds.
     const abandoned = new Promise<never>((_, reject) => {
       abort.signal.addEventListener('abort', () => reject(new Error('Sync abandoned')), { once: true })
     })
