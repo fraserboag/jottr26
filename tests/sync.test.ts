@@ -8,6 +8,7 @@ installBrowserGlobals()
 const { openDatabase, closeDatabase, activeDatabase, eraseDatabase, databaseName, readMeta } =
   await import('@/lib/db/dexie')
 const { META_PAGES_CURSOR } = await import('@/lib/db/schema')
+const { default: Dexie } = await import('dexie')
 const { createPage, trashPage, restorePage, deleteForever, emptyTrash, movePage, refreshDerived, toggleFavorite } =
   await import('@/lib/db/pages')
 const { openDoc, releaseAll, readTitle, readPlainText, onLocalEdit, whenPersisted, patchDocState, DOC_FIELD } =
@@ -694,6 +695,43 @@ describe('local-first sync', () => {
     )
     // Only this device has seen them, and every later sync would pull them.
     for (const id of [...server.pages.keys()]) if (id.startsWith('slow-')) server.pages.delete(id)
+  })
+
+  it("pushes another tab's edit that lands on the disk as this tab starts a push", async () => {
+    await laptop.focus()
+    const id = await createPage()
+    await laptop.type(id, 'mine')
+    await laptop.sync()
+    await laptop.type(id, ' and more')
+
+    // The other tab writes its delta, then counts the edit, as ydoc.ts does,
+    // and its relay to this tab is slow to arrive, so only the disk has it.
+    const db = activeDatabase()!
+    const table = db.docStates as unknown as { get: (...args: unknown[]) => Promise<unknown> }
+    const get = table.get.bind(table)
+    table.get = async (...args: unknown[]) => {
+      // Reads made inside a load's transaction are not the push's.
+      if (Dexie.currentTransaction) return get(...args)
+      delete (table as { get?: unknown }).get
+      const other = new Y.Doc()
+      Y.applyUpdate(other, Y.encodeStateAsUpdate((await openDoc(id)).doc))
+      const before = Y.encodeStateVector(other)
+      const paragraph = other.getXmlFragment(DOC_FIELD).get(1) as Y.XmlElement
+      paragraph.insert(paragraph.length, [new Y.XmlText(' from the other tab')])
+      await db.docUpdates.add({ pageId: id, update: Y.encodeStateAsUpdate(other, before) })
+      await patchDocState(db, id, (current) => ({ dirty: 1, edits: current.edits + 1 }))
+      return get(...args)
+    }
+    try {
+      await laptop.engine.syncOnce()
+    } finally {
+      delete (table as { get?: unknown }).get
+    }
+    await laptop.sync()
+
+    const merged = new Y.Doc()
+    Y.applyUpdate(merged, Buffer.from(server.docs.get(id)!.ydoc, 'base64'))
+    assert.match(readPlainText(merged), /from the other tab/)
   })
 
   it('keeps literal angle brackets in a title', async () => {
