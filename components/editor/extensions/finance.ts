@@ -1,6 +1,7 @@
 import {
   Plugin,
   PluginKey,
+  Selection,
   TextSelection,
   type Command,
   type EditorState,
@@ -13,10 +14,12 @@ import {
   addRow,
   cellAround,
   isInTable,
+  nextCell,
   removeRow,
   selectedRect,
 } from '@tiptap/pm/tables'
 import type { Mark, Node, ResolvedPos } from '@tiptap/pm/model'
+import { GapCursor } from '@tiptap/pm/gapcursor'
 import { Table } from '@tiptap/extension-table'
 import { ySyncPluginKey } from 'y-prosemirror'
 import { columnTrade } from './tableResize'
@@ -297,8 +300,9 @@ export const addRowBelow: Command = (state, dispatch) => {
 
 /** Backspace in a row with nothing in any of its cells: the row goes, and the
  *  caret lands at the end of the same column in the row above — or, from the
- *  top row, in the row that moves up to replace it. The last row stays, since
- *  removing it would leave a table with no rows. */
+ *  top row, in the row that moves up to replace it. From the table's only
+ *  row, the whole table goes, and the caret goes up to the end of the line
+ *  above — or, with nothing above to go to, the table becomes an empty line. */
 export const deleteEmptyRow: Command = (state, dispatch) => {
   const { selection } = state
   if (!(selection instanceof TextSelection) || !selection.empty || !isInTable(state)) return false
@@ -308,10 +312,30 @@ export const deleteEmptyRow: Command = (state, dispatch) => {
 
   const rect = selectedRect(state)
   const { map, table } = rect
-  if (map.height === 1) return false
   for (let col = 0; col < map.width; col++) {
     const cell = table.nodeAt(map.map[rect.top * map.width + col])
     if (!cell || cell.childCount !== 1 || cell.firstChild?.content.size !== 0) return false
+  }
+
+  if (map.height === 1) {
+    if (dispatch) {
+      const pos = rect.tableStart - 1
+      const end = pos + table.nodeSize
+      const $pos = state.doc.resolve(pos)
+      const above = Selection.findFrom($pos, -1)
+      const parent = $pos.parent
+      const index = $pos.index()
+      if (!above || !parent.canReplace(index, index + 1)) {
+        const tr = state.tr.replaceWith(pos, end, state.schema.nodes.paragraph.create())
+        tr.setSelection(TextSelection.create(tr.doc, pos + 1))
+        dispatch(tr.scrollIntoView())
+        return true
+      }
+      const tr = state.tr.delete(pos, end)
+      tr.setSelection(above.map(tr.doc, tr.mapping))
+      dispatch(tr.scrollIntoView())
+    }
+    return true
   }
 
   if (dispatch) {
@@ -329,6 +353,31 @@ export const deleteEmptyRow: Command = (state, dispatch) => {
     dispatch(tr.scrollIntoView())
   }
   return true
+}
+
+/** Down off the bottom row of a table that ends the page: the caret below
+ *  the table, or `null` when it is anywhere else and the stock keys should
+ *  have it. Only for a caret already on the last line of its cell.
+ *
+ *  prosemirror-tables looks for a line under the table and, finding none,
+ *  settles for the nearest place back up instead — the end of the last cell
+ *  in the row — so from any other cell it took two presses to leave. */
+export function gapBelowTable(state: EditorState): Selection | null {
+  const { selection } = state
+  if (!(selection instanceof TextSelection) || !selection.empty) return null
+  const { $head } = selection
+  for (let depth = $head.depth - 1; depth > 0; depth--) {
+    // Not the last block in the cell, so there is more of it below.
+    if ($head.indexAfter(depth) !== $head.node(depth).childCount) return null
+    const role = $head.node(depth).type.spec.tableRole
+    if (role !== 'cell' && role !== 'header_cell') continue
+    const $cell = state.doc.resolve($head.before(depth))
+    if (nextCell($cell, 'vert', 1)) return null
+    const $below = state.doc.resolve($cell.after(-1))
+    if (Selection.findFrom($below, 1) || !GapCursor.valid($below)) return null
+    return new GapCursor($below)
+  }
+  return null
 }
 
 /** The stock table node plus the finance flag, its command and its plugin. */
@@ -381,6 +430,13 @@ export const FinanceTable = Table.extend({
         (parent.Backspace?.(props) ?? false),
       Enter: () =>
         this.editor.commands.command(({ state, dispatch }) => addRowBelow(state, dispatch)),
+      ArrowDown: () => {
+        const { view } = this.editor
+        const below = view.endOfTextblock('down') && gapBelowTable(view.state)
+        if (!below) return false
+        view.dispatch(view.state.tr.setSelection(below).scrollIntoView())
+        return true
+      },
     }
   },
 

@@ -5,7 +5,7 @@ import { getSchema } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TableKit, createColGroup, createTable } from '@tiptap/extension-table'
 import { Callout } from '@/components/editor/extensions/callout'
-import { FinanceTable, addRowBelow, deleteEmptyRow } from '@/components/editor/extensions/finance'
+import { FinanceTable, addRowBelow, deleteEmptyRow, gapBelowTable } from '@/components/editor/extensions/finance'
 import {
   CellSelection,
   TableMap,
@@ -17,6 +17,7 @@ import {
   toggleHeader,
 } from '@tiptap/pm/tables'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
+import { GapCursor } from '@tiptap/pm/gapcursor'
 import type { Node } from '@tiptap/pm/model'
 import { prosemirrorToYXmlFragment } from 'y-prosemirror'
 import { JottrDocument, Title } from '@/components/editor/extensions/title'
@@ -362,7 +363,53 @@ describe('table block', () => {
     assert.equal(run(caretIn(state, 1, 1), deleteEmptyRow).applied, false)
   })
 
-  it('keeps the last row', () => {
-    assert.equal(run(pageWithTable(1, 2, 0, 0), deleteEmptyRow).applied, false)
+  it('takes the whole table from its only row, up to the end of the line above', () => {
+    let state = page(1, 2)
+    state = state.apply(state.tr.insertText('abc', 8))
+    const { state: after, applied } = run(caretIn(state, 0, 1), deleteEmptyRow)
+    assert.equal(applied, true)
+    after.doc.check()
+    assert.equal(after.doc.childCount, 2)
+    assert.equal(after.selection.$from.parent.textContent, 'abc')
+    assert.equal(after.selection.$from.parentOffset, 3)
+  })
+
+  it('leaves an empty line where the table was the only thing on the page', () => {
+    const doc = schema.node('doc', null, [
+      schema.node('title', null, schema.text('Notes')),
+      createTable(schema, 1, 2, true),
+    ])
+    const { state: after, applied } = run(
+      caretIn(EditorState.create({ doc, schema }), 0, 0),
+      deleteEmptyRow,
+    )
+    assert.equal(applied, true)
+    after.doc.check()
+    assert.equal(after.doc.child(1).type.name, 'paragraph')
+    assert.equal(after.selection.$from.parent, after.doc.child(1))
+  })
+
+  it('keeps a lone row with anything in it', () => {
+    let state = page(1, 2)
+    state = state.apply(state.tr.insertText('x', cellAt(state, 0, 0) + 2))
+    assert.equal(run(caretIn(state, 0, 1), deleteEmptyRow).applied, false)
+  })
+
+  it('goes below a table that ends the page from any cell in the bottom row, not via the last cell', () => {
+    for (const col of [0, 1, 2]) {
+      const below = gapBelowTable(pageWithTable(2, 3, 1, col))
+      assert.ok(below instanceof GapCursor, `column ${col}`)
+      assert.equal(below.from, below.$from.doc.content.size)
+    }
+  })
+
+  it('leaves Down to the stock keys above the bottom row', () => {
+    assert.equal(gapBelowTable(pageWithTable(2, 3, 0, 0)), null)
+  })
+
+  it('leaves Down to the stock keys with a line under the table', () => {
+    let state = page(2, 3)
+    state = state.apply(state.tr.insert(state.doc.content.size, schema.node('paragraph')))
+    assert.equal(gapBelowTable(caretIn(state, 1, 0)), null)
   })
 })
