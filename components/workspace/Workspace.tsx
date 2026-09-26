@@ -1,10 +1,11 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { Breadcrumb } from './Breadcrumb'
+import { EditorError } from './EditorError'
 import { EmptyState } from './EmptyState'
 import { EnsureFirstPage } from './EnsureFirstPage'
 import { LastUpdated } from './LastUpdated'
@@ -21,7 +22,8 @@ import { useOpenPageId, useTrashOpen } from '@/lib/util/route'
 
 // The editor is the heaviest thing in the app and nobody needs it until a page
 // is open, so it loads as its own chunk and never during hydration.
-const Editor = dynamic(() => import('@/components/editor/Editor').then((m) => m.Editor), {
+const loadEditor = () => import('@/components/editor/Editor')
+const Editor = dynamic(() => loadEditor().then((m) => m.Editor), {
   ssr: false,
 })
 
@@ -32,6 +34,14 @@ export function Workspace() {
   const [trashOpen, openTrash] = useTrashOpen()
   const { wide, sidebarOpen, setSidebarOpen, afterDrawerShuts } = useSidebarDrawer()
   const { width, dragging, startResize, endResize } = useSidebarResize()
+
+  // Fetched once the workspace is up, so the service worker caches the chunk
+  // while there is a network. It is not in the page's HTML, which is all the
+  // worker caches ahead, so after a deploy the first page opened offline
+  // would otherwise have no editor to load.
+  useEffect(() => {
+    if (navigator.onLine) loadEditor().catch(() => undefined)
+  }, [])
 
   const landOn = useCallback((id: string) => open(id, { replace: true }), [open])
 
@@ -193,7 +203,9 @@ export function Workspace() {
                 }`}
               >
                 {page ? (
-                  <Editor pageId={page.id} />
+                  <EditorError>
+                    <Editor pageId={page.id} />
+                  </EditorError>
                 ) : (
                   <TrashPage />
                 )}
