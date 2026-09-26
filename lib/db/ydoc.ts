@@ -42,6 +42,8 @@ const handles = new Map<string, DocHandle>()
 /** Documents of pages dropped from this device, which must not write again. */
 const forgotten = new WeakSet<Y.Doc>()
 const loading = new Map<string, Promise<DocHandle>>()
+/** Pages dropped from this device while their document was still loading. */
+const forgottenWhileLoading = new Set<string>()
 /** Bumped by releaseAll, so a load that was running when the account signed
  *  out knows not to hand back a document tied to the closed database. */
 let generation = 0
@@ -339,6 +341,14 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
       void write.finally(() => persisting.delete(write))
     })
 
+    // Its page was dropped while the disk was read. Handed back all the same,
+    // to whoever is waiting, but forgotten and never registered, as it would
+    // have been had it finished loading first.
+    if (forgottenWhileLoading.delete(pageId)) {
+      forgotten.add(doc)
+      return handle
+    }
+
     if (options?.seed) seedDocument(doc)
 
     handles.set(pageId, handle)
@@ -350,6 +360,7 @@ export async function openDoc(pageId: string, options?: { seed?: boolean }): Pro
     return await promise
   } finally {
     loading.delete(pageId)
+    forgottenWhileLoading.delete(pageId)
   }
 }
 
@@ -382,6 +393,7 @@ export function forgetDocs(pageIds: string[]) {
   for (const pageId of pageIds) {
     const handle = handles.get(pageId)
     if (handle) forgotten.add(handle.doc)
+    else if (loading.has(pageId)) forgottenWhileLoading.add(pageId)
     handles.delete(pageId)
     clearTimeout(resaveTimers.get(pageId))
     resaveTimers.delete(pageId)
@@ -476,4 +488,5 @@ export function releaseAll() {
   for (const handle of handles.values()) handle.doc.destroy()
   handles.clear()
   loading.clear()
+  forgottenWhileLoading.clear()
 }

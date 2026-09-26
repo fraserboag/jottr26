@@ -7,7 +7,17 @@ installBrowserGlobals()
 
 const { openDatabase, closeDatabase, databaseName, eraseDatabase } = await import('@/lib/db/dexie')
 const { default: Dexie } = await import('dexie')
-const { openDoc, patchDocState, readPlainText, releaseAll, saveFailure, whenPersisted, DOC_FIELD } = await import(
+const {
+  forgetDocs,
+  loadedDoc,
+  openDoc,
+  patchDocState,
+  readPlainText,
+  releaseAll,
+  saveFailure,
+  whenPersisted,
+  DOC_FIELD,
+} = await import(
   '@/lib/db/ydoc'
 )
 
@@ -202,5 +212,19 @@ describe('signing out', () => {
     await whenPersisted()
     assert.ok((await db.docUpdates.where('pageId').equals('page').count()) > 0)
     assert.equal((await db.docStates.get('page'))?.dirty, 1)
+  })
+})
+
+describe('a page dropped while its document loads', () => {
+  it('leaves the document unregistered, and stores nothing it is given', async () => {
+    const db = openDatabase(`compaction-${device++}`)
+    const opening = openDoc('gone')
+    forgetDocs(['gone'])
+    const { doc } = await opening
+
+    assert.equal(loadedDoc('gone'), undefined)
+    doc.getXmlFragment(DOC_FIELD).insert(0, [new Y.XmlElement('paragraph')])
+    await whenPersisted()
+    assert.equal(await db.docUpdates.where('pageId').equals('gone').count(), 0)
   })
 })
