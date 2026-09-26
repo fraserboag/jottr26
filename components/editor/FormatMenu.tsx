@@ -1,12 +1,29 @@
 'use client'
 
 import type { Editor } from '@tiptap/core'
-import { BubbleMenu } from '@tiptap/react/menus'
+import { BubbleMenu, type BubbleMenuProps } from '@tiptap/react/menus'
 import { NodeSelection } from '@tiptap/pm/state'
 import { CellSelection } from '@tiptap/pm/tables'
 import { useEditorState } from '@tiptap/react'
 import { LinkPicker } from './LinkPicker'
 import { FormatButtons, formatFlags, useLinkEditing } from './formatActions'
+
+/** Held once, not made per render: the bubble dispatches a transaction to
+ *  pass on its options whenever one of these props is a new object. */
+const OPTIONS = { placement: 'top', offset: 8 } as const
+
+const shouldShow: BubbleMenuProps['shouldShow'] = ({ editor: instance, from, to }) => {
+  if (from === to) return false
+  // The title takes no marks, so a toolbar over it would only mislead.
+  if (instance.isActive('title')) return false
+  // Whole cells selected is a table gesture, not a text one; the table
+  // toolbar is already showing for it.
+  if (instance.state.selection instanceof CellSelection) return false
+  // A block selected whole, to be deleted or moved, is not text to
+  // format; the text inside it is, selected on its own.
+  if (instance.state.selection instanceof NodeSelection) return false
+  return !instance.isActive('codeBlock')
+}
 
 export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string }) {
   const link = useLinkEditing(editor)
@@ -18,19 +35,8 @@ export function FormatMenu({ editor, pageId }: { editor: Editor; pageId: string 
   return (
     <BubbleMenu
       editor={editor}
-      options={{ placement: 'top', offset: 8 }}
-      shouldShow={({ editor: instance, from, to }) => {
-        if (from === to) return false
-        // The title takes no marks, so a toolbar over it would only mislead.
-        if (instance.isActive('title')) return false
-        // Whole cells selected is a table gesture, not a text one; the table
-        // toolbar is already showing for it.
-        if (instance.state.selection instanceof CellSelection) return false
-        // A block selected whole, to be deleted or moved, is not text to
-        // format; the text inside it is, selected on its own.
-        if (instance.state.selection instanceof NodeSelection) return false
-        return !instance.isActive('codeBlock')
-      }}
+      options={OPTIONS}
+      shouldShow={shouldShow}
       className="flex items-center gap-1 rounded-xl border border-line bg-raised p-1 shadow-[var(--shadow-pop)] pop-in"
     >
       {link.open ? (

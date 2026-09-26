@@ -1,7 +1,8 @@
 'use client'
 
 import type { Editor } from '@tiptap/core'
-import { BubbleMenu } from '@tiptap/react/menus'
+import { useCallback } from 'react'
+import { BubbleMenu, type BubbleMenuProps } from '@tiptap/react/menus'
 import { useEditorState } from '@tiptap/react'
 import { CellSelection, isInTable, selectedRect } from '@tiptap/pm/tables'
 import { ToolButton } from '@/components/ui/ToolButton'
@@ -112,22 +113,29 @@ export function TableControls({ editor, state }: { editor: Editor; state: TableS
 
 /** The table controls as a bubble over the table, for desktop. Touch screens
  *  put the same controls on the keyboard bar instead. */
+/** Held once, not made per render: the bubble dispatches a transaction to
+ *  pass on its options whenever one of these props is a new object. */
+const OPTIONS = { placement: 'top', offset: 8 } as const
+
+const shouldShow: BubbleMenuProps['shouldShow'] = ({ editor: instance }) => {
+  if (!instance.isEditable || !instance.isActive('table')) return false
+  // Selecting text inside a cell is the format menu's business; showing
+  // both at once would stack two toolbars over the same few pixels.
+  const { selection } = instance.state
+  return selection.empty || selection instanceof CellSelection
+}
+
 export function TableMenu({ editor }: { editor: Editor }) {
   const state = useTableState(editor)
+  const anchor = useCallback(() => tableElement(editor), [editor])
 
   return (
     <BubbleMenu
       editor={editor}
       pluginKey="tableMenu"
-      options={{ placement: 'top', offset: 8 }}
-      getReferencedVirtualElement={() => tableElement(editor)}
-      shouldShow={({ editor: instance }) => {
-        if (!instance.isEditable || !instance.isActive('table')) return false
-        // Selecting text inside a cell is the format menu's business; showing
-        // both at once would stack two toolbars over the same few pixels.
-        const { selection } = instance.state
-        return selection.empty || selection instanceof CellSelection
-      }}
+      options={OPTIONS}
+      getReferencedVirtualElement={anchor}
+      shouldShow={shouldShow}
       // `shouldShow` runs on the transaction; the selector below lands a render
       // later, so the chrome is tied to the contents to keep an empty pill from
       // flashing in the gap. That also holds the pop-in back until there is
