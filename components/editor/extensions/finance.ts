@@ -84,18 +84,52 @@ function eachBodyCell(table: Node, visit: (cell: Node, offset: number, column: n
   }
 }
 
-/** Column totals, or null for a column with nothing to add up.
+/** Column totals, or null for a column with nothing to add up. `onMoney` is
+ *  handed each cell that holds an amount, so a caller that needs those cells
+ *  too gets them from the same pass rather than parsing every cell twice.
  *
  *  Summed in whole cents. Adding 0.1 and 0.2 as floats gives 0.30000000000000004,
  *  which is not a thing anyone wants to see at the bottom of an expenses table. */
-export function columnTotals(table: Node): Array<number | null> {
+export function columnTotals(
+  table: Node,
+  onMoney?: (cell: Node, offset: number) => void,
+): Array<number | null> {
   const totals = new Array<number | null>(TableMap.get(table).width).fill(null)
-  eachBodyCell(table, (cell, _offset, column) => {
+  eachBodyCell(table, (cell, offset, column) => {
     const value = parseMoney(cellText(cell))
     if (value === null) return
+    onMoney?.(cell, offset)
     totals[column] = (totals[column] ?? 0) + Math.round(value * 100)
   })
   return totals.map((cents) => (cents === null ? null : cents / 100))
+}
+
+/** The money classes and totals rows for every finance table in the document. */
+function financeDecorations(doc: Node): DecorationSet {
+  const decorations: Decoration[] = []
+  doc.descendants((node, pos) => {
+    // Tables sit among blocks, never inside a line of text.
+    if (node.isTextblock || node.isAtom) return false
+    if (node.type.name !== 'table') return true
+    if (!node.attrs.finance) return false
+
+    const totals = columnTotals(node, (cell, offset) => {
+      const cellPos = pos + 1 + offset
+      decorations.push(Decoration.node(cellPos, cellPos + cell.nodeSize, { class: 'money' }))
+    })
+    decorations.push(
+      Decoration.widget(pos + 1 + node.content.size, () => totalRow(totals), {
+        side: 1,
+        ignoreSelection: true,
+        // Keyed on the figures, so the row is reused until one changes
+        // rather than being rebuilt on every keystroke.
+        key: `finance-total:${totals.join('|')}`,
+      }),
+    )
+    // Tables do not nest here, so there is nothing below worth walking.
+    return false
+  })
+  return DecorationSet.create(doc, decorations)
 }
 
 interface Edit {
@@ -188,7 +222,7 @@ function currentCell(state: EditorState): ResolvedPos | null {
   return cellAround(selection.$from)
 }
 
-const financeKey = new PluginKey('financeMode')
+const financeKey = new PluginKey<DecorationSet>('financeMode')
 
 export function financePlugin() {
   return new Plugin({
@@ -232,35 +266,16 @@ export function financePlugin() {
       return tr
     },
 
+    // Rebuilt only when the document changes: a caret moving through the
+    // page leaves every amount and total where it was.
+    state: {
+      init: (_, state) => financeDecorations(state.doc),
+      apply: (tr, decorations) => (tr.docChanged ? financeDecorations(tr.doc) : decorations),
+    },
+
     props: {
       decorations(state) {
-        const decorations: Decoration[] = []
-        state.doc.descendants((node, pos) => {
-          if (node.type.name !== 'table') return true
-          if (!node.attrs.finance) return false
-
-          eachBodyCell(node, (cell, offset) => {
-            if (parseMoney(cellText(cell)) === null) return
-            const cellPos = pos + 1 + offset
-            decorations.push(
-              Decoration.node(cellPos, cellPos + cell.nodeSize, { class: 'money' }),
-            )
-          })
-
-          const totals = columnTotals(node)
-          decorations.push(
-            Decoration.widget(pos + 1 + node.content.size, () => totalRow(totals), {
-              side: 1,
-              ignoreSelection: true,
-              // Keyed on the figures, so the row is reused until one changes
-              // rather than being rebuilt on every keystroke.
-              key: `finance-total:${totals.join('|')}`,
-            }),
-          )
-          // Tables do not nest here, so there is nothing below worth walking.
-          return false
-        })
-        return DecorationSet.create(state.doc, decorations)
+        return financeKey.getState(state)
       },
     },
   })
