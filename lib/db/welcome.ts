@@ -1,7 +1,6 @@
 import * as Y from 'yjs'
-import { activeDatabase } from './dexie'
+import { activeDatabase, readMeta, writeMeta } from './dexie'
 import { createPage, refreshDerived } from './pages'
-import { readMeta, writeMeta } from './dexie'
 import { DOC_FIELD, openDoc } from './ydoc'
 
 const WELCOME_KEY = 'welcomed'

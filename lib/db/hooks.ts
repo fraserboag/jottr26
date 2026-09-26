@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks'
 import { activeDatabase } from './dexie'
-import { bySortKey } from './pages'
+import { bySortKey, liveChildren } from './pages'
 import type { PageRow } from './schema'
 
 /** Live queries against IndexedDB. Dexie keeps these in sync across tabs, so a
@@ -26,14 +26,6 @@ export function useTrashedPages(userId: string | null): PageRow[] | undefined {
   }, [userId])
 }
 
-export function usePage(pageId: string | null, userId: string | null): PageRow | undefined | null {
-  return useLiveQuery(async () => {
-    const db = activeDatabase()
-    if (!db || !pageId || !userId) return null
-    return (await db.pages.get(pageId)) ?? null
-  }, [pageId, userId])
-}
-
 /** A page's live subpages, in sidebar order. Live so that a page added, moved
  *  or trashed anywhere — the sidebar, another tab, another device — shows up
  *  in a list of them without a reload. */
@@ -41,8 +33,7 @@ export function useChildPages(parentId: string): PageRow[] | undefined {
   return useLiveQuery(async () => {
     const db = activeDatabase()
     if (!db || !parentId) return []
-    const rows = await db.pages.where('parentId').equals(parentId).toArray()
-    return rows.filter((page) => !page.deletedAt).sort(bySortKey)
+    return liveChildren(db, parentId)
   }, [parentId])
 }
 
@@ -55,16 +46,12 @@ export function useGrandchildPages(parentId: string, enabled: boolean): TreeNode
     // doesn't flash an empty list before the pages arrive.
     if (!enabled) return undefined
     if (!db || !parentId) return []
-    const children = (await db.pages.where('parentId').equals(parentId).toArray())
-      .filter((page) => !page.deletedAt)
-      .sort(bySortKey)
-    const grandchildren = (await db.pages.where('parentId').anyOf(children.map((page) => page.id)).toArray())
-      .filter((page) => !page.deletedAt)
-      .sort(bySortKey)
-    return children.map((page) => ({
-      page,
-      children: grandchildren.filter((child) => child.parentId === page.id).map((child) => ({ page: child, children: [] })),
-    }))
+    const children = await liveChildren(db, parentId)
+    const under = new Map<string, TreeNode[]>(children.map((page) => [page.id, []]))
+    for (const page of await liveChildren(db, [...under.keys()])) {
+      under.get(page.parentId)?.push({ page, children: [] })
+    }
+    return children.map((page) => ({ page, children: under.get(page.id)! }))
   }, [parentId, enabled])
 }
 
@@ -88,8 +75,10 @@ export interface TreeNode {
   children: TreeNode[]
 }
 
-/** Builds the sidebar tree. A page whose parent is missing — deleted, or not
- *  pulled down yet — is shown at the root rather than disappearing. */
+/** Builds the sidebar tree from pages already in sidebar order, as
+ *  useAllPages returns them; each level keeps that order. A page whose parent
+ *  is missing — deleted, or not pulled down yet — is shown at the root rather
+ *  than disappearing. */
 export function buildTree(pages: PageRow[]): TreeNode[] {
   const nodes = new Map<string, TreeNode>()
   for (const page of pages) nodes.set(page.id, { page, children: [] })
@@ -100,11 +89,5 @@ export function buildTree(pages: PageRow[]): TreeNode[] {
     if (parent) parent.children.push(node)
     else roots.push(node)
   }
-
-  const sort = (list: TreeNode[]) => {
-    list.sort((a, b) => bySortKey(a.page, b.page))
-    for (const node of list) sort(node.children)
-  }
-  sort(roots)
   return roots
 }

@@ -38,9 +38,16 @@ export async function touch(
   notifyLocalEdit(fields.every((field) => field === 'title') ? 'text' : 'structure')
 }
 
-export async function siblingsOf(parentId: string): Promise<PageRow[]> {
-  const rows = await db().pages.where('parentId').equals(parentId).toArray()
-  return rows.filter((p) => !p.deletedAt).sort(bySortKey)
+export function siblingsOf(parentId: string): Promise<PageRow[]> {
+  return liveChildren(db(), parentId)
+}
+
+/** The pages directly under these parents that are not in the trash, in
+ *  sidebar order. `''` is the root. */
+export async function liveChildren(database: JottrDB, parentIds: string | string[]) {
+  const keys = (typeof parentIds === 'string' ? [parentIds] : parentIds).map((id) => [0, id])
+  const rows = await database.pages.where('[deletedAt+parentId]').anyOf(keys).toArray()
+  return rows.sort(bySortKey)
 }
 
 export const bySortKey = (a: PageRow, b: PageRow) =>

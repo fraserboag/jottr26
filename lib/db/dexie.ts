@@ -56,10 +56,6 @@ export function activeDatabase(): JottrDB | null {
   return current?.db ?? null
 }
 
-export function activeUserId(): string | null {
-  return current?.userId ?? null
-}
-
 export function closeDatabase() {
   for (const db of open.values()) db.close()
   open.clear()
