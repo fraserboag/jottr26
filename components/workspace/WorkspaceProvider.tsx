@@ -8,6 +8,7 @@ import { moveSearchTexts } from '@/lib/db/searchText'
 import { releaseAll } from '@/lib/db/ydoc'
 import { SyncEngine } from '@/lib/sync/engine'
 import { initialStatus, type SyncStatus } from '@/lib/sync/types'
+import { markStartup } from '@/lib/util/startupTiming'
 
 /** What rarely changes: who is signed in, and the actions. Kept apart from the
  *  sync status, which moves with every keystroke, so that most of the app does
@@ -66,6 +67,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     queueMicrotask(() => {
       const stored = storedSession()
       if (cancelled || !stored) return
+      markStartup('session-ready')
       setSession((current) => current ?? stored)
       setReady(true)
     })
@@ -75,12 +77,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
       const next = data.session ?? storedSession()
+      markStartup('session-ready')
       setSession((current) => keepIfSame(current, next))
       setReady(true)
     })
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (cancelled) return
       const session = next ?? storedSession()
+      markStartup('session-ready')
       setSession((current) => keepIfSame(current, session))
       setReady(true)
     })

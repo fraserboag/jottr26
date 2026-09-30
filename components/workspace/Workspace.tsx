@@ -19,14 +19,20 @@ import { useSidebarDrawer } from './useSidebarDrawer'
 import { useSidebarResize } from './useSidebarResize'
 import { useAllPages, useTrashedPages } from '@/lib/db/hooks'
 import { useOpenPageId, useView, type View } from '@/lib/util/route'
+import { afterPaint, idleAfterPaint } from '@/lib/util/idle'
+import { markStartup } from '@/lib/util/startupTiming'
 
-// The editor is the heaviest thing in the app and nobody needs it until a page
-// is open, so it loads as its own chunk and never during hydration.
-const loadEditor = () => import('@/components/editor/Editor')
-// While it downloads the page column would otherwise be empty, which on a phone,
-// with the sidebar shut, is the whole screen. Held back a moment, so an editor
-// already on the device never flashes it.
-const Editor = dynamic(() => loadEditor().then((m) => m.Editor), {
+// Kept out of hydration so the workspace can open before the editor is
+// evaluated. Its build manifest lets the worker cache these chunks without
+// loading or evaluating them in the foreground.
+const loadEditor = () => {
+  markStartup('editor-load-start')
+  return import('@/components/editor/Editor')
+}
+const Editor = dynamic(() => {
+  markStartup('editor-load-start')
+  return import('@/components/editor/Editor').then((m) => m.Editor)
+}, {
   ssr: false,
   loading: () => (
     <div className="appear-late flex items-center gap-1.5 text-muted">
@@ -48,13 +54,25 @@ export function Workspace() {
   const { wide, sidebarOpen, setSidebarOpen, afterDrawerShuts } = useSidebarDrawer()
   const { width, dragging, startResize, endResize } = useSidebarResize()
 
-  // Fetched once the workspace is up, so the service worker caches the chunk
-  // while there is a network. It is not in the page's HTML, which is all the
-  // worker caches ahead, so after a deploy the first page opened offline
-  // would otherwise have no editor to load.
+  const pagesReady = pages !== undefined
+
   useEffect(() => {
-    if (navigator.onLine) loadEditor().catch(() => undefined)
-  }, [])
+    if (!pagesReady) return
+    markStartup('pages-ready')
+    return afterPaint(() => markStartup('workspace-painted'))
+  }, [pagesReady])
+
+  // Let the page list paint before importing and evaluating optional editor
+  // code. Selecting a note cancels this warmup; dynamic() loads it immediately.
+  // Offline safety still comes from the worker's build manifest.
+  useEffect(() => {
+    if (!pagesReady || openId || view) return
+    return idleAfterPaint(() => {
+      if (navigator.onLine && document.visibilityState === 'visible') {
+        loadEditor().catch(() => undefined)
+      }
+    })
+  }, [pagesReady, openId, view])
 
   const landOn = useCallback((id: string) => open(id, { replace: true }), [open])
 

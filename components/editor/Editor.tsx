@@ -26,6 +26,10 @@ import { debounce } from '@/lib/util/debounce'
 import { isPlainLeftClick, resolveLink } from '@/lib/util/links'
 import { useOpenPageId } from '@/lib/util/route'
 import { useCoarsePointer } from '@/lib/util/pointer'
+import { afterPaint } from '@/lib/util/idle'
+import { markStartup } from '@/lib/util/startupTiming'
+
+markStartup('editor-code-ready')
 
 /** Memoised: the workspace around it re-renders whenever the page list does,
  *  which while typing is every few hundred milliseconds, and none of that
@@ -46,6 +50,7 @@ function Loader({ pageId }: { pageId: string }) {
 
   useEffect(() => {
     let cancelled = false
+    markStartup('document-load-start')
     openDoc(pageId)
       // A document this tab already had open moves on only through other
       // tabs' relays, which a suspended or back-forward cached tab misses, so
@@ -64,6 +69,10 @@ function Loader({ pageId }: { pageId: string }) {
       cancelled = true
     }
   }, [pageId])
+
+  useEffect(() => {
+    if (handle && ready) markStartup('document-ready')
+  }, [handle, ready])
 
   // Thrown here, where EditorError can catch it: a rejection in the effect
   // would leave the skeleton up for good.
@@ -192,6 +201,11 @@ function Surface({ pageId, doc }: { pageId: string; doc: Y.Doc }) {
     if (title && title.content.size === 0 && editor.state.doc.content.size <= 4) {
       editor.commands.focus('start')
     }
+  }, [editor])
+
+  useEffect(() => {
+    if (!editor) return
+    return afterPaint(() => markStartup('editor-painted'))
   }, [editor])
 
   if (!editor) return <EditorSkeleton />

@@ -32,3 +32,31 @@ goes into your real account.
 - Pushing to `main` deploys to production.
 - The sync code is in `lib/sync/`. Changes there need care, because it's the
   part that keeps notes from getting lost.
+- Production builds generate an offline dependency manifest from Next's lazy
+  chunk list. The service worker caches the editor before adopting a new shell,
+  while the editor remains deferred during startup. `npm run build` also checks
+  the emitted shell and its offline assets before the build can be deployed.
+
+## Inspecting startup
+
+The editor warms up after the local page list has loaded, had a paint opportunity,
+and the browser is idle. Browsers without idle callbacks wait another 500 ms.
+Opening a note starts loading its editor immediately and cancels queued warmup.
+
+Startup measurements stay in the browser's Performance timeline, with labels
+only and no analytics requests. After launching `/app`, run this in DevTools:
+
+```js
+console.table(
+  performance.getEntriesByType('measure')
+    .filter(entry => entry.name.startsWith('jottr:'))
+    .map(entry => ({ stage: entry.name.slice(6), ms: Math.round(entry.duration) }))
+)
+```
+
+`startup` runs from browser navigation to the local workspace's paint opportunity;
+it does not include native app launch time. `shell-response` measures time to the
+first response byte. Other stages cover hydration, session lookup, local pages,
+and paint. Editor code, document loading and editor rendering are measured on
+their first use; time spent waiting for the user to open a note is excluded from
+document loading. Paint measurements use two animation frames as an approximation.

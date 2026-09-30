@@ -7,6 +7,7 @@ import { ServiceWorkerManager } from '@/components/ServiceWorkerManager'
 import { SetupNotice } from '@/components/SetupNotice'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { isSupabaseConfigured } from '@/lib/supabase/client'
+import { markStartup } from '@/lib/util/startupTiming'
 
 /** The workspace is client-rendered on purpose.
  *
@@ -29,6 +30,7 @@ function Gate() {
   const { ready, session } = useWorkspace()
 
   useEffect(() => {
+    markStartup('hydrated')
     if (ready && !session) window.location.replace('/login')
   }, [ready, session])
 

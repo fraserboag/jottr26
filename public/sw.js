@@ -17,8 +17,8 @@ const KEEP = new Set([SHELL_CACHE, ASSET_CACHE])
 
 /** Every deploy brings new chunks, and the old ones would otherwise stay on
  *  the device for good. A chunk goes once no cached page loads it and it has
- *  not been used for this long. Not on age alone: the editor is its own chunk
- *  that no page's HTML names, and it is kept by being used. */
+ *  not been used for this long. Not on age alone: optional chunks that no
+ *  page's HTML names are kept by being used. */
 const PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000
 /** A chunk in use is re-stamped at most this often, not on every load. */
 const RESTAMP_AFTER_MS = 24 * 60 * 60 * 1000
@@ -73,6 +73,15 @@ const isWorkspace = (url) => url.pathname === '/app' || url.pathname.startsWith(
 /** Content-hashed by the build, so a cached copy is never out of date. */
 const isStaticAsset = (url) => url.pathname.startsWith('/_next/static/')
 
+/** Next may append a deployment-routing query to the same content-hashed
+ * chunk. Keep that query on downloads, but share its cached bytes across
+ * deployments and with the lazy-import manifest's unqueried URLs. */
+function assetCacheKey(request) {
+  const url = new URL(typeof request === 'string' ? request : request.url, self.location.origin)
+  url.searchParams.delete('dpl')
+  return url.pathname + url.search
+}
+
 /** Kept for offline, but under a fixed name, so a changed one has to be
  *  fetched again rather than served from the cache for good. */
 const isFixedFile = (url) =>
@@ -121,7 +130,7 @@ async function handleNavigation(event, url) {
   // cached copy was shown still refreshes it for next time.
   event.waitUntil(
     network
-      .then((response) => (response.ok ? storeShell(url.pathname, response.clone()) : undefined))
+      .then((response) => (response.ok ? storeShell(isWorkspace(url) ? '/app' : url.pathname, response.clone()) : undefined))
       .catch(() => undefined),
   )
 
@@ -179,20 +188,60 @@ async function cachePage(path) {
 }
 
 /** Keeps an HTML page only once the scripts and styles it loads are cached
- *  too, since a page without them renders nothing. Keyed by path alone: the
- *  query never changes the document, and one copy per path means the page
+ *  too, including the workspace's editor, since a page without them cannot
+ *  open notes offline. Keyed by path alone: the query never changes the
+ *  document, and one copy per path means the page
  *  served offline is always the newest one seen. */
 async function storeShell(path, response) {
   if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) return
   const html = await response.clone().text()
   const assets = new Set(html.match(ASSET_PATTERN) ?? [])
   const assetCache = await caches.open(ASSET_CACHE)
+  // The HTML only names startup chunks. The build-specific manifest adds the
+  // lazy editor's complete chunk group without making it block hydration.
+  if (path === '/app') {
+    const manifest = offlineManifestPath(html)
+    if (manifest) {
+      let cached = await assetCache.match(manifest)
+      if (!cached) {
+        const fetched = await fetch(manifest)
+        if (!fetched.ok) throw new Error(`${manifest}: ${fetched.status}`)
+        // Validate before keeping it. A deploy error must leave the old shell
+        // usable rather than permanently caching a bad dependency list.
+        readOfflineAssets(await fetched.clone().json())
+        await assetCache.put(manifest, stamped(fetched))
+        cached = await assetCache.match(manifest)
+      }
+      const deploymentId = [...assets].map((asset) => new URL(asset, self.location.origin))
+        .find((url) => url.searchParams.has('dpl'))?.searchParams.get('dpl')
+      for (const asset of readOfflineAssets(await cached.json())) {
+        const url = new URL(asset, self.location.origin)
+        if (deploymentId) url.searchParams.set('dpl', deploymentId)
+        assets.add(url.pathname + url.search)
+      }
+    }
+  }
   await Promise.all(
     [...assets].map(async (asset) => {
-      if (await assetCache.match(asset)) return
+      const key = assetCacheKey(asset)
+      const cached = await assetCache.match(key)
+      if (cached) {
+        // The installing worker shares these caches with an older active
+        // worker, which still looks up the exact deployment query.
+        if (key !== asset && !(await assetCache.match(asset))) await assetCache.put(asset, cached)
+        return
+      }
+      // Reuse entries written by workers that kept the deployment query.
+      const legacy = await assetCache.match(asset)
+      if (legacy) {
+        await assetCache.put(key, legacy)
+        return
+      }
       const fetched = await fetch(asset)
       if (!fetched.ok) throw new Error(`${asset}: ${fetched.status}`)
-      await assetCache.put(asset, stamped(fetched))
+      const response = stamped(fetched)
+      await assetCache.put(key, response.clone())
+      if (key !== asset) await assetCache.put(asset, response)
     }),
   )
   const cache = await caches.open(SHELL_CACHE)
@@ -206,6 +255,24 @@ async function storeShell(path, response) {
 }
 
 let lastPruned = 0
+
+function offlineManifestPath(html) {
+  const meta = html.match(/<meta\b(?=[^>]*\bname=["']jottr-offline-manifest["'])[^>]*>/)?.[0]
+  if (!meta) return null // Shells from before build manifests existed.
+  const path = meta.match(/\bcontent=["']([^"']+)["']/)?.[1]
+  if (!path || !/^\/_next\/static\/jottr-offline\/[\w-]+\.json$/.test(path)) {
+    throw new Error('Invalid offline manifest URL')
+  }
+  return path
+}
+
+function readOfflineAssets(manifest) {
+  if (manifest?.version !== 1 || !Array.isArray(manifest.assets) || !manifest.assets.length ||
+      manifest.assets.some((asset) => typeof asset !== 'string' || !/^\/_next\/static\/(chunks|css)\/[^?]+\.(js|css)$/.test(asset) || asset.split('/').includes('..'))) {
+    throw new Error('Invalid offline asset manifest')
+  }
+  return manifest.assets
+}
 
 /** A copy of the response carrying the time it was stored. Headers on a
  *  fetched response cannot be changed, so it is rebuilt around the body. */
@@ -224,13 +291,22 @@ async function pruneAssets(assetCache, shellCache, now = Date.now()) {
     const page = await shellCache.match(request)
     const html = page ? await page.text() : ''
     for (const asset of html.match(ASSET_PATTERN) ?? []) {
-      const url = new URL(asset, request.url)
-      referenced.add(url.pathname + url.search)
+      referenced.add(assetCacheKey(asset))
+      referenced.add(asset)
+    }
+    // Lazy chunks are needed even when no note has been opened for a month.
+    // Protect each cached shell's own dependencies, not just the newest build.
+    const manifestPath = offlineManifestPath(html)
+    const manifest = manifestPath ? await assetCache.match(manifestPath) : null
+    if (manifest) {
+      for (const asset of readOfflineAssets(await manifest.json())) referenced.add(asset)
     }
   }
 
   for (const request of await assetCache.keys()) {
     const url = new URL(request.url)
+    // Exact deployment aliases can age out independently of the canonical
+    // chunk, so a stable chunk does not accumulate aliases indefinitely.
     if (!url.pathname.startsWith('/_next/static/') || referenced.has(url.pathname + url.search)) continue
     const hit = await assetCache.match(request)
     if (!hit) continue
@@ -244,17 +320,18 @@ async function pruneAssets(assetCache, shellCache, now = Date.now()) {
 async function cacheFirst(event, cacheName) {
   const { request } = event
   const cache = await caches.open(cacheName)
-  const hit = await cache.match(request)
+  const key = assetCacheKey(request)
+  const hit = (await cache.match(key)) ?? (await cache.match(request))
   if (hit) {
     // Marked as in use, which is what keeps a chunk no page's HTML names.
     if (!(Date.now() - Number(hit.headers.get(STORED_HEADER)) < RESTAMP_AFTER_MS)) {
-      event.waitUntil(cache.put(request, stamped(hit.clone())))
+      event.waitUntil(cache.put(key, stamped(hit.clone())))
     }
     return hit
   }
   const response = await fetch(request)
   // Kept alive until written: the worker can be stopped once it has answered.
-  if (response.ok) event.waitUntil(cache.put(request, stamped(response.clone())))
+  if (response.ok) event.waitUntil(cache.put(key, stamped(response.clone())))
   return response
 }
 
