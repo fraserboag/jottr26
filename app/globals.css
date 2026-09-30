@@ -178,8 +178,7 @@ body {
    the link field. It is also the unit the gap under the title is measured in. */
 :root {
   --body-size: 16px;
-  /* Lines within a list item sit a touch closer than lines of a paragraph,
-     so the space between items is what separates one from the next. */
+  /* Body text and lists share their leading; shaded blocks stay compact. */
   --body-leading: 1.8;
   --list-leading: 1.6;
   /* A title in the body, against body text. */
@@ -241,6 +240,8 @@ body {
    Editor
    --------------------------------------------------------------------------- */
 .ProseMirror {
+  /* Match paragraph margins when an item is lifted out of a list. */
+  --list-gap: 1px;
   outline: none;
   color: var(--text);
   font-size: var(--body-size);
@@ -296,7 +297,7 @@ h1.page-title {
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.6em;
-  margin: 1px 0;
+  margin: var(--list-gap) 0;
 }
 .ProseMirror ul {
   list-style: disc;
@@ -316,7 +317,7 @@ h1.page-title {
 }
 .ProseMirror li {
   line-height: inherit;
-  margin: 0.35em 0;
+  margin: var(--list-gap) 0;
 }
 /* The gap between items stays inside the list, rather than collapsing out
    past the list's own margin. A subpage list spaces its entries itself. */
@@ -329,7 +330,7 @@ h1.page-title {
 /* A nested list starts an item's gap below its parent's line, and leaves the
    gap after it to the next item. */
 .ProseMirror :is(li > ul, li > ol) {
-  margin: 0.35em 0 0;
+  margin: var(--list-gap) 0 0;
 }
 
 /* A callout: a padded box with a background, for a passage that wants setting
@@ -745,6 +746,8 @@ h1.page-title {
 }
 
 .ProseMirror :is(td, th) {
+  /* Cell paragraphs have no margins, so their list items need none either. */
+  --list-gap: 0px;
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
   padding: 6px 9px;
