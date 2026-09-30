@@ -27,7 +27,7 @@ export async function writeOfflineManifest(distDir, manifestUrl) {
 
   const files = [...new Set(Object.values(manifest).flatMap((entry) => entry.files))].sort()
   // Fail the build rather than silently shipping a shell without its editor.
-  if (!files.length || files.some((file) => typeof file !== 'string' || !/^static\/(chunks|css)\/[^?]+\.(js|css)$/.test(file) || file.split('/').includes('..'))) {
+  if (!files.length || files.some((file) => typeof file !== 'string' || !/^static\/(?:immutable\/)?(chunks|css)\/[^?]+\.(js|css)$/.test(file) || file.split('/').includes('..'))) {
     throw new Error('Invalid or empty Next dynamic-import assets for offline caching')
   }
   await Promise.all(files.map((file) => stat(path.join(distDir, file))))

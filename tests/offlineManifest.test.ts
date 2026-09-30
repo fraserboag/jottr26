@@ -41,6 +41,15 @@ describe('offline build manifest', () => {
     assert.deepEqual(manifest.assets, ['/_next/static/chunks/editor.js'])
   }))
 
+  it('supports the immutable chunk namespace enabled by the Vercel adapter', async () => fixture(async (dir) => {
+    const files = ['static/immutable/chunks/editor.js', 'static/immutable/chunks/editor.css']
+    await put(dir, 'server/app/app/page/react-loadable-manifest.json', { editor: { files } })
+    await Promise.all(files.map((file) => put(dir, file, 'asset')))
+    await writeOfflineManifest(dir, url)
+    const manifest = JSON.parse(await readFile(path.join(dir, url.slice('/_next/'.length)), 'utf8'))
+    assert.deepEqual(manifest.assets, [...files].sort().map((file) => `/_next/${file}`))
+  }))
+
   it('fails the build if Next emits no lazy chunks instead of silently losing offline support', async () => fixture(async (dir) => {
     await put(dir, 'react-loadable-manifest.json', {})
     await assert.rejects(writeOfflineManifest(dir, url), /empty/)

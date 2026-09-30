@@ -279,6 +279,26 @@ describe('service worker navigation', () => {
     assert.equal(await (await (await open('jottr-shell-v3')).match('/app'))?.text(), html)
   })
 
+  it('adopts a Vercel shell with immutable editor assets and opens its editor offline', async () => {
+    const open = storage()
+    const manifest = '/_next/static/jottr-offline/vercel-build.json'
+    const chunks = ['/_next/static/immutable/chunks/editor.js', '/_next/static/immutable/chunks/editor.css']
+    const html = `<meta name="jottr-offline-manifest" content="${manifest}">`
+    worker.fetch = async (request: unknown) => {
+      if (request === manifest) return new Response(JSON.stringify({ version: 1, assets: chunks }))
+      return typeof request === 'string'
+        ? new Response('immutable asset')
+        : new Response(html, { headers: { 'content-type': 'text/html' } })
+    }
+    const { waits } = navigate('/app')
+    await Promise.all(waits)
+    assert.equal(await (await (await open('jottr-shell-v3')).match('/app'))?.text(), html)
+    worker.fetch = () => Promise.reject(new Error('offline'))
+    for (const request of chunks) {
+      assert.equal(await (await cacheFirst({ request, waitUntil: () => {} }, 'jottr-assets-v2')).text(), 'immutable asset')
+    }
+  })
+
   it('preserves the shell deployment query when downloading its lazy dependencies', async () => {
     const open = storage()
     const manifest = '/_next/static/jottr-offline/build-a.json'

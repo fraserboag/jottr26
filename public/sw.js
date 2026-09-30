@@ -268,7 +268,7 @@ function offlineManifestPath(html) {
 
 function readOfflineAssets(manifest) {
   if (manifest?.version !== 1 || !Array.isArray(manifest.assets) || !manifest.assets.length ||
-      manifest.assets.some((asset) => typeof asset !== 'string' || !/^\/_next\/static\/(chunks|css)\/[^?]+\.(js|css)$/.test(asset) || asset.split('/').includes('..'))) {
+      manifest.assets.some((asset) => typeof asset !== 'string' || !/^\/_next\/static\/(?:immutable\/)?(chunks|css)\/[^?]+\.(js|css)$/.test(asset) || asset.split('/').includes('..'))) {
     throw new Error('Invalid offline asset manifest')
   }
   return manifest.assets
