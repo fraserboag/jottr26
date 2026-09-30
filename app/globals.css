@@ -291,15 +291,12 @@ h1.page-title {
   color: var(--text);
 }
 
-/* A list's lines sit on the tighter list leading, so its outer margin makes
-   up the half-leading each edge loses, plus the paragraph's 1px: a one-line
-   item then takes the same height as a one-line paragraph, and turning one
-   into the other moves nothing below it. 1lh is the leading around the list,
-   the page's or a callout's. */
+/* Lists share the surrounding text's line height and paragraph margins,
+   including inside callouts and accordion bodies. */
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.6em;
-  margin: calc((1lh - var(--list-leading) * 1em) / 2 + 1px) 0;
+  margin: 1px 0;
 }
 .ProseMirror ul {
   list-style: disc;
@@ -315,10 +312,10 @@ h1.page-title {
 }
 .ProseMirror li > p {
   margin: 0;
-  min-height: calc(var(--list-leading) * 1em);
+  min-height: 1lh;
 }
 .ProseMirror li {
-  line-height: var(--list-leading);
+  line-height: inherit;
   margin: 0.35em 0;
 }
 /* The gap between items stays inside the list, rather than collapsing out
@@ -649,10 +646,10 @@ h1.page-title {
 }
 .ProseMirror li > div[data-type="accordion"] > .accordion-content > div[data-type="accordionTitle"] {
   margin: 0;
-  min-height: calc(var(--list-leading) * 1em);
+  min-height: 1lh;
 }
 .ProseMirror li > div[data-type="accordion"] > .accordion-toggle {
-  margin-top: calc((var(--list-leading) * 1em - 20px) / 2);
+  margin-top: calc((1lh - 20px) / 2);
 }
 /* A Title heading's line is taller by the title's scale, so the chevron comes
    down with it to stay centred on the line. */
@@ -660,7 +657,7 @@ h1.page-title {
   margin-top: calc((var(--body-leading) * var(--title-scale) * 1em - 20px) / 2 + 1px);
 }
 .ProseMirror li > div[data-type="accordion"]:has(> .accordion-content > div[data-type="accordionTitle"][data-title="true"]) > .accordion-toggle {
-  margin-top: calc((var(--list-leading) * var(--title-scale) * 1em - 20px) / 2);
+  margin-top: calc((1lh * var(--title-scale) - 20px) / 2);
 }
 .ProseMirror code {
   font-family: var(--font-mono);
