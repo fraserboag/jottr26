@@ -292,8 +292,9 @@ h1.page-title {
   color: var(--text);
 }
 
-/* Lists share the surrounding text's line height and paragraph margins,
-   including inside callouts and accordion bodies. */
+/* Lists share paragraph margins and keep the same height for a single line.
+   Wrapped lines use tighter leading; padding restores the half-leading at
+   each edge so removing an empty bullet does not move the surrounding text. */
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.6em;
@@ -313,7 +314,12 @@ h1.page-title {
 }
 .ProseMirror li > p {
   margin: 0;
-  min-height: 1lh;
+  line-height: var(--list-leading);
+  padding-block: calc((var(--body-leading) - var(--list-leading)) * 0.5em);
+}
+/* These blocks already use the compact leading for ordinary paragraphs. */
+.ProseMirror :is(div[data-type="callout"], div[data-type="accordionBody"]) li > p {
+  padding-block: 0;
 }
 .ProseMirror li {
   line-height: inherit;
