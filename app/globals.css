@@ -178,9 +178,10 @@ body {
    the link field. It is also the unit the gap under the title is measured in. */
 :root {
   --body-size: 16px;
-  /* Body text and lists share their leading; shaded blocks stay compact. */
+  /* Every editable body line uses this leading, including list items. */
   --body-leading: 1.8;
-  --list-leading: 1.6;
+  /* Navigation entries in the subpage block stay compact. */
+  --subpages-leading: 1.6;
   /* A title in the body, against body text. */
   --title-scale: 1.15;
   /* A hair heavier than regular: antialiased system type at 400 reads thin.
@@ -240,8 +241,6 @@ body {
    Editor
    --------------------------------------------------------------------------- */
 .ProseMirror {
-  /* Match paragraph margins when an item is lifted out of a list. */
-  --list-gap: 1px;
   outline: none;
   color: var(--text);
   font-size: var(--body-size);
@@ -251,13 +250,11 @@ body {
   word-break: break-word;
 }
 
-.ProseMirror > * + * {
-  margin-top: 2px;
-}
-
+/* No space outside a text line: two paragraphs, two bullets and a wrapped
+   two-line paragraph all occupy two body line heights. Empty lines do too. */
 .ProseMirror p {
-  margin: 1px 0;
-  min-height: calc(var(--body-leading) * 1em);
+  margin: 0;
+  min-height: 1lh;
 }
 
 /* A title in the body: a step up in size and weight, and nothing else. Same
@@ -269,7 +266,7 @@ body {
 .ProseMirror div[data-type="accordionTitle"][data-title="true"] {
   font-size: calc(var(--title-scale) * 1em);
   font-weight: 650;
-  margin: 1px 0;
+  margin: 0;
   min-height: calc(var(--body-leading) * 1em);
 }
 
@@ -281,24 +278,22 @@ h1.page-title {
   font-weight: 700;
   letter-spacing: -0.022em;
   /* A blank body line between the name of the page and the page itself: the
-     body's own line height above — not an em of this heading — plus the 2px
-     that sits above and below any block, which an actual empty line would
-     carry too. The total outruns every block's top margin, so the gap reads
+     body's own line height above — not an em of this heading.
+     The total outruns every block's top margin, so the gap reads
      the same whether the note opens on a paragraph, a list or a table. */
-  margin: 0 0 calc(var(--body-size) * var(--body-leading) + 4px);
+  margin: 0 0 calc(var(--body-size) * var(--body-leading));
 }
 
 h1.page-title {
   color: var(--text);
 }
 
-/* Lists share paragraph margins and keep the same height for a single line.
-   Wrapped lines use tighter leading; padding restores the half-leading at
-   each edge so removing an empty bullet does not move the surrounding text. */
+/* Lists only indent the text. Their wrappers and items add no vertical
+   space, so nesting, splitting or lifting a line keeps the same rhythm. */
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.6em;
-  margin: var(--list-gap) 0;
+  margin: 0;
 }
 .ProseMirror ul {
   list-style: disc;
@@ -312,40 +307,15 @@ h1.page-title {
 .ProseMirror ol {
   list-style: decimal;
 }
-.ProseMirror li > p {
-  margin: 0;
-  line-height: var(--list-leading);
-  padding-block: calc((var(--body-leading) - var(--list-leading)) * 0.5em);
-}
-/* These blocks already use the compact leading for ordinary paragraphs. */
-.ProseMirror :is(div[data-type="callout"], div[data-type="accordionBody"]) li > p {
-  padding-block: 0;
-}
 .ProseMirror li {
-  line-height: inherit;
-  margin: var(--list-gap) 0;
-}
-/* The gap between items stays inside the list, rather than collapsing out
-   past the list's own margin. A subpage list spaces its entries itself. */
-.ProseMirror :is(ul, ol):not(div[data-type="subpages"] ul) > li:first-child {
-  margin-top: 0;
-}
-.ProseMirror :is(ul, ol):not(div[data-type="subpages"] ul) > li:last-child {
-  margin-bottom: 0;
-}
-/* A nested list starts an item's gap below its parent's line, and leaves the
-   gap after it to the next item. */
-.ProseMirror :is(li > ul, li > ol) {
-  margin: var(--list-gap) 0 0;
+  margin: 0;
 }
 
 /* A callout: a padded box with a background, for a passage that wants setting
    apart from the page around it. It holds blocks, so the first and last of
-   them give up their outer margins rather than doubling the padding. Its
-   lines sit at the list leading: the page's looser leading reads too airy in
-   a shaded box, and its half-leading pads the box a second time. */
+   them give up their outer margins rather than doubling the padding.
+   Editable lines keep the page's body leading inside the box too. */
 .ProseMirror :is(div[data-type="callout"], div[data-type="subpages"] > .subpages-box) {
-  line-height: var(--list-leading);
   background: var(--surface-sunken);
   border-radius: 8px;
   padding: 20px 22px;
@@ -362,9 +332,6 @@ h1.page-title {
 }
 .ProseMirror div[data-type="callout"] > :last-child {
   margin-bottom: 0;
-}
-.ProseMirror div[data-type="callout"] p {
-  min-height: calc(var(--list-leading) * 1em);
 }
 
 /* A subpage list, laid out like an accordion but not written in: a title
@@ -426,6 +393,7 @@ h1.page-title {
   }
 }
 .ProseMirror div[data-type="subpages"] > .subpages-box {
+  line-height: var(--subpages-leading);
   margin: 6px 0 0;
   background: var(--sidebar);
 }
@@ -476,7 +444,7 @@ h1.page-title {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  height: calc(var(--list-leading) * 1em);
+  height: calc(var(--subpages-leading) * 1em);
   margin-left: auto;
 }
 /* An entry opens its page from a click anywhere on it, like a sidebar row.
@@ -533,7 +501,7 @@ h1.page-title {
    small faint capitals — rather than as a link. Only the text is shrunk, so
    the line keeps its height and its menu slot. */
 .ProseMirror div[data-type="subpages"] .subpages-group + .subpages-group {
-  margin-top: calc(var(--list-leading) * 1em);
+  margin-top: calc(var(--subpages-leading) * 1em);
 }
 .ProseMirror div[data-type="subpages"] .subpages-group-head {
   display: flex;
@@ -630,7 +598,6 @@ h1.page-title {
   display: none;
 }
 .ProseMirror div[data-type="accordionBody"] {
-  line-height: var(--list-leading);
   background: var(--surface-sunken);
   border-radius: 8px;
   padding: 20px 22px;
@@ -642,12 +609,8 @@ h1.page-title {
 .ProseMirror div[data-type="accordionBody"] > :last-child {
   margin-bottom: 0;
 }
-.ProseMirror div[data-type="accordionBody"] p {
-  min-height: calc(var(--list-leading) * 1em);
-}
 /* As the first line of a list item, the heading sits on the list's leading
-   like any other item's line, so the bullet lines up with it and the item's
-   own margin does the spacing. */
+   like any other item's line, so the bullet lines up with it. */
 .ProseMirror li > div[data-type="accordion"] {
   margin: 0;
 }
@@ -752,8 +715,6 @@ h1.page-title {
 }
 
 .ProseMirror :is(td, th) {
-  /* Cell paragraphs have no margins, so their list items need none either. */
-  --list-gap: 0px;
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
   padding: 6px 9px;
@@ -791,12 +752,6 @@ h1.page-title {
   background: var(--surface-sunken);
   font-weight: 620;
   text-align: left;
-}
-
-/* Cells carry paragraphs, whose own rhythm would otherwise pad every row. */
-.ProseMirror :is(td, th) > p {
-  margin: 0;
-  min-height: 0;
 }
 
 /* The grab strip at a column's right edge. It is a decoration rather than
@@ -855,7 +810,7 @@ h1.page-title {
   border-top: 1px solid var(--line-strong);
   /* A little under half a body line on each side: enough air to read as a
      break between passages, less than the blank line a full line of room
-     would imply in a document whose blocks otherwise sit 2px apart. */
+     would imply between ordinary body lines. */
   margin: 8px 0;
 }
 
