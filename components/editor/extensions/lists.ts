@@ -1,8 +1,9 @@
-import type { Editor } from '@tiptap/core'
+import { createChainableState, type Editor } from '@tiptap/core'
 import { ListItem as BaseListItem } from '@tiptap/extension-list'
 import { Fragment, Slice, type Node } from '@tiptap/pm/model'
 import { TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
-import { ReplaceAroundStep } from '@tiptap/pm/transform'
+import { sinkListItem } from '@tiptap/pm/schema-list'
+import { canJoin, ReplaceAroundStep } from '@tiptap/pm/transform'
 import { pm, removeBlockToAbove } from './helpers'
 
 /** A list item whose first line can be an accordion as well as a paragraph.
@@ -96,6 +97,25 @@ export function backspaceAfterList(): Command {
   }
 }
 
+/** Adjacent lists of the same kind read as one continuous outline, but the
+ *  stock sink stops at their boundary. Join that boundary before sinking
+ *  the selected items under the last item above, in one transaction. */
+export function sinkAcrossAdjacentLists(): Command {
+  return (state, dispatch) => {
+    const { $from, $to } = state.selection
+    const item = state.schema.nodes[LIST_ITEM]
+    const range = $from.blockRange($to, (node) => node.childCount > 0 && node.firstChild!.type === item)
+    if (!range || range.startIndex !== 0 || !LISTS.includes(range.parent.type.name)) return false
+    const before = $from.before(range.depth)
+    const previous = state.doc.resolve(before).nodeBefore
+    if (previous?.type !== range.parent.type || previous.lastChild?.type !== item || !canJoin(state.doc, before)) return false
+
+    const tr = state.tr.join(before)
+    const joined = createChainableState({ state, transaction: tr })
+    return sinkListItem(item)(joined, dispatch)
+  }
+}
+
 /** Tab, over several items starting at the first of their list: the rest go
  *  under that first one, which has no item above it to go under itself.
  *  Tiptap's sink takes the items as a block and, finding no room for the
@@ -147,7 +167,7 @@ export const ListItem = BaseListItem.extend({
 
   addKeyboardShortcuts() {
     const enter = pm(this.editor, enterNestedList())
-    const tab = pm(this.editor, sinkFromFirstItem())
+    const tab = pm(this.editor, sinkAcrossAdjacentLists(), sinkFromFirstItem())
     // Asked first, since editor.commands dispatches even when the command
     // declines, and outside a list these decline on every press.
     const { editor, name } = this

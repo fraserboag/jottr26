@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { getExtensionField, getSchemaTypeByName, type KeyboardShortcutCommand } from '@tiptap/core'
 import { EditorState, TextSelection } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
-import { backspaceNestedItem, enterNestedList, nestedList, sinkFromFirstItem } from '@/components/editor/extensions/lists'
+import { backspaceNestedItem, enterNestedList, nestedList, sinkAcrossAdjacentLists, sinkFromFirstItem } from '@/components/editor/extensions/lists'
 import { headlessEditor, pageSchema as schema, paragraph, run } from './editor'
 
 function list(type: string, ...items: Node[][]) {
@@ -115,7 +115,105 @@ function outlineOf(node: Node, depth = 0): string[] {
   ])
 }
 
+/** Send the key through the page's plugins in the same order as the view. */
+function pressTab(instance: ReturnType<typeof headlessEditor>, shiftKey = false) {
+  const event = { key: 'Tab', keyCode: 9, shiftKey, altKey: false, ctrlKey: false, metaKey: false }
+  const view = { state: instance.state, dispatch: instance.view.dispatch }
+  return instance.extensionManager.plugins.some((plugin) =>
+    plugin.props.handleKeyDown?.call(plugin, view as never, event as KeyboardEvent),
+  )
+}
+
+describe('Tab and Shift-Tab with the caret anywhere in a list item', () => {
+  for (const type of ['bulletList', 'orderedList']) {
+    for (const offset of [0, 2, 5]) {
+      it(`indents and outdents a ${type} at text offset ${offset}`, () => {
+        const start = caretAfter('child', list(type, [paragraph('parent')], [paragraph('child')], [paragraph('after')]))
+        const instance = headlessEditor(start.doc.toJSON(), start.selection.from - 5 + offset)
+        const before = instance.state.doc
+        assert.equal(pressTab(instance), true)
+        instance.state.doc.check()
+        assert.deepEqual(outlineOf(instance.state.doc.child(1)), ['parent', '  child', 'after'])
+        assert.equal(instance.state.selection.$from.parentOffset, offset, 'caret stays on the same character')
+        assert.equal(pressTab(instance, true), true)
+        instance.state.doc.check()
+        assert.ok(instance.state.doc.eq(before), 'Shift-Tab restores the original nesting')
+        assert.equal(instance.state.selection.$from.parentOffset, offset)
+        instance.destroy()
+      })
+    }
+  }
+
+  it('keeps working deep in mixed lists with children already nested under the item', () => {
+    let nested = list('orderedList', [paragraph('above')], [paragraph('target'), list('bulletList', [paragraph('child')])], [paragraph('below')])
+    for (let depth = 0; depth < 10; depth++) {
+      nested = list(depth % 2 ? 'orderedList' : 'bulletList', [paragraph(`parent ${depth}`), nested])
+    }
+    const start = caretAfter('tar', nested)
+    const instance = headlessEditor(start.doc.toJSON(), start.selection.from)
+    const before = instance.state.doc
+    const originalDepth = instance.state.selection.$from.depth
+    for (let repeat = 0; repeat < 3; repeat++) {
+      assert.equal(pressTab(instance), true)
+      instance.state.doc.check()
+      assert.equal(instance.state.selection.$from.depth, originalDepth + 2)
+      assert.equal(instance.state.selection.$from.parent.textContent, 'target')
+      assert.equal(instance.state.selection.$from.parentOffset, 3)
+      assert.equal(pressTab(instance, true), true)
+      instance.state.doc.check()
+      assert.ok(instance.state.doc.eq(before), 'the subtree survives each indent/outdent pair')
+    }
+    instance.destroy()
+  })
+
+  for (const type of ['bulletList', 'orderedList']) {
+    for (const offset of [0, 2, 5]) {
+      it(`indents across adjacent ${type} containers at text offset ${offset}`, () => {
+        // Separate lists can look like one continuous list at the same level.
+        const start = caretAfter('child', list('bulletList', [
+          paragraph('parent'),
+          list(type, [paragraph('above')]),
+          list(type, [paragraph('child'), list(type, [paragraph('descendant')])], [paragraph('after')]),
+        ]))
+        const instance = headlessEditor(start.doc.toJSON(), start.selection.from - 5 + offset)
+        const originalDepth = instance.state.selection.$from.depth
+        assert.equal(pressTab(instance), true)
+        instance.state.doc.check()
+        assert.equal(instance.state.selection.$from.depth, originalDepth + 2, 'under the item above in the adjacent list')
+        assert.equal(instance.state.selection.$from.parent.textContent, 'child')
+        assert.equal(instance.state.selection.$from.parentOffset, offset)
+        assert.deepEqual(outlineOf(instance.state.doc.child(1)), ['parent', '  above', '    child', '      descendant', '  after'])
+        assert.equal(pressTab(instance, true), true)
+        instance.state.doc.check()
+        assert.deepEqual(outlineOf(instance.state.doc.child(1)), ['parent', '  above', '  child', '    descendant', '  after'])
+        assert.equal(instance.state.selection.$from.parentOffset, offset)
+        instance.destroy()
+      })
+    }
+  }
+})
+
 describe('Tab over several items', () => {
+  it('takes every selected item under the last item of an adjacent list', () => {
+    const start = selecting('b', 'c',
+      list('bulletList', [paragraph('a')]),
+      list('bulletList', [paragraph('b')], [paragraph('c')], [paragraph('d')]),
+    )
+    const instance = headlessEditor(start.doc.toJSON(), start.selection.from)
+    instance.commands.command(({ tr }) => {
+      tr.setSelection(TextSelection.create(tr.doc, start.selection.from, start.selection.to))
+      return true
+    })
+    assert.equal(pressTab(instance), true)
+    instance.state.doc.check()
+    assert.deepEqual(outlineOf(instance.state.doc.child(1)), ['a', '  b', '  c', 'd'])
+    assert.equal(instance.state.doc.textBetween(instance.state.selection.from, instance.state.selection.to, '|'), 'b|c')
+    assert.equal(pressTab(instance, true), true)
+    instance.state.doc.check()
+    assert.deepEqual(outlineOf(instance.state.doc.child(1)), ['a', 'b', 'c', 'd'])
+    instance.destroy()
+  })
+
   it('takes the rest under the first, when the selection starts on it', () => {
     for (const type of ['bulletList', 'orderedList']) {
       const start = selecting('a', 'c', list(type, [paragraph('a')], [paragraph('b')], [paragraph('c')], [paragraph('d')]))
@@ -149,6 +247,21 @@ describe('Tab over several items', () => {
     // The first item alone, with nothing else to take under it.
     assert.equal(run(selecting('a', 'a', items()), sinkFromFirstItem()).applied, false)
     assert.equal(run(caretAfter('a', items()), sinkFromFirstItem()).applied, false)
+  })
+})
+
+describe('adjacent list boundaries', () => {
+  it('declines across a different list kind or a separating paragraph', () => {
+    const current = list('bulletList', [paragraph('target')])
+    for (const body of [
+      [list('orderedList', [paragraph('above')]), current],
+      [list('bulletList', [paragraph('above')]), paragraph(), current],
+    ]) {
+      const start = caretAfter('tar', ...body)
+      const { applied, state } = run(start, sinkAcrossAdjacentLists())
+      assert.equal(applied, false)
+      assert.ok(state.doc.eq(start.doc))
+    }
   })
 })
 
