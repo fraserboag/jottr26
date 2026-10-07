@@ -14,6 +14,7 @@ import { SelectLine } from './selectLine'
 import { Subpages, SubpagesTitle } from './subpages'
 import { ScrollingTableView } from './tableView'
 import { JottrDocument, Title } from './title'
+import { TextCaret } from './textCaret'
 
 /** Every block and mark a page can hold, with the keys that go with them, in
  *  the order the editor installs them. Their shortcuts are tried the other way
@@ -64,6 +65,7 @@ export function pageExtensions({ subpages = Subpages }: { subpages?: AnyExtensio
     Heading,
     SelectLine,
     SelectBlock,
+    TextCaret,
     ListItem,
     Callout,
     CodeBlockExit,

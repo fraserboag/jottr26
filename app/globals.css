@@ -257,6 +257,30 @@ body {
   min-height: 1lh;
 }
 
+/* A text-height caret outside the editable DOM, so wrapped lines keep the
+   same caret as the first line without changing their spacing. */
+.editor-caret-host {
+  position: relative;
+}
+.editor-caret-host:has(> .text-caret:not([hidden])) > .ProseMirror {
+  caret-color: transparent;
+}
+.text-caret {
+  position: absolute;
+  width: 1.5px;
+  background: var(--text);
+  pointer-events: none;
+  animation: text-caret-blink 1.06s steps(1) infinite;
+}
+.text-caret[hidden] {
+  display: none;
+}
+@keyframes text-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 /* A title in the body: a step up in size and weight, and nothing else. Same
    margins as a paragraph, so turning a line into a title moves nothing
    around it beyond its own taller line. An accordion's or a subpage list's
