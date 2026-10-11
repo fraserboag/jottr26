@@ -20,6 +20,7 @@ import { useSidebarResize } from './useSidebarResize'
 import { useAllPages, useTrashedPages } from '@/lib/db/hooks'
 import { useOpenPageId, useView, type View } from '@/lib/util/route'
 import { afterPaint, idleAfterPaint } from '@/lib/util/idle'
+import { listenForMouseHistory } from '@/lib/util/mouseHistory'
 import { markStartup } from '@/lib/util/startupTiming'
 
 // Kept out of hydration so the workspace can open before the editor is
@@ -53,6 +54,8 @@ export function Workspace() {
   const trashed = useTrashedPages(userId)
   const { wide, sidebarOpen, setSidebarOpen, afterDrawerShuts } = useSidebarDrawer()
   const { width, dragging, startResize, endResize } = useSidebarResize()
+
+  useEffect(() => listenForMouseHistory(window), [])
 
   const pagesReady = pages !== undefined
 
