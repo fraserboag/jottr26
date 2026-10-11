@@ -373,6 +373,23 @@ class AccordionView implements NodeView {
     this.contentDOM.className = 'accordion-content'
 
     this.dom.append(this.button, this.contentDOM)
+    // The title is only as wide as its words. The rest of its grid row
+    // belongs to the frame, so the browser cannot place a caret there.
+    this.dom.addEventListener('mousedown', (event) => {
+      if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey
+        || event.target !== this.dom || !this.view.editable) return
+      const title = this.contentDOM.firstElementChild
+      if (!title) return
+      const bounds = title.getBoundingClientRect()
+      if (event.clientX < bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return
+      const pos = this.getPos()
+      if (pos === undefined) return
+
+      event.preventDefault()
+      this.view.focus()
+      const end = pos + this.node.child(0).nodeSize
+      this.view.dispatch(this.view.state.tr.setSelection(TextSelection.create(this.view.state.doc, end)))
+    })
     this.render()
   }
 
