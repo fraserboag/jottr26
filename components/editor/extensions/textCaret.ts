@@ -1,5 +1,9 @@
 import { Extension } from '@tiptap/core'
-import { Plugin, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+
+/** At a soft wrap the same offset is both the end of one line and the start
+ *  of the next. A line jump tells the drawn caret which side to use. */
+export const textCaretSide = new PluginKey<-1 | 1 | null>('textCaretSide')
 
 /** WebKit stretches its native caret to the line box on wrapped lines. Draw
  *  one at text height without changing the leading or putting a widget in
@@ -9,6 +13,16 @@ export const TextCaret = Extension.create({
 
   addProseMirrorPlugins() {
     return [new Plugin({
+      key: textCaretSide,
+      state: {
+        init: () => null,
+        apply(tr, side) {
+          const jump = tr.getMeta(textCaretSide)
+          if (jump === -1 || jump === 1) return jump
+          if (tr.docChanged || tr.selectionSet) return null
+          return side
+        },
+      },
       view(view) {
         let host = view.dom.parentElement!
         const doc = view.dom.ownerDocument
@@ -46,12 +60,14 @@ export const TextCaret = Extension.create({
           const { node } = view.domAtPos(selection.head)
           const element = node.nodeType === 1 ? node as HTMLElement : node.parentElement!
           const style = win.getComputedStyle(element)
-          let coords = view.coordsAtPos(selection.head)
+          const side = textCaretSide.getState(view.state)
+          let coords = view.coordsAtPos(selection.head, side ?? 1)
           // At a soft wrap, one document position belongs to two visual
-          // lines. The native range retains which side the user clicked or
-          // reached with Home/End; coordsAtPos alone always chooses one side.
+          // lines. WebKit's collapsed Range rectangle can describe the end
+          // of the previous line even after Home reached the next line's
+          // start, so a line jump's explicit side takes precedence.
           const native = doc.getSelection()
-          if (native?.isCollapsed && native.rangeCount && native.anchorNode
+          if (side == null && native?.isCollapsed && native.rangeCount && native.anchorNode
             && view.dom.contains(native.anchorNode)
             && view.posAtDOM(native.anchorNode, native.anchorOffset) === selection.head) {
             const rect = native.getRangeAt(0).getBoundingClientRect()
