@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type MouseEvent, type PointerEvent } from 'react'
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { MenuItem, Popover } from '@/components/ui/Popover'
@@ -39,9 +39,10 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  stays in reach, with nothing under it. A heading has the sidebar's plus as
  *  well as its menu, for a new subpage under it; the entries below don't, as
  *  what they'd add would sit a level deeper than the list shows. Dragging there
- *  also moves a page between headings, as the sidebar does: dropped above or
- *  below another heading's entry, or onto the heading itself, which puts it at
- *  the end of that heading's list, and is the only way into one with none. */
+ *  also moves a page between headings, as the sidebar does. Headings drag
+ *  too, carrying their subpages with them. On either a heading or an entry,
+ *  the edges reorder and the middle nests; the middle of a heading is also
+ *  the way into a page with no subpages. */
 
 type Drop = { id: string; zone: 'before' | 'after' | 'inside' }
 
@@ -95,7 +96,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
       if (typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run()
       return
     }
-    if (pointerType.current === 'mouse' && target.closest('li') && !target.closest('.subpages-menu')) return
+    if (pointerType.current === 'mouse' && target.closest('li, .subpages-group-head') && !target.closest('.subpages-menu')) return
     event.preventDefault()
   }
 
@@ -113,11 +114,19 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
     setDrop(null)
   }
 
+  const start = (event: ReactDragEvent, id: string) => {
+    setDragId(id)
+    event.dataTransfer.effectAllowed = 'move'
+    // A type of its own rather than text/plain, which the editor would paste
+    // in as the page's id if it were dropped anywhere else on the page.
+    event.dataTransfer.setData('application/x-jottr-subpage', id)
+  }
+
   // A page trashed or moved away on another device mid-drag takes its entry
   // with it, and a browser sends no dragend for an element that has gone. The
   // drag is over then, or the listeners below would refuse every drag in the
   // editor until the page was reloaded.
-  const listed = depth === 2 ? groups?.flatMap((group) => group.children.map((child) => child.page)) : pages
+  const listed = depth === 2 ? groups?.flatMap((group) => [group.page, ...group.children.map((child) => child.page)]) : pages
   const dragging = dragId && listed?.some((page) => page.id === dragId) ? dragId : null
 
   // While an entry is being dragged, this block has every drag event in the
@@ -145,9 +154,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
       event.preventDefault()
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
       const element = event.target instanceof Element ? event.target : null
-      const head = element?.closest<HTMLElement>('.subpages-group-head')
-      if (head?.dataset.id) return place({ id: head.dataset.id, zone: 'inside' })
-      const item = element?.closest('li')
+      const item = element?.closest<HTMLElement>('li, .subpages-group-head')
       // In the gap between two entries the line stays where it was.
       if (!item) return
       const id = item.dataset.id
@@ -187,14 +194,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
       draggable
       data-dragging={dragging === page.id || undefined}
       data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
-      onDragStart={(event) => {
-        setDragId(page.id)
-        event.dataTransfer.effectAllowed = 'move'
-        // A type of its own rather than text/plain, which the editor
-        // would paste in as the page's id if the entry were dropped
-        // anywhere else on the page.
-        event.dataTransfer.setData('application/x-jottr-subpage', page.id)
-      }}
+      onDragStart={(event) => start(event, page.id)}
       onDragEnd={end}
       onClick={(event) => follow(event, page.id)}
     >
@@ -222,7 +222,11 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
               <div
                 className="subpages-group-head"
                 data-id={page.id}
+                draggable
+                data-dragging={dragging === page.id || undefined}
                 data-drop={dragging && drop?.id === page.id ? drop.zone : undefined}
+                onDragStart={(event) => start(event, page.id)}
+                onDragEnd={end}
                 onClick={(event) => follow(event, page.id)}
               >
                 <a href={pageHref(page.id)} draggable={false}>

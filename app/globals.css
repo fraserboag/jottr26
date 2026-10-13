@@ -434,10 +434,10 @@ h1.page-title {
 }
 /* Dragging to reorder, drawn the way the sidebar draws it: the entry being
    carried fades, and a line marks the gap it will land in. */
-.ProseMirror div[data-type="subpages"] li[data-dragging] {
+.ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head)[data-dragging] {
   opacity: 0.4;
 }
-.ProseMirror div[data-type="subpages"] li:is([data-drop="before"], [data-drop="after"])::after {
+.ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is([data-drop="before"], [data-drop="after"])::after {
   content: '';
   position: absolute;
   left: 0;
@@ -447,10 +447,10 @@ h1.page-title {
   background: var(--accent);
   pointer-events: none;
 }
-.ProseMirror div[data-type="subpages"] li[data-drop="before"]::after {
+.ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head)[data-drop="before"]::after {
   top: -3px;
 }
-.ProseMirror div[data-type="subpages"] li[data-drop="after"]::after {
+.ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head)[data-drop="after"]::after {
   bottom: -3px;
 }
 .ProseMirror div[data-type="subpages"] li > svg {
@@ -528,6 +528,7 @@ h1.page-title {
   margin-top: calc(var(--subpages-leading) * 1em);
 }
 .ProseMirror div[data-type="subpages"] .subpages-group-head {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
