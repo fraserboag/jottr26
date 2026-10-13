@@ -496,6 +496,9 @@ body {
 /* Shown on hover or keyboard focus; on touch screens they stay visible,
    a little faded. */
 @media (pointer: coarse) {
+  .ProseMirror div[data-type="subpages"] > .subpages-box {
+    padding-right: 12px;
+  }
   .ProseMirror div[data-type="subpages"] .subpages-row-actions {
     opacity: 0.4;
   }
