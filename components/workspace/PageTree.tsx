@@ -92,10 +92,14 @@ const Row = memo(function Row({
     event.dataTransfer.dropEffect = 'move'
     const rect = event.currentTarget.getBoundingClientRect()
     const offset = (event.clientY - rect.top) / rect.height
-    // Edges reorder, the middle nests — the same gesture people expect from
-    // every file tree they have used.
+    // The lower edge of an expanded parent shares the first child's top
+    // insertion point. Other edges reorder; the middle nests.
     const zone: DropZone = offset < 0.28 ? 'before' : offset > 0.72 ? 'after' : 'inside'
-    drop.set({ id: page.id, zone })
+    drop.set(
+      zone === 'after' && hasChildren && isExpanded
+        ? { id: children[0].page.id, zone: 'before' }
+        : { id: page.id, zone },
+    )
   }
 
   const active = useSyncExternalStore(
@@ -127,8 +131,9 @@ const Row = memo(function Row({
         onDragLeave={() => drop.set(null)}
         onDrop={(event) => {
           event.preventDefault()
-          if (dragId && active) {
-            void dropRelative(dragId, page.id, active)
+          const target = drop.get()
+          if (dragId && target) {
+            void dropRelative(dragId, target.id, target.zone)
           }
           setDragId(null)
           drop.set(null)
