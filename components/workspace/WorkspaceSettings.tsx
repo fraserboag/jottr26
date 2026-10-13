@@ -138,15 +138,6 @@ function WorkspaceSetting({ workspace, canDelete, ordering }: { workspace: NoteW
           maxLength={80}
           className={nameInputClass}
         />
-        {canDelete && <span className="hidden shrink-0 gap-1 pointer-coarse:flex">
-          {(['up', 'down'] as const).map((direction) => <button key={direction} type="button"
-            disabled={busy || !ordering.canStep(workspace.id, direction)}
-            aria-label={`Move ${workspace.name} ${direction}`}
-            className={`${actionClass} w-10 touch-manipulation`}
-            onClick={() => ordering.step(workspace.id, direction)}>
-            <Icon name={direction === 'up' ? 'chevronUp' : 'chevronDown'} size={16} />
-          </button>)}
-        </span>}
         <button type="button" disabled={busy || !canDelete} aria-label={`Delete ${workspace.name}`} title={canDelete ? 'Delete space' : 'Keep at least one space'} className={`${actionClass} w-8 text-danger disabled:opacity-40 pointer-coarse:w-10`} onClick={() => void run(async () => {
           if (!window.confirm('Deleting this space will move all of its pages to Trash.')) return
           await deleteWorkspace(workspace.id)
