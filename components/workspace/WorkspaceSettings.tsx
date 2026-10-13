@@ -11,7 +11,7 @@ const actionClass = 'flex h-8 shrink-0 items-center justify-center rounded-md px
 const nameInputClass = 'workspace-name-input mr-auto h-8 min-w-0 max-w-64 flex-1 cursor-text border-0 bg-transparent p-0 text-ink pointer-coarse:h-10'
 
 export function WorkspaceSettings() {
-  const { active, notice, dismissNotice } = useNoteWorkspaces()
+  const { active } = useNoteWorkspaces()
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const ordering = useWorkspaceOrderDrag(active, setError)
@@ -19,10 +19,6 @@ export function WorkspaceSettings() {
   return (
     <section className="mt-10" aria-labelledby="workspaces-title">
       <h2 id="workspaces-title" className="page-title" style={{ marginBottom: '0.75rem' }}>Spaces</h2>
-      {notice && <div role="status" className="mb-3 flex items-start gap-2 rounded-md bg-sunken p-3 text-muted">
-        <span className="flex-1">{notice}</span>
-        <button type="button" aria-label="Dismiss space message" onClick={() => void dismissNotice()}><Icon name="x" /></button>
-      </div>}
       <ul className="divide-y divide-line">
         {active.map((workspace) => <WorkspaceSetting key={workspace.id} workspace={workspace} canDelete={active.length > 1} ordering={ordering} />)}
         {adding && <NewWorkspaceSetting onClose={() => setAdding(false)} />}

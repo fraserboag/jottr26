@@ -1163,7 +1163,7 @@ export class SyncEngine {
         // Both devices may have validated this name while offline. Refresh
         // names and persist the replacement before retrying so a restart is safe.
         await this.pullWorkspaces(signal)
-        await this.db.transaction('rw', [this.db.workspaces, this.db.meta], async () => {
+        await this.db.transaction('rw', this.db.workspaces, async () => {
           const current = await this.db.workspaces.get(id)
           // A rename made while the request was in flight gets its own retry.
           if (!current || current.updatedAt !== workspace.updatedAt || current.name !== workspace.name) return
@@ -1179,7 +1179,6 @@ export class SyncEngine {
             name, updatedAt: Math.max(Date.now(), current.updatedAt + 1), dirty: 1,
             dirtyFields: [...new Set([...current.dirtyFields, 'name' as const])],
           })
-          await writeMeta(this.db, 'workspaces:notice', `“${workspace.name}” was renamed to “${name}” because another device used the same space name. Your pages have been kept.`)
         })
         continue
       }
@@ -1217,9 +1216,6 @@ export class SyncEngine {
       const result = data as { applied: boolean; reason?: string; source_workspace_id?: string } | null
       if (!result) throw new Error('Space operation returned nothing.')
       await this.db.workspaceOperations.update(operation.seq!, { acknowledged: true })
-      if (!result.applied) {
-        await writeMeta(this.db, 'workspaces:notice', result.reason ?? 'A space changed on another device. Your view has been refreshed.')
-      }
       // An acknowledgement lost in transit is safe to retry: the server stores
       // operation receipts. Pull canonical page state, including earlier Trash.
       await this.pullWorkspaces(signal, operation.workspaceId)

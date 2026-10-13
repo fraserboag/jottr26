@@ -5,7 +5,7 @@ import { FakeServer, installBrowserGlobals } from './harness'
 installBrowserGlobals()
 const { default: Dexie } = await import('dexie')
 
-const { openDatabase, closeDatabase, databaseName, readMeta } = await import('@/lib/db/dexie')
+const { openDatabase, closeDatabase, databaseName } = await import('@/lib/db/dexie')
 const { createPage, restorePage, trashPage, emptyTrash, movePage, movePageToWorkspace, dropRelative, liveChildren, toggleFavorite } = await import('@/lib/db/pages')
 const { createWorkspace, deleteWorkspace, restoreWorkspace, purgeWorkspace, updateWorkspace, reorderWorkspace, workspaceOrder } = await import('@/lib/db/workspaces')
 const { whenPersisted, releaseAll } = await import('@/lib/db/ydoc')
@@ -104,7 +104,6 @@ describe('workspaces', () => {
     assert.ok(server.docs.get(page))
     assert.ok(server.docs.get(personal), 'unrelated notes also upload in the same cycle')
     assert.equal(await countPending(db), 0)
-    assert.match(await readMeta(db, 'workspaces:notice', ''), /renamed to “Work \(3\)”/)
 
     // A conflicting rename of a previously synced space uses the same recovery.
     await updateWorkspace(work, { name: 'Business' })
@@ -447,7 +446,6 @@ describe('workspaces', () => {
     await engine.push(signal)
     assert.equal((await db.workspaces.get(work))!.deletedAt, 0)
     assert.equal((await db.pages.get(page))!.deletedAt, 0)
-    assert.match(await readMeta(db, 'workspaces:notice', ''), /at least one/)
     assert.equal(await db.workspaceOperations.count(), 0)
   })
 })

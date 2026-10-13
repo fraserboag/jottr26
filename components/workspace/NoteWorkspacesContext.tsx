@@ -15,8 +15,6 @@ interface NoteWorkspacesValue {
   inline: boolean
   select: (id: string) => Promise<void>
   setInline: (inline: boolean) => Promise<void>
-  notice: string
-  dismissNotice: () => Promise<void>
   ready: boolean
 }
 
@@ -40,11 +38,11 @@ export function useNoteWorkspaceState(pages: PageRow[]) {
   }, [userId])
   const preferences = useLiveQuery(async () => {
     const db = activeDatabase()
-    if (!db || !userId) return { inline: false, selected: '', notice: '' }
-    const [inline, selected, notice] = await Promise.all([
-      readMeta(db, 'workspaces:inline', false), readMeta(db, 'workspaces:selected', ''), readMeta(db, 'workspaces:notice', ''),
+    if (!db || !userId) return { inline: false, selected: '' }
+    const [inline, selected] = await Promise.all([
+      readMeta(db, 'workspaces:inline', false), readMeta(db, 'workspaces:selected', ''),
     ])
-    return { inline, selected, notice }
+    return { inline, selected }
   }, [userId])
   const active = useMemo(() => workspaces?.filter((row) => !row.deletedAt) ?? [], [workspaces])
   const owningId = pages.find((page) => page.id === pageId)?.workspaceId
@@ -75,13 +73,9 @@ export function useNoteWorkspaceState(pages: PageRow[]) {
     const db = activeDatabase()
     if (db) await writeMeta(db, 'workspaces:inline', inline)
   }, [])
-  const dismissNotice = useCallback(async () => {
-    const db = activeDatabase()
-    if (db) await writeMeta(db, 'workspaces:notice', '')
-  }, [])
   return {
     workspaces: workspaces ?? [], active, selectedId, inline: preferences?.inline ?? false,
-    select, setInline, notice: preferences?.notice ?? '', dismissNotice,
+    select, setInline,
     ready: workspaces !== undefined && preferences !== undefined,
   }
 }

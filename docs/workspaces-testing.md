@@ -33,7 +33,7 @@ The schema is designed to support the current production app before the frontend
 9. Repeat the sidebar, Settings, mode switch and recovery checks on a phone, including the keyboard and sidebar drawer. Use keyboard navigation to select spaces and operate settings.
 10. On a narrow phone (320px width), confirm the Show all spaces simultaneously control remains visible and usable. Use the up/down buttons in Settings to reorder spaces without dragging, then use a page's three-dot Move to space menu to transfer it and its children. Check both sidebar rows and subpage lists, and verify the move on another device.
 11. Select Work, follow a link to a Personal note, then open Trash or close the note. The selected space and Trash scope must remain Personal. Repeat with browser Back/Forward and inline spaces enabled.
-12. On two offline devices, create spaces with the same name and add notes. Reconnect both: the conflicting space gets a numbered suffix, both sets of notes upload, and Settings explains the automatic rename. Repeat with conflicting renames and an 80-character name; confirm unrelated note edits continue syncing.
+12. On two offline devices, create spaces with the same name and add notes. Reconnect both: the conflicting space gets a numbered suffix and both sets of notes upload. Repeat with conflicting renames and an 80-character name; confirm unrelated note edits continue syncing. Spaces in Settings should show no persistent warning banner.
 
 ## Automated verification scope
 
