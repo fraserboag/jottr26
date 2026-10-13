@@ -7,6 +7,9 @@
 
 export interface PageRow {
   id: string
+  workspaceId: string
+  /** The workspace deletion that moved this page to Trash, or ''. */
+  workspaceDeletionId: string
   title: string
   /** '' means the page sits at the root. */
   parentId: string
@@ -42,8 +45,45 @@ export interface PageRow {
 }
 
 /** The metadata a device can change and push. */
-export const PAGE_FIELDS = ['title', 'parentId', 'sortKey', 'isFavorite', 'deletedAt'] as const
+export const PAGE_FIELDS = ['title', 'parentId', 'sortKey', 'isFavorite', 'deletedAt', 'workspaceId', 'workspaceDeletionId'] as const
 export type PageField = (typeof PAGE_FIELDS)[number]
+
+export type WorkspaceField = 'name' | 'sortKey'
+
+export interface NoteWorkspaceRow {
+  id: string
+  name: string
+  /** Unordered older rows use creation order until the first reorder. */
+  sortKey?: string
+  createdAt: number
+  updatedAt: number
+  serverUpdatedAt: number
+  deletedAt: number
+  purgedAt: number
+  stateToken: string
+  dirty: 0 | 1
+  dirtyFields: WorkspaceField[]
+}
+
+/** Lifecycle changes are explicit, ordered and idempotent, unlike metadata
+ *  edits. Retried operations must not repeat a deletion after restoration. */
+export interface WorkspaceOperationRow {
+  seq?: number
+  id: string
+  workspaceId: string
+  action: 'delete' | 'restore' | 'restorePage' | 'purge' | 'movePage'
+  expectedState: string
+  pageId: string
+  queuedAt: number
+  /** Keep the operation until its canonical state has also reached disk. */
+  acknowledged?: boolean
+  sourceWorkspaceId?: string
+  sourceParentId?: string
+  sourceSortKey?: string
+  parentId?: string
+  sortKey?: string
+  pageIds?: string[]
+}
 
 export interface DocStateRow {
   pageId: string
@@ -84,5 +124,6 @@ export interface MetaRow {
 /** Server watermarks. Stored as the server's own timestamps so a skewed client
  *  clock can never cause a row to be skipped. */
 export const META_PAGES_CURSOR = 'cursor:pages'
+export const META_WORKSPACES_CURSOR = 'cursor:workspaces'
 export const META_DOCS_CURSOR = 'cursor:page_docs'
 export const META_LAST_SYNCED = 'lastSyncedAt'

@@ -9,6 +9,7 @@ import { EditorError } from './EditorError'
 import { EmptyState } from './EmptyState'
 import { EnsureFirstPage } from './EnsureFirstPage'
 import { PagesContext } from './PagesContext'
+import { NoteWorkspacesContext, useNoteWorkspaceState } from './NoteWorkspacesContext'
 import { SettingsBar, SettingsPage } from './SettingsPage'
 import { Sidebar } from './Sidebar'
 import { StarButton } from './StarButton'
@@ -52,12 +53,20 @@ export function Workspace() {
   const [openId, open] = useOpenPageId()
   const [view, openView] = useView()
   const trashed = useTrashedPages(userId)
+  const noteWorkspaces = useNoteWorkspaceState(pages ?? [])
+  const activeIds = useMemo(() => new Set(noteWorkspaces.active.map((row) => row.id)), [noteWorkspaces.active])
+  const activePages = useMemo(() => (pages ?? []).filter((page) => activeIds.has(page.workspaceId)), [pages, activeIds])
+  const visiblePages = useMemo(() => activePages.filter((page) => noteWorkspaces.inline || page.workspaceId === noteWorkspaces.selectedId), [activePages, noteWorkspaces.inline, noteWorkspaces.selectedId])
+  const visibleTrash = useMemo(() => {
+    const deletedIds = new Set(noteWorkspaces.workspaces.filter((row) => row.deletedAt).map((row) => row.id))
+    return (trashed ?? []).filter((page) => deletedIds.has(page.workspaceId) || (activeIds.has(page.workspaceId) && (noteWorkspaces.inline || page.workspaceId === noteWorkspaces.selectedId)))
+  }, [trashed, activeIds, noteWorkspaces.workspaces, noteWorkspaces.inline, noteWorkspaces.selectedId])
   const { wide, sidebarOpen, setSidebarOpen, afterDrawerShuts } = useSidebarDrawer()
   const { width, dragging, startResize, endResize } = useSidebarResize()
 
   useEffect(() => listenForMouseHistory(window), [])
 
-  const pagesReady = pages !== undefined
+  const pagesReady = pages !== undefined && noteWorkspaces.ready
 
   useEffect(() => {
     if (!pagesReady) return
@@ -79,11 +88,17 @@ export function Workspace() {
 
   const landOn = useCallback((id: string) => open(id, { replace: true }), [open])
 
-  const byId = useMemo(() => new Map((pages ?? []).map((page) => [page.id, page])), [pages])
+  const byId = useMemo(() => new Map(activePages.map((page) => [page.id, page])), [activePages])
   const page = openId ? (byId.get(openId) ?? null) : null
   // An empty trash gets the empty state rather than a title over nothing. It
   // waits for the query, so a full trash never flashes as an empty one.
-  const trashEmpty = !page && view === 'trash' && trashed?.length === 0
+  const trashEmpty = !page && view === 'trash' && trashed !== undefined && visibleTrash.length === 0
+
+  useEffect(() => {
+    if (!pagesReady || !openId) return
+    const removed = trashed?.some((row) => row.id === openId) || (pages?.some((row) => row.id === openId && !activeIds.has(row.workspaceId)))
+    if (removed) open(null, { replace: true, workspaceId: noteWorkspaces.selectedId })
+  }, [pagesReady, openId, trashed, pages, activeIds, noteWorkspaces.selectedId, open])
 
   const trail = usePageTrail(byId, page)
   const enteringFromAbove = useEntryFromAbove(byId, openId)
@@ -103,10 +118,11 @@ export function Workspace() {
     [openView, afterDrawerShuts],
   )
 
-  if (!pages) return <LoadingScreen label="Opening your notes…" />
+  if (!pages || !noteWorkspaces.ready) return <LoadingScreen label="Opening your notes…" />
 
   return (
-    <PagesContext.Provider value={pages}>
+    <NoteWorkspacesContext.Provider value={noteWorkspaces}>
+    <PagesContext.Provider value={visiblePages}>
       <div
         className={`flex h-dvh overflow-hidden bg-surface${
           dragging ? ' cursor-col-resize select-none [&_button]:cursor-col-resize' : ''
@@ -152,7 +168,7 @@ export function Workspace() {
           >
             <div className={wide ? 'h-full overflow-hidden rounded-xl shadow-[var(--shadow-subtle)]' : 'h-full'}>
               <Sidebar
-                pages={pages}
+                pages={visiblePages}
                 openId={openId}
                 onOpen={openPage}
                 view={view}
@@ -233,7 +249,7 @@ export function Workspace() {
                     wide && sidebarOpen ? 'pl-2' : 'pl-10 pointer-coarse:pl-12'
                   }`}
                 >
-                  <TrashBar pages={trashed ?? []} />
+                  <TrashBar pages={visibleTrash} />
                 </div>
               )}
               {/* And the settings put the version there. */}
@@ -273,7 +289,7 @@ export function Workspace() {
                 ) : view === 'settings' ? (
                   <SettingsPage />
                 ) : (
-                  <TrashPage pages={trashed ?? []} />
+                  <TrashPage pages={visibleTrash} />
                 )}
               </div>
             </div>
@@ -285,5 +301,6 @@ export function Workspace() {
         </main>
       </div>
     </PagesContext.Provider>
+    </NoteWorkspacesContext.Provider>
   )
 }

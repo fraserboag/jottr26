@@ -11,12 +11,15 @@ import {
   META_DOCS_CURSOR,
   META_LAST_SYNCED,
   META_PAGES_CURSOR,
+  META_WORKSPACES_CURSOR,
   PAGE_FIELDS,
   type DocStateRow,
   type PageField,
   type PageRow,
+  type NoteWorkspaceRow,
 } from '@/lib/db/schema'
 import { forgetPages, touch } from '@/lib/db/pages'
+import { enforceWorkspaceState, pendingMovePageIds } from '@/lib/db/workspaces'
 import { writeSearchText } from '@/lib/db/searchText'
 import { closePeerChannel, openPeerChannel } from '@/lib/db/peers'
 import {
@@ -79,12 +82,25 @@ const RECONCILE_INTERVAL_MS = 10 * 60_000
 
 interface ServerPage {
   id: string
+  workspace_id: string
+  workspace_deletion_id: string | null
   title: string
   parent_id: string | null
   sort_key: string
   is_favorite: boolean
   deleted_at: string | null
   purged_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface ServerWorkspace {
+  id: string
+  name: string
+  sort_key?: string
+  deleted_at: string | null
+  purged_at: string | null
+  state_token: string | null
   created_at: string
   updated_at: string
 }
@@ -107,14 +123,20 @@ export async function countPending(db: JottrDB) {
   // A delete made for good offline is waiting to upload like any edit, so it
   // counts too: sign-out warns before erasing it, and the status is not
   // 'synced' while it is queued.
-  const [pages, docs, purges] = await Promise.all([
+  const [pages, docs, purges, workspaces, operations] = await Promise.all([
     db.pages.where('dirty').equals(1).primaryKeys(),
     db.docStates.where('dirty').equals(1).primaryKeys(),
     db.purges.toCollection().primaryKeys(),
+    db.workspaces.where('dirty').equals(1).primaryKeys(),
+    db.workspaceOperations.toArray(),
   ])
   // An edit that never reached the disk is only in this tab's memory, and is
   // lost for good if the database is erased.
-  return new Set([...pages, ...docs, ...purges, ...unsavedPages()] as string[]).size
+  return new Set([
+    ...pages, ...docs, ...purges, ...unsavedPages(),
+    ...workspaces.map((id) => `workspace:${id}`),
+    ...operations.map((operation) => `workspace:${operation.workspaceId}`),
+  ]).size
 }
 
 /** A server timestamp as an exact key, down to the microsecond Postgres keeps
@@ -512,14 +534,18 @@ export class SyncEngine {
       this.realtimeTimer = setTimeout(() => this.request(), REALTIME_DEBOUNCE_MS)
     }
 
-    // Only pages. A saved document stamps its page row on the server, so this
-    // one small row stands in for the blob, which realtime would otherwise
-    // carry in full, twice over, to every device on every save.
+    // Metadata only. A saved document stamps its page row, so realtime never
+    // carries its blob; workspace changes use the same small-row hints.
     const channel = this.supabase
       .channel(`jottr:${this.userId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pages', filter: `user_id=eq.${this.userId}` },
+        bump,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workspaces', filter: `user_id=eq.${this.userId}` },
         bump,
       )
     this.channel = channel
@@ -727,8 +753,53 @@ export class SyncEngine {
   /** A document that could not be taken in is left for the next pull, and
    *  its error is returned rather than thrown, so the push still runs. */
   private async pull(signal: AbortSignal): Promise<Error | null> {
+    await this.pullWorkspaces(signal)
     await this.pullPages(signal)
+    await enforceWorkspaceState(this.db)
     return this.pullDocs(signal)
+  }
+
+  private async pullWorkspaces(signal: AbortSignal, workspaceId?: string) {
+    if (!await readMeta(this.db, 'workspaces:bootstrapped', false)) {
+      const { error } = await this.supabase.rpc('ensure_default_workspace').abortSignal(signal)
+      if (error) throw new Error(`Space setup failed. Apply the latest Supabase schema. ${error.message}`)
+      await writeMeta(this.db, 'workspaces:bootstrapped', true)
+    }
+    const cursor = workspaceId ? 0 : await readMeta<number>(this.db, META_WORKSPACES_CURSOR, 0)
+    let newest = cursor
+    for await (const rows of this.changedSince<ServerWorkspace>('workspaces', '*', 'id', cursor, signal, workspaceId)) {
+      await this.db.transaction('rw', [this.db.workspaces, this.db.workspaceOperations], async () => {
+        for (const row of rows) {
+          const local = await this.db.workspaces.get(row.id)
+          const pending = await this.db.workspaceOperations.where('workspaceId').equals(row.id).filter((operation) => operation.action !== 'movePage' && !operation.acknowledged).count()
+          const stamp = Date.parse(row.updated_at)
+          newest = Math.max(newest, stamp)
+          const next: NoteWorkspaceRow = {
+            id: row.id, name: row.name, sortKey: row.sort_key ?? '',
+            createdAt: Date.parse(row.created_at), updatedAt: stamp, serverUpdatedAt: stamp,
+            deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
+            purgedAt: row.purged_at ? Date.parse(row.purged_at) : 0,
+            stateToken: row.state_token ?? '', dirty: local?.dirty ?? 0,
+            dirtyFields: local?.dirtyFields ?? [],
+          }
+          if (local?.dirty) {
+            for (const field of local.dirtyFields) Object.assign(next, { [field]: local[field] })
+            next.updatedAt = local.updatedAt
+          }
+          if (local && pending && !row.purged_at) {
+            next.deletedAt = local.deletedAt
+            next.purgedAt = local.purgedAt
+            next.stateToken = local.stateToken
+          }
+          if (row.purged_at) {
+            next.dirty = 0
+            next.dirtyFields = []
+          }
+          if (!local || changes(local, next)) await this.db.workspaces.put(next)
+        }
+      })
+      if (!workspaceId && newest > cursor) await writeMeta(this.db, META_WORKSPACES_CURSOR, newest)
+    }
   }
 
   /** Every row of `table` changed since `cursor`, less the overlap, oldest
@@ -745,6 +816,7 @@ export class SyncEngine {
     idColumn: keyof T & string,
     cursor: number,
     signal: AbortSignal,
+    workspaceId?: string,
   ): AsyncGenerator<T[]> {
     const since = new Date(Math.max(0, cursor - OVERLAP_MS)).toISOString()
     let last: T | null = null
@@ -755,6 +827,7 @@ export class SyncEngine {
         .gte('updated_at', since)
         .order('updated_at', { ascending: true })
         .order(idColumn, { ascending: true })
+      if (workspaceId) query = query.eq(table === 'workspaces' ? 'id' : 'workspace_id', workspaceId)
       // The server's own timestamp string, which keeps the microseconds a
       // Date would round away.
       if (last) {
@@ -772,14 +845,15 @@ export class SyncEngine {
     }
   }
 
-  private async pullPages(signal: AbortSignal) {
-    const cursor = await readMeta<number>(this.db, META_PAGES_CURSOR, 0)
+  private async pullPages(signal: AbortSignal, workspaceId?: string, rejectedMoveIds?: Set<string>) {
+    const cursor = workspaceId ? 0 : await readMeta<number>(this.db, META_PAGES_CURSOR, 0)
     let newest = cursor
+    const moving = rejectedMoveIds ? await pendingMovePageIds(this.db) : new Set<string>()
 
-    for await (const rows of this.changedSince<ServerPage>('pages', '*', 'id', cursor, signal)) {
+    for await (const rows of this.changedSince<ServerPage>('pages', '*', 'id', cursor, signal, workspaceId)) {
       const purged: string[] = []
 
-      await this.db.transaction('rw', [this.db.pages, this.db.purges], async () => {
+      await this.db.transaction('rw', [this.db.pages, this.db.purges, this.db.workspaceOperations], async () => {
         const ids = rows.map((row) => row.id)
         const locals = await this.db.pages.bulkGet(ids)
         const queued = await this.db.purges.bulkGet(ids)
@@ -800,11 +874,18 @@ export class SyncEngine {
 
           const local = locals[index]
           const server: Pick<PageRow, PageField> = {
+            workspaceId: row.workspace_id ?? this.userId,
+            workspaceDeletionId: row.workspace_deletion_id ?? '',
             title: row.title,
             parentId: row.parent_id ?? '',
             sortKey: row.sort_key,
             isFavorite: row.is_favorite ? 1 : 0,
             deletedAt: row.deleted_at ? Date.parse(row.deleted_at) : 0,
+          }
+          const pendingWorkspaceOperation = await this.db.workspaceOperations.where('workspaceId').equals(server.workspaceId).filter((operation) => operation.action !== 'movePage' && !operation.acknowledged).count()
+          if (local && pendingWorkspaceOperation) {
+            server.deletedAt = local.deletedAt
+            server.workspaceDeletionId = local.workspaceDeletionId
           }
 
           // A locally dirty row keeps the fields its own edit changed, which
@@ -812,6 +893,15 @@ export class SyncEngine {
           // the rest.
           if (local?.dirty) {
             const mine = new Set(local.dirtyFields ?? PAGE_FIELDS)
+            if (rejectedMoveIds?.has(row.id) && !moving.has(row.id)) {
+              mine.delete('workspaceId')
+              mine.delete('parentId')
+              mine.delete('sortKey')
+            }
+            if (workspaceId && local.workspaceDeletionId && !pendingWorkspaceOperation) {
+              mine.delete('deletedAt')
+              mine.delete('workspaceDeletionId')
+            }
             const patch: Partial<PageRow> = { serverUpdatedAt }
             for (const field of PAGE_FIELDS) {
               if (!mine.has(field)) Object.assign(patch, { [field]: server[field] })
@@ -843,7 +933,7 @@ export class SyncEngine {
       // After each batch rather than once at the end: rows come oldest
       // first, so a first sync that runs out of time carries on from here
       // rather than reading every page again, and timing out again.
-      if (newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
+      if (!workspaceId && newest > cursor) await writeMeta(this.db, META_PAGES_CURSOR, newest)
     }
   }
 
@@ -1040,9 +1130,122 @@ export class SyncEngine {
   // --- push ---------------------------------------------------------------
 
   private async push(signal: AbortSignal) {
+    await this.pushWorkspaces(signal)
     await this.pushPurges(signal)
+    await this.pushWorkspaceOperations(signal)
     await this.pushPages(signal)
     await this.pushDocs(signal)
+  }
+
+  private async pushWorkspaces(signal: AbortSignal) {
+    const dirty = await this.db.workspaces.where('dirty').equals(1).toArray()
+    for (const workspace of dirty) await this.pushWorkspace(workspace.id, signal)
+  }
+
+  private async pushWorkspace(id: string, signal: AbortSignal) {
+    for (let attempt = 0; ; attempt++) {
+      const workspace = await this.db.workspaces.get(id)
+      if (!workspace?.dirty) return
+      const fields = new Set(workspace.serverUpdatedAt ? workspace.dirtyFields : ['name', 'sortKey'])
+      const patch = {
+        ...(fields.has('name') && { name: workspace.name }),
+        ...(fields.has('sortKey') && { sort_key: workspace.sortKey ?? '' }),
+      }
+      const table = this.supabase.from('workspaces')
+      const write = workspace.serverUpdatedAt
+        ? table.update(patch).eq('id', workspace.id)
+        : table.upsert({ id: workspace.id, user_id: this.userId, ...patch, created_at: new Date(workspace.createdAt).toISOString() }, { onConflict: 'id' })
+      const { data, error } = await write.select('id, updated_at').abortSignal(signal)
+      if (error) {
+        if (error.code !== '23505' || !error.message.includes('workspaces_active_name_idx') || attempt >= 3) {
+          throw new Error(error.message)
+        }
+        // Both devices may have validated this name while offline. Refresh
+        // names and persist the replacement before retrying so a restart is safe.
+        await this.pullWorkspaces(signal)
+        await this.db.transaction('rw', [this.db.workspaces, this.db.meta], async () => {
+          const current = await this.db.workspaces.get(id)
+          // A rename made while the request was in flight gets its own retry.
+          if (!current || current.updatedAt !== workspace.updatedAt || current.name !== workspace.name) return
+          const others = await this.db.workspaces.filter((row) => row.id !== id && !row.deletedAt && !row.purgedAt).toArray()
+          const names = new Set(others.map((row) => row.name.trim().toLocaleLowerCase()))
+          let name: string
+          let suffix = 2
+          do {
+            const ending = ` (${suffix++})`
+            name = workspace.name.slice(0, 80 - ending.length).trimEnd() + ending
+          } while (names.has(name.toLocaleLowerCase()))
+          await this.db.workspaces.update(id, {
+            name, updatedAt: Math.max(Date.now(), current.updatedAt + 1), dirty: 1,
+            dirtyFields: [...new Set([...current.dirtyFields, 'name' as const])],
+          })
+          await writeMeta(this.db, 'workspaces:notice', `“${workspace.name}” was renamed to “${name}” because another device used the same space name. Your pages have been kept.`)
+        })
+        continue
+      }
+      const stamp = data?.[0]?.updated_at
+      if (stamp) this.recordOwnStamp(workspace.id, stamp)
+      await this.db.transaction('rw', this.db.workspaces, async () => {
+        const current = await this.db.workspaces.get(workspace.id)
+        if (!current || current.updatedAt !== workspace.updatedAt) return
+        await this.db.workspaces.update(workspace.id, {
+          dirty: 0, dirtyFields: [],
+          ...(stamp ? { updatedAt: Date.parse(stamp), serverUpdatedAt: Date.parse(stamp) } : {}),
+        })
+      })
+      return
+    }
+  }
+
+  private async pushWorkspaceOperations(signal: AbortSignal) {
+    const operations = await this.db.workspaceOperations.orderBy('seq').toArray()
+    for (const operation of operations) {
+      // Lifecycle changes follow pending ordinary Trash metadata. Moves run
+      // first for their trees, which pushPages holds until the atomic RPC.
+      if (operation.action !== 'movePage') await this.pushPages(signal)
+      const move = operation.action === 'movePage'
+      const { data, error } = await this.supabase.rpc(move ? 'move_page_tree' : 'apply_workspace_operation', move ? {
+        p_operation_id: operation.id, p_page_id: operation.pageId,
+        p_source_workspace_id: operation.sourceWorkspaceId, p_workspace_id: operation.workspaceId,
+        p_parent_id: operation.parentId || null, p_sort_key: operation.sortKey,
+      } : {
+        p_operation_id: operation.id, p_workspace_id: operation.workspaceId,
+        p_action: operation.action, p_expected_state: operation.expectedState || null,
+        p_page_id: operation.pageId || null,
+      }).abortSignal(signal)
+      if (error) throw new Error(error.message)
+      const result = data as { applied: boolean; reason?: string; source_workspace_id?: string } | null
+      if (!result) throw new Error('Space operation returned nothing.')
+      await this.db.workspaceOperations.update(operation.seq!, { acknowledged: true })
+      if (!result.applied) {
+        await writeMeta(this.db, 'workspaces:notice', result.reason ?? 'A space changed on another device. Your view has been refreshed.')
+      }
+      // An acknowledgement lost in transit is safe to retry: the server stores
+      // operation receipts. Pull canonical page state, including earlier Trash.
+      await this.pullWorkspaces(signal, operation.workspaceId)
+      const rejectedIds = move && !result.applied ? new Set(operation.pageIds ?? [operation.pageId]) : undefined
+      if (rejectedIds) {
+        const stillMoving = await pendingMovePageIds(this.db)
+        await this.db.transaction('rw', this.db.pages, async () => {
+          for (const id of rejectedIds) {
+            const page = await this.db.pages.get(id)
+            if (!page || page.serverUpdatedAt || stillMoving.has(id)) continue
+            await this.db.pages.update(id, {
+              workspaceId: operation.sourceWorkspaceId,
+              ...(id === operation.pageId ? { parentId: operation.sourceParentId ?? '', sortKey: operation.sourceSortKey } : {}),
+            })
+          }
+        })
+      }
+      await this.pullPages(signal, operation.workspaceId, rejectedIds)
+      const sourceId = result.source_workspace_id || operation.sourceWorkspaceId
+      if (move && sourceId && sourceId !== operation.workspaceId) {
+        await this.pullWorkspaces(signal, sourceId)
+        await this.pullPages(signal, sourceId, rejectedIds)
+      }
+      await enforceWorkspaceState(this.db)
+      await this.db.workspaceOperations.delete(operation.seq!)
+    }
   }
 
   /** Permanent deletes queued while offline. Done before anything else so a
@@ -1062,7 +1265,8 @@ export class SyncEngine {
   }
 
   private async pushPages(signal: AbortSignal) {
-    const dirty = await this.db.pages.where('dirty').equals(1).toArray()
+    const moving = await pendingMovePageIds(this.db)
+    const dirty = (await this.db.pages.where('dirty').equals(1).toArray()).filter((page) => !moving.has(page.id))
     if (dirty.length === 0) return
 
     // A row the server already has sends only the fields this device changed,
@@ -1086,11 +1290,13 @@ export class SyncEngine {
       const payload = batch.map((page: PageRow) => ({
         id: page.id,
         user_id: this.userId,
+        workspace_id: page.workspaceId,
         created_at: new Date(page.createdAt).toISOString(),
         ...(fields.has('title') && { title: page.title }),
         ...(fields.has('parentId') && { parent_id: page.parentId || null }),
         ...(fields.has('sortKey') && { sort_key: page.sortKey }),
         ...(fields.has('isFavorite') && { is_favorite: page.isFavorite === 1 }),
+        ...(fields.has('workspaceDeletionId') && { workspace_deletion_id: page.workspaceDeletionId || null }),
         ...(fields.has('deletedAt') && {
           deleted_at: page.deletedAt ? new Date(page.deletedAt).toISOString() : null,
         }),

@@ -28,17 +28,31 @@ function useQuery() {
   return new URLSearchParams(search)
 }
 
-export function useOpenPageId(): [string | null, (id: string | null, options?: { replace?: boolean }) => void] {
+export function useOpenPageId(): [string | null, (id: string | null, options?: { replace?: boolean; workspaceId?: string }) => void] {
   const params = useQuery()
-  const open = useCallback((id: string | null, options?: { replace?: boolean }) => {
+  const open = useCallback((id: string | null, options?: { replace?: boolean; workspaceId?: string }) => {
     const next = new URLSearchParams(window.location.search)
     if (id) next.set('p', id)
     else next.delete('p')
+    if (options?.workspaceId) next.set('w', options.workspaceId)
     next.delete('new')
     for (const view of VIEWS) next.delete(view)
     navigate(next, options?.replace)
   }, [])
   return [params.get('p'), open]
+}
+
+export function useOpenWorkspaceId() {
+  return useQuery().get('w')
+}
+
+/** Canonicalise links and history entries once their page is available locally.
+ * Leaving that page for Trash or Settings must retain its owning space. */
+export function syncPageWorkspace(pageId: string, workspaceId: string) {
+  const next = new URLSearchParams(window.location.search)
+  if (next.get('p') !== pageId || next.get('w') === workspaceId) return
+  next.set('w', workspaceId)
+  navigate(next, true)
 }
 
 /** The trash and the settings are views of their own, in place of a page, so

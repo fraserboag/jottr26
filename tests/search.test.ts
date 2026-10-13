@@ -19,6 +19,8 @@ function page(id: string, title: string, searchText = '', updatedAt = 0): PageRo
   texts.set(id, searchText)
   return {
     id,
+    workspaceId: 'pages',
+    workspaceDeletionId: '',
     title,
     parentId: '',
     sortKey: id,

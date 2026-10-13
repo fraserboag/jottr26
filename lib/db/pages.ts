@@ -1,6 +1,7 @@
 import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing'
 import * as Y from 'yjs'
-import { activeDatabase, type JottrDB } from './dexie'
+import { activeDatabase, defaultWorkspaceId, type JottrDB } from './dexie'
+import { restoreWorkspaceForPage } from './workspaces'
 import { PAGE_FIELDS, type PageField, type PageRow } from './schema'
 import { forgetEditedTimes, writeEditedAt } from './editedAt'
 import { forgetSearchTexts, writeSearchText } from './searchText'
@@ -9,7 +10,7 @@ import { newId } from '@/lib/util/id'
 
 function db() {
   const database = activeDatabase()
-  if (!database) throw new Error('No open workspace')
+  if (!database) throw new Error('No open space')
   return database
 }
 
@@ -51,18 +52,20 @@ async function flagEdited(ids: string | string[], patch: Partial<Pick<PageRow, P
     })
 }
 
-function siblingsOf(parentId: string): Promise<PageRow[]> {
-  return liveChildren(db(), parentId)
+function siblingsOf(parentId: string, workspaceId?: string): Promise<PageRow[]> {
+  return liveChildren(db(), parentId, workspaceId)
 }
 
 /** The pages directly under these parents that are not in the trash, in
  *  sidebar order. `''` is the root. */
-export async function liveChildren(database: JottrDB, parentIds: string | string[]) {
+export async function liveChildren(database: JottrDB, parentIds: string | string[], workspaceId?: string) {
   const ids = typeof parentIds === 'string' ? [parentIds] : parentIds
   // One equals() per parent rather than anyOf(): anyOf walks a cursor row by
   // row, where equals() is a single getAll.
   const lists = await Promise.all(
-    ids.map((id) => database.pages.where('[deletedAt+parentId]').equals([0, id]).toArray()),
+    ids.map((id) => workspaceId
+      ? database.pages.where('[workspaceId+deletedAt+parentId]').equals([workspaceId, 0, id]).toArray()
+      : database.pages.where('[deletedAt+parentId]').equals([0, id]).toArray()),
   )
   return lists.flat().sort(bySortKey)
 }
@@ -72,15 +75,26 @@ export const bySortKey = (a: PageRow, b: PageRow) =>
 
 /** `id` is for callers that have to point at the page before it exists, like a
  *  link written into the open document before this write has finished. */
-export async function createPage(options: { id?: string; parentId?: string; title?: string } = {}) {
+export async function createPage(options: { id?: string; parentId?: string; title?: string; workspaceId?: string } = {}) {
   const parentId = options.parentId ?? ''
-  const siblings = await siblingsOf(parentId)
+  const parent = parentId ? await db().pages.get(parentId) : undefined
+  if (parentId && (!parent || parent.deletedAt)) throw new Error('Parent page is no longer available.')
+  const fallback = options.workspaceId || parent ? undefined : await db().workspaces.filter((row) => !row.deletedAt && !row.purgedAt).first()
+  const defaultId = defaultWorkspaceId(db())
+  const initial = await db().workspaces.get(defaultId)
+  const workspaceId = parent?.workspaceId ?? options.workspaceId ?? (initial && !initial.deletedAt && !initial.purgedAt ? defaultId : fallback?.id ?? defaultId)
+  if (parent && options.workspaceId && options.workspaceId !== parent.workspaceId) throw new Error('Pages must stay in their parent space.')
+  const workspace = await db().workspaces.get(workspaceId)
+  if (!workspace || workspace.deletedAt || workspace.purgedAt) throw new Error('Space is no longer available.')
+  const siblings = await siblingsOf(parentId, workspaceId)
   const last = siblings.at(-1)
   const now = Date.now()
   const id = options.id ?? newId()
 
   const page: PageRow = {
     id,
+    workspaceId,
+    workspaceDeletionId: '',
     title: options.title ?? '',
     parentId,
     sortKey: generateKeyBetween(last?.sortKey ?? null, null),
@@ -96,13 +110,13 @@ export async function createPage(options: { id?: string; parentId?: string; titl
     origin: 'local',
   }
 
-  await db().pages.add(page)
-  await db().docStates.put({
-    pageId: id,
-    snapshot: new Uint8Array(),
-    version: 0,
-    dirty: 1,
-    edits: 0,
+  await db().transaction('rw', [db().pages, db().docStates, db().workspaces], async () => {
+    const current = await db().workspaces.get(workspaceId)
+    if (!current || current.deletedAt || current.purgedAt) throw new Error('Space is no longer available.')
+    await db().pages.add(page)
+    await db().docStates.put({
+      pageId: id, snapshot: new Uint8Array(), version: 0, dirty: 1, edits: 0,
+    })
   })
 
   const handle = await openDoc(id, { seed: true })
@@ -148,7 +162,10 @@ export async function movePage(pageId: string, parentId: string, index: number) 
   if (pageId === parentId) return
   if (await isDescendant(parentId, pageId)) return
 
-  const siblings = (await siblingsOf(parentId)).filter((p) => p.id !== pageId)
+  const page = await db().pages.get(pageId)
+  const parent = parentId ? await db().pages.get(parentId) : undefined
+  if (!page || page.deletedAt || (parentId && (!parent || parent.deletedAt || parent.workspaceId !== page.workspaceId))) return
+  const siblings = (await siblingsOf(parentId, page.workspaceId)).filter((p) => p.id !== pageId)
   // A caller counting the page among its own siblings, as a drop inside the
   // parent it is already under does, asks for one place past the end.
   index = Math.min(index, siblings.length)
@@ -178,6 +195,46 @@ export async function movePage(pageId: string, parentId: string, index: number) 
   notifyLocalEdit('structure')
 }
 
+/** A workspace transfer is one local transaction and one queued server
+ *  operation. The server moves the complete tree, including unseen children. */
+export async function movePageToWorkspace(pageId: string, workspaceId: string, parentId = '', index?: number) {
+  const database = db()
+  const current = await database.pages.get(pageId)
+  if (current?.workspaceId === workspaceId) {
+    await movePage(pageId, parentId, index ?? (await siblingsOf(parentId, workspaceId)).length)
+    return
+  }
+  await database.transaction('rw', [database.pages, database.workspaces, database.workspaceOperations], async () => {
+    const page = await database.pages.get(pageId)
+    const destination = await database.workspaces.get(workspaceId)
+    const source = page && await database.workspaces.get(page.workspaceId)
+    const parent = parentId ? await database.pages.get(parentId) : undefined
+    if (!page || page.deletedAt || !source || source.deletedAt || source.purgedAt || !destination || destination.deletedAt || destination.purgedAt) throw new Error('Page or space is no longer available.')
+    if (parentId && (!parent || parent.deletedAt || parent.workspaceId !== workspaceId)) throw new Error('Destination page is no longer available.')
+    if (pageId === parentId || await isDescendant(parentId, pageId)) return
+    if (workspaceId === page.workspaceId) return
+    const siblings = await siblingsOf(parentId, workspaceId)
+    const at = Math.max(0, Math.min(index ?? siblings.length, siblings.length))
+    const before = siblings[at - 1]?.sortKey ?? null
+    const after = siblings[at]?.sortKey ?? null
+    let sortKey: string
+    if (before !== null && before === after) {
+      const keys = generateNKeysBetween(null, null, siblings.length + 1)
+      for (const [position, sibling] of siblings.entries()) await flagEdited(sibling.id, { sortKey: keys[position < at ? position : position + 1] }, database)
+      sortKey = keys[at]
+    } else sortKey = generateKeyBetween(before, after)
+    const ids = [pageId, ...await descendantsOf(pageId, () => true)]
+    await flagEdited(ids, { workspaceId, workspaceDeletionId: '' }, database)
+    await flagEdited(pageId, { parentId, sortKey }, database)
+    await database.workspaceOperations.add({
+      id: newId(), action: 'movePage', pageId, pageIds: ids, workspaceId,
+      sourceWorkspaceId: page.workspaceId, sourceParentId: page.parentId, sourceSortKey: page.sortKey,
+      expectedState: destination.stateToken, parentId, sortKey, queuedAt: Date.now(),
+    })
+  })
+  notifyLocalEdit('structure')
+}
+
 async function isDescendant(candidate: string, ancestor: string): Promise<boolean> {
   // Visited rather than capped at a depth, so a deep tree cannot be looped
   // and a ring left by two offline moves still ends the walk.
@@ -196,13 +253,14 @@ async function isDescendant(candidate: string, ancestor: string): Promise<boolea
  *  A merge of two offline moves can leave pages inside each other, so each
  *  page is visited once rather than looping forever. */
 async function descendantsOf(pageId: string, follow: (page: PageRow) => boolean): Promise<string[]> {
+  const root = await db().pages.get(pageId)
   const visited = new Set([pageId])
   const out: string[] = []
   const queue = [pageId]
   while (queue.length) {
     const id = queue.shift()!
     for (const child of await db().pages.where('parentId').equals(id).toArray()) {
-      if (visited.has(child.id) || !follow(child)) continue
+      if (visited.has(child.id) || child.workspaceId !== root?.workspaceId || !follow(child)) continue
       visited.add(child.id)
       out.push(child.id)
       queue.push(child.id)
@@ -222,18 +280,22 @@ export async function trashPage(pageId: string) {
 export async function restorePage(pageId: string) {
   const page = await db().pages.get(pageId)
   if (!page) return
+  const workspace = await db().workspaces.get(page.workspaceId)
+  if (!workspace || workspace.purgedAt) return
+  if (workspace.deletedAt) await restoreWorkspaceForPage(workspace.id, pageId)
 
   // Restoring into a trashed parent would hide the page again; lift it to the
   // root instead, which is the only outcome the user can actually see.
   const parent = page.parentId ? await db().pages.get(page.parentId) : null
-  const parentId = parent && !parent.deletedAt ? page.parentId : ''
+  const parentId = parent && !parent.deletedAt && parent.workspaceId === page.workspaceId ? page.parentId : ''
 
-  // Only the pages trashed along with this one, which share its timestamp.
-  const together = await descendantsOf(pageId, (child) => child.deletedAt === page.deletedAt)
-  await touch([pageId, ...together], { deletedAt: 0 })
+  // Workspace recovery restores one note at a time, including later restores
+  // after the workspace has reactivated. Ordinary page deletions keep subtree recovery.
+  const together = workspace.deletedAt || page.workspaceDeletionId ? [] : await descendantsOf(pageId, (child) => child.deletedAt === page.deletedAt && child.workspaceDeletionId === page.workspaceDeletionId)
+  await touch([pageId, ...together], { deletedAt: 0, workspaceDeletionId: '' })
   // Its old key belongs to its old siblings, and may equal a root page's.
   if (parentId !== page.parentId) {
-    const last = (await siblingsOf(parentId)).at(-1)
+    const last = (await siblingsOf(parentId, page.workspaceId)).at(-1)
     await touch(pageId, { parentId, sortKey: generateKeyBetween(last?.sortKey ?? null, null) })
   }
 }
@@ -279,10 +341,11 @@ export async function forgetPages(database: JottrDB, ids: string[]) {
   forgetDocs(ids)
 }
 
-export async function emptyTrash() {
+export async function emptyTrash(workspaceIds?: string[]) {
   // Only what is in the trash, as the confirm counted it. A live page under a
   // trashed one stays, as deleteForever leaves it.
-  const trashed = (await db().pages.where('deletedAt').above(0).primaryKeys()) as string[]
+  const active = new Set(workspaceIds ?? (await db().workspaces.filter((row) => !row.deletedAt && !row.purgedAt).primaryKeys()) as string[])
+  const trashed = (await db().pages.where('deletedAt').above(0).filter((page) => active.has(page.workspaceId)).primaryKeys()) as string[]
   if (trashed.length === 0) return
   await purge(trashed)
 }
@@ -294,7 +357,17 @@ export type DropZone = 'before' | 'after' | 'inside'
 export async function dropRelative(dragId: string, targetId: string, zone: DropZone) {
   if (dragId === targetId) return
   const target = await db().pages.get(targetId)
-  if (!target) return
+  const dragged = await db().pages.get(dragId)
+  if (!target || !dragged) return
+  if (target.workspaceId !== dragged.workspaceId) {
+    if (zone === 'inside') await movePageToWorkspace(dragId, target.workspaceId, targetId)
+    else {
+      const siblings = await siblingsOf(target.parentId, target.workspaceId)
+      const index = siblings.findIndex((page) => page.id === targetId)
+      if (index >= 0) await movePageToWorkspace(dragId, target.workspaceId, target.parentId, index + (zone === 'after' ? 1 : 0))
+    }
+    return
+  }
 
   if (zone === 'inside') {
     const children = await siblingsOf(targetId)
@@ -302,7 +375,7 @@ export async function dropRelative(dragId: string, targetId: string, zone: DropZ
     return
   }
 
-  const siblings = (await siblingsOf(target.parentId)).filter((page) => page.id !== dragId)
+  const siblings = (await siblingsOf(target.parentId, target.workspaceId)).filter((page) => page.id !== dragId)
   const index = siblings.findIndex((page) => page.id === targetId)
   if (index < 0) return
   await movePage(dragId, target.parentId, zone === 'after' ? index + 1 : index)

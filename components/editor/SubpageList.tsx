@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type DragEvent as ReactDragEvent, type Mou
 import { NodeViewContent, NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
 import { Icon } from '@/components/ui/Icon'
 import { MenuItem, Popover } from '@/components/ui/Popover'
-import { PageMenu } from '@/components/workspace/PageMenu'
+import { PageActions } from '@/components/workspace/PageActions'
 import { useChildPages, useGrandchildPages } from '@/lib/db/hooks'
 import { createPage, dropRelative } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
@@ -18,7 +18,7 @@ import type { SubpagesOptions } from './extensions/subpages'
  *
  *  The node view keeps ProseMirror out of clicks on the entries, so following
  *  one is handled here, in place, the same way the editor follows a page link
- *  written in the text. A click anywhere on an entry but its menu follows it.
+ *  written in the text. A click anywhere on an entry but its actions follows it.
  *  The title's href is real, so a modified or middle click there
  *  still gets its new tab.
  *
@@ -28,7 +28,7 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  above or below it, and on its middle it goes inside, at the end of that
  *  page's subpages, which takes it out of this list.
  *
- *  Each entry has the sidebar's three-dot menu, and the plus in the corner is
+ *  Each entry has the sidebar's favourite and trash buttons, and the plus in the corner is
  *  the sidebar's own plus for this page: a new, empty subpage at the end of
  *  the list, opened straight away, with this page's branch in the sidebar
  *  opened to show it.
@@ -37,7 +37,7 @@ import type { SubpagesOptions } from './extensions/subpages'
  *  depth. At a depth of two, each child becomes a heading with its own
  *  children listed under it; a child with none still gets its heading, so it
  *  stays in reach, with nothing under it. A heading has the sidebar's plus as
- *  well as its menu, for a new subpage under it; the entries below don't, as
+ *  well as its actions, for a new subpage under it; the entries below don't, as
  *  what they'd add would sit a level deeper than the list shows. Dragging there
  *  also moves a page between headings, as the sidebar does. Headings drag
  *  too, carrying their subpages with them. On either a heading or an entry,
@@ -67,10 +67,9 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
 
   const follow = (event: MouseEvent, id: string) => {
     if (!isPlainLeftClick(event)) return
-    // Clicks in the menu, including on its items, which React bubbles up here
-    // from the portal they're drawn in, are the menu's own.
+    // Clicks on the note's actions belong to their buttons.
     const target = event.target
-    if (!(target instanceof Element) || !event.currentTarget.contains(target) || target.closest('.subpages-menu')) return
+    if (!(target instanceof Element) || !event.currentTarget.contains(target) || target.closest('.subpages-row-actions')) return
     event.preventDefault()
     openPage(id)
   }
@@ -96,7 +95,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
       if (typeof pos === 'number') editor.chain().focus().setNodeSelection(pos).run()
       return
     }
-    if (pointerType.current === 'mouse' && target.closest('li, .subpages-group-head') && !target.closest('.subpages-menu')) return
+    if (pointerType.current === 'mouse' && target.closest('li, .subpages-group-head') && !target.closest('.subpages-row-actions')) return
     event.preventDefault()
   }
 
@@ -204,8 +203,8 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
       <a href={pageHref(page.id)} draggable={false}>
         {page.title || 'Untitled'}
       </a>
-      <span className="subpages-menu">
-        <PageMenu page={page} />
+      <span className="subpages-row-actions">
+        <PageActions page={page} />
       </span>
     </li>
   )
@@ -232,8 +231,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                 <a href={pageHref(page.id)} draggable={false}>
                   {page.title || 'Untitled'}
                 </a>
-                <span className="subpages-menu">
-                  <PageMenu page={page} />
+                <span className="subpages-row-actions">
                   <button
                     type="button"
                     aria-label="Add a subpage"
@@ -245,6 +243,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                   >
                     <Icon name="plus" size={16} strokeWidth={2} />
                   </button>
+                  <PageActions page={page} />
                 </span>
               </div>
               {children.length > 0 && <ul>{children.map((child) => entry(child.page))}</ul>}
@@ -268,8 +267,9 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
         <NodeViewContent className="subpages-heading" />
         <div className="subpages-actions" contentEditable={false}>
           <Popover
-            width="auto"
+            width={160}
             align="end"
+            label="Subpage list options"
             trigger={({ open, toggle, ref }) => (
               <button
                 type="button"
@@ -277,6 +277,8 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                 className="subpages-button"
                 data-open={open || undefined}
                 aria-label="Subpage list options"
+                aria-haspopup="menu"
+                aria-expanded={open}
                 onClick={toggle}
               >
                 <Icon name="more" size={16} strokeWidth={3.6} />
@@ -288,13 +290,13 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                 {DEPTHS.map((value) => (
                   <MenuItem
                     key={value}
-                    icon={<Icon name="check" size={14} className={value === depth ? '' : 'invisible'} />}
+                    checked={value === depth}
                     onClick={() => {
                       updateAttributes({ depth: value })
                       close()
                     }}
                   >
-                    {value === 1 ? '1 level deep' : '2 levels deep'}
+                    {value === 1 ? '1 level' : '2 levels'}
                   </MenuItem>
                 ))}
               </>

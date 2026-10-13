@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { DocStateRow, DocUpdateRow, MetaRow, PageRow, PurgeRow } from './schema'
+import type { DocStateRow, DocUpdateRow, MetaRow, NoteWorkspaceRow, PageRow, PurgeRow, WorkspaceOperationRow } from './schema'
 
 export type JottrDB = Dexie & {
   pages: EntityTable<PageRow, 'id'>
@@ -7,6 +7,8 @@ export type JottrDB = Dexie & {
   docUpdates: EntityTable<DocUpdateRow, 'seq'>
   purges: EntityTable<PurgeRow, 'id'>
   meta: EntityTable<MetaRow, 'key'>
+  workspaces: EntityTable<NoteWorkspaceRow, 'id'>
+  workspaceOperations: EntityTable<WorkspaceOperationRow, 'seq'>
 }
 
 /** One database per account, so signing into a second account on a shared
@@ -45,9 +47,45 @@ export function openDatabase(userId: string): JottrDB {
     meta: 'key',
   })
 
+  db.version(3).stores({
+    pages: 'id, workspaceId, parentId, dirty, updatedAt, deletedAt, [deletedAt+parentId], [workspaceId+deletedAt+parentId]',
+    workspaces: 'id, dirty, deletedAt, createdAt',
+    workspaceOperations: '++seq, workspaceId',
+  }).upgrade(async (transaction) => {
+    await transaction.table('workspaces').put(defaultWorkspace(userId))
+    await transaction.table('pages').toCollection().modify((page) => {
+      page.workspaceId = userId
+      page.workspaceDeletionId = ''
+    })
+  })
+  // Remove retired colour metadata while preserving pending names and order.
+  db.version(4).stores({}).upgrade(async (transaction) => {
+    await transaction.table('workspaces').toCollection().modify((workspace) => {
+      delete workspace.color
+      workspace.dirtyFields = workspace.dirtyFields.filter((field: string) => field !== 'color')
+      if (workspace.serverUpdatedAt && workspace.dirtyFields.length === 0) workspace.dirty = 0
+    })
+  })
+  db.on('populate', async (transaction) => {
+    await transaction.table('workspaces').put(defaultWorkspace(userId))
+  })
+
   open.set(userId, db)
   current = { userId, db }
   return db
+}
+
+/** The auth UUID is also the stable ID of the initial Pages workspace, so
+ *  migration on two devices never makes two copies. */
+function defaultWorkspace(userId: string): NoteWorkspaceRow {
+  return {
+    id: userId, name: 'Pages', createdAt: 0, updatedAt: 0,
+    serverUpdatedAt: 0, deletedAt: 0, purgedAt: 0, stateToken: '', dirty: 0, dirtyFields: [],
+  }
+}
+
+export function defaultWorkspaceId(database: JottrDB) {
+  return database.name.slice('jottr:'.length)
 }
 
 /** The open database, or null before sign-in. UI reads go through this so a

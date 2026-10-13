@@ -14,6 +14,8 @@ const { DOC_FIELD, openDoc, releaseAll, whenPersisted } = await import('@/lib/db
 
 const row = (id: string, parentId = ''): PageRow => ({
   id,
+  workspaceId: 'pages',
+  workspaceDeletionId: '',
   title: id,
   parentId,
   sortKey: id,

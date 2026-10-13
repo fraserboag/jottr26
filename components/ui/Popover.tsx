@@ -9,6 +9,7 @@ import {
   type ReactElement,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { Icon } from './Icon'
 
 type Align = 'start' | 'end' | 'center'
 
@@ -23,6 +24,7 @@ export function Popover({
   align = 'start',
   width = 220,
   className = '',
+  label,
 }: {
   trigger: (props: { open: boolean; toggle: () => void; ref: (node: HTMLElement | null) => void }) => ReactElement
   children: (close: () => void) => React.ReactNode
@@ -30,6 +32,7 @@ export function Popover({
   /** Pixels, or 'auto' to fit the content up to the window's width. */
   width?: number | 'auto'
   className?: string
+  label?: string
 }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
@@ -107,6 +110,7 @@ export function Popover({
           <div
             ref={panelRef}
             role="menu"
+            aria-label={label}
             style={{
               top: position?.top ?? -9999,
               left: position?.left ?? -9999,
@@ -129,23 +133,31 @@ export function MenuItem({
   onClick,
   tone = 'default',
   icon,
+  checked,
 }: {
   children: React.ReactNode
   onClick: () => void
   tone?: 'default' | 'danger'
   icon?: React.ReactNode
+  checked?: boolean
 }) {
   return (
     <button
       type="button"
-      role="menuitem"
+      role={checked === undefined ? 'menuitem' : 'menuitemradio'}
+      aria-checked={checked}
       onClick={onClick}
-      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors pointer-coarse:py-2 hover:bg-[var(--hover)] ${
+      className={`flex w-full cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors pointer-coarse:py-2.5 hover:bg-[var(--hover)] focus-visible:bg-[var(--hover)] focus:outline-none ${
         tone === 'danger' ? 'text-danger' : 'text-ink'
       }`}
     >
       {icon}
-      <span className="truncate">{children}</span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {checked !== undefined && (
+        <span className="grid size-4 shrink-0 place-items-center text-muted">
+          {checked && <Icon name="check" size={14} />}
+        </span>
+      )}
     </button>
   )
 }

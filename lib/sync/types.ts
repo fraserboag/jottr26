@@ -15,7 +15,7 @@ export type SyncPhase =
 
 export interface SyncStatus {
   phase: SyncPhase
-  /** Pages with changes the server has not acknowledged. */
+  /** Pages and workspaces with changes the server has not acknowledged. */
   pending: number
   lastSyncedAt: number | null
   error: string | null

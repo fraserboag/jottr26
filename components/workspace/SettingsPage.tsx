@@ -1,15 +1,19 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SyncStatus, useRetrySync } from './SyncControls'
 import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
 import { setTheme, useTheme, type Theme } from '@/lib/util/theme'
+import { WorkspaceSettings } from './WorkspaceSettings'
+import { useNoteWorkspaces } from './NoteWorkspacesContext'
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ]
+const INLINE_OPTIONS = [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }] as const
 
 /** The build as MMDDHHMM, in this device's time. */
 function buildStamp() {
@@ -36,7 +40,7 @@ export function SettingsBar() {
           if (
             status.pending > 0 &&
             !window.confirm(
-              `${status.pending} ${status.pending === 1 ? 'page has' : 'pages have'} changes that haven't reached your account yet. Signing out now will discard them. Continue?`,
+              `${status.pending} ${status.pending === 1 ? 'item has' : 'items have'} changes that haven't reached your account yet. Signing out now will discard them. Continue?`,
             )
           ) {
             return
@@ -56,6 +60,7 @@ export function SettingsBar() {
  *  where the body would be. */
 export function SettingsPage() {
   const { session } = useWorkspace()
+  const { inline, setInline } = useNoteWorkspaces()
   const retrySync = useRetrySync()
 
   return (
@@ -72,7 +77,11 @@ export function SettingsPage() {
         <Row label="Theme">
           <ThemeSwitch />
         </Row>
+        <Row label="Show all spaces simultaneously">
+          <SegmentedControl label="Show all spaces simultaneously" value={inline ? 'on' : 'off'} options={INLINE_OPTIONS} onChange={(value) => void setInline(value === 'on')} />
+        </Row>
       </ul>
+      <WorkspaceSettings />
       {retrySync.overlay}
     </>
   )
@@ -81,30 +90,16 @@ export function SettingsPage() {
 function ThemeSwitch() {
   const theme = useTheme()
   return (
-    <div className="flex shrink-0 rounded-md border border-line p-px">
-      {THEMES.map(({ value, label }) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={theme === value}
-          onClick={() => setTheme(value)}
-          className={`rounded-[5px] px-2 py-0.5 text-[12.5px] font-medium transition-colors pointer-coarse:py-1 pointer-coarse:text-[13.5px] ${
-            theme === value ? 'bg-[var(--selected)] text-ink' : 'text-muted hover:bg-[var(--hover)] hover:text-ink'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl label="Theme" value={theme} options={THEMES} onChange={setTheme} />
   )
 }
 
 /** One setting: what it is on the left, its value or control on the right. */
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <li className="flex min-h-14 items-center gap-4 py-3 pointer-coarse:min-h-16 first:min-h-0 first:pt-0">
-      <span className="shrink-0 text-ink">{label}</span>
-      <span className="ml-auto flex min-w-0 items-center justify-end">{children}</span>
+    <li className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 py-3 pointer-coarse:min-h-16 first:min-h-0 first:pt-0">
+      <span className="min-w-0 text-ink">{label}</span>
+      <span className="ml-auto flex min-w-0 max-w-full items-center justify-end">{children}</span>
     </li>
   )
 }

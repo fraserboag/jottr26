@@ -158,7 +158,7 @@ export function buildTree(pages: PageRow[]): TreeNode[] {
   // walking up, so the walk that comes back round to its start cuts it loose.
   const atRoot = new Set<string>()
   for (const page of pages) {
-    if (!nodes.has(page.parentId)) {
+    if (!nodes.has(page.parentId) || nodes.get(page.parentId)!.page.workspaceId !== page.workspaceId) {
       atRoot.add(page.id)
       continue
     }

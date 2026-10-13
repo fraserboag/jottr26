@@ -1,11 +1,11 @@
 'use client'
 
-import { memo, useState, useSyncExternalStore } from 'react'
+import { createContext, memo, useContext, useState, useSyncExternalStore } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { createPage, dropRelative, type DropZone } from '@/lib/db/pages'
 import { raiseKeyboard } from '@/lib/util/keyboard'
 import type { TreeNode } from '@/lib/db/hooks'
-import { PageMenu } from './PageMenu'
+import { PageActions } from './PageActions'
 import { PageRowButton, RowActions } from './PageRow'
 
 interface TreeProps {
@@ -18,14 +18,22 @@ interface TreeProps {
    *  rather than reorder the favourites. */
   draggable?: boolean
   depth?: number
+  onDropError?: (message: string) => void
 }
+
+export const PageDragContext = createContext<{
+  dragId: string | null
+  setDragId: (id: string | null) => void
+  drop: DropStore
+  clearWorkspaceDrop: () => void
+} | null>(null)
 
 type Drop = { id: string; zone: DropZone } | null
 
 /** Where a drag would land. Kept outside React state, since it changes on
  *  every dragover: each row subscribes to whether it is the target, so only
  *  the rows that gain or lose the indicator re-render. */
-function createDropStore() {
+export function createPageDropStore() {
   let current: Drop = null
   const listeners = new Set<() => void>()
   return {
@@ -44,13 +52,15 @@ function createDropStore() {
   }
 }
 
-type DropStore = ReturnType<typeof createDropStore>
+type DropStore = ReturnType<typeof createPageDropStore>
 
 export function PageTree(props: TreeProps) {
-  const [dragId, setDragId] = useState<string | null>(null)
-  const [drop] = useState(createDropStore)
+  const shared = useContext(PageDragContext)
+  const [localDragId, setLocalDragId] = useState<string | null>(null)
+  const [localDrop] = useState(createPageDropStore)
+  const drop = props.draggable === false ? localDrop : shared?.drop ?? localDrop
 
-  return <Branch {...props} dragId={dragId} drop={drop} setDragId={setDragId} />
+  return <Branch {...props} dragId={shared?.dragId ?? localDragId} drop={drop} setDragId={shared?.setDragId ?? setLocalDragId} />
 }
 
 interface BranchProps extends TreeProps {
@@ -80,14 +90,23 @@ const Row = memo(function Row({
   dragId,
   drop,
   setDragId,
+  onDropError,
 }: Omit<BranchProps, 'nodes'> & { node: TreeNode; depth: number }) {
   const { page, children } = node
   const isOpen = openId === page.id
   const isExpanded = expanded.has(page.id)
   const hasChildren = children.length > 0
+  const shared = useContext(PageDragContext)
 
   const onDragOver = (event: React.DragEvent) => {
-    if (!draggable || !dragId || dragId === page.id) return
+    if (!draggable || !dragId || !event.dataTransfer.types.includes('application/x-jottr-page')) return
+    event.stopPropagation()
+    shared?.clearWorkspaceDrop()
+    if (dragId === page.id) {
+      event.dataTransfer.dropEffect = 'none'
+      drop.set(null)
+      return
+    }
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
     const rect = event.currentTarget.getBoundingClientRect()
@@ -117,6 +136,7 @@ const Row = memo(function Row({
         draggable={draggable}
         onDragStart={(event) => {
           if (!draggable) return
+          event.stopPropagation()
           setDragId(page.id)
           event.dataTransfer.effectAllowed = 'move'
           // Not text/plain, which the editor would paste in as the page's id
@@ -128,12 +148,16 @@ const Row = memo(function Row({
           drop.set(null)
         }}
         onDragOver={onDragOver}
-        onDragLeave={() => drop.set(null)}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) drop.set(null)
+        }}
         onDrop={(event) => {
+          if (!draggable || !dragId || !event.dataTransfer.types.includes('application/x-jottr-page')) return
           event.preventDefault()
+          event.stopPropagation()
           const target = drop.get()
           if (dragId && target) {
-            void dropRelative(dragId, target.id, target.zone)
+            void dropRelative(dragId, target.id, target.zone).catch((error: Error) => onDropError?.(error.message))
           }
           setDragId(null)
           drop.set(null)
@@ -170,8 +194,6 @@ const Row = memo(function Row({
         <PageRowButton page={page} isOpen={isOpen} onOpen={onOpen} icon={!hasChildren} />
 
         <RowActions>
-          <PageMenu page={page} />
-
           <button
             type="button"
             aria-label="Add a subpage"
@@ -187,6 +209,7 @@ const Row = memo(function Row({
           >
             <Icon name="plus" size={16} strokeWidth={2} />
           </button>
+          <PageActions page={page} />
         </RowActions>
       </div>
 
@@ -202,6 +225,7 @@ const Row = memo(function Row({
           dragId={dragId}
           drop={drop}
           setDragId={setDragId}
+          onDropError={onDropError}
         />
       )}
     </li>

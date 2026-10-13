@@ -208,6 +208,10 @@ body {
   border-radius: 4px;
 }
 
+.workspace-name-input:focus {
+  outline: none;
+}
+
 /* Tailwind's preflight stopped giving buttons a pointer, which left every
    sidebar row, breadcrumb and menu item under an arrow. Layered so that a
    `cursor-*` utility on a button still wins. */
@@ -296,7 +300,7 @@ body {
 
 /* The trash's heading takes the same shape, so it reads as a page too. */
 .ProseMirror h1.jottr-title,
-h1.page-title {
+.page-title {
   font-size: clamp(2rem, 6vw, 2.5rem);
   line-height: 1.15;
   font-weight: 700;
@@ -308,7 +312,7 @@ h1.page-title {
   margin: 0 0 calc(var(--body-size) * var(--body-leading));
 }
 
-h1.page-title {
+.page-title {
   color: var(--text);
 }
 
@@ -461,10 +465,10 @@ h1.page-title {
   font-weight: var(--body-weight);
   text-decoration: none;
 }
-/* The sidebar's three-dot menu, at the far end of the entry. The slot is one
+/* The note's action buttons, at the far end of the entry. The slot is one
    line tall, so a touch screen's taller button overhangs the line rather than
    spacing the entries out to its height. */
-.ProseMirror div[data-type="subpages"] .subpages-menu {
+.ProseMirror div[data-type="subpages"] .subpages-row-actions {
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -472,8 +476,8 @@ h1.page-title {
   margin-left: auto;
 }
 /* An entry opens its page from a click anywhere on it, like a sidebar row.
-   The one under the pointer, or whose menu is open, is tinted like one too,
-   so it's clear which one a click or the menu acts on. The tint reaches a
+   The one under the pointer or keyboard focus is tinted like one too,
+   so it's clear which one a click acts on. The tint reaches a
    little past the entry, on the sides by padding given back as margin and
    above and below by a shadow of the same shade, so nothing moves. */
 .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head) {
@@ -484,25 +488,24 @@ h1.page-title {
   transition: background 150ms, box-shadow 150ms;
 }
 @media (hover: hover) {
-  .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is(:hover, :has([aria-expanded="true"])) {
+  .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is(:hover, :focus-within) {
     background: var(--hover);
     box-shadow: 0 0 0 2px var(--hover);
   }
 }
-/* Shown on hover, or while the menu is open, which a touch screen never has,
-   so there it stays, a little faded. */
+/* Shown on hover or keyboard focus; on touch screens they stay visible,
+   a little faded. */
 @media (pointer: coarse) {
-  .ProseMirror div[data-type="subpages"] .subpages-menu:not(:has([aria-expanded="true"])) {
+  .ProseMirror div[data-type="subpages"] .subpages-row-actions {
     opacity: 0.4;
   }
 }
 @media (pointer: fine) {
-  .ProseMirror div[data-type="subpages"] .subpages-menu {
+  .ProseMirror div[data-type="subpages"] .subpages-row-actions {
     opacity: 0;
     transition: opacity 150ms;
   }
-  .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is(:hover, :focus-within) > .subpages-menu,
-  .ProseMirror div[data-type="subpages"] .subpages-menu:has([aria-expanded="true"]) {
+  .ProseMirror div[data-type="subpages"] :is(li, .subpages-group-head):is(:hover, :focus-within) > .subpages-row-actions {
     opacity: 1;
   }
 }
