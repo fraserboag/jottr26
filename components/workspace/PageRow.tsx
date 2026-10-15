@@ -21,7 +21,7 @@ export function PageRowButton({
     <button
       type="button"
       onClick={() => onOpen(page.id)}
-      className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-[14.5px]"
+      className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left text-[14.5px] pointer-coarse:text-[15px]"
     >
       {icon && (
         <span className="grid size-5 shrink-0 place-items-center">

@@ -122,7 +122,7 @@ export function Sidebar({
                   void select(id).catch((error: Error) => setError(error.message))
                 }} />
               ) : inline ? (
-                <button type="button" {...ordering.handleProps(workspace.id)} className="flex max-w-full cursor-default items-center gap-1 px-2 pb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-faint">
+                <button type="button" {...ordering.handleProps(workspace.id)} className="flex max-w-full cursor-default items-center gap-1 px-2 pb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-faint pointer-coarse:text-[12.5px]">
                   <span className="truncate">{workspace.name}</span>
                 </button>
               ) : <SectionLabel>{workspace.name}</SectionLabel>}
@@ -171,7 +171,7 @@ function AddPage({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       // Lines up with the pages above it, the plus sitting where each page's
       // icon sits.
-      className="my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
+      className="my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:text-[15px]"
     >
       <span className="grid size-5 shrink-0 place-items-center">
         <Icon name="plus" size={15} strokeWidth={2} />
@@ -207,7 +207,7 @@ function SidebarAction({
       aria-current={current ? 'page' : undefined}
       // Spaced as the page rows above are, the icon in the same slot. The
       // footer is a column, so the margins add up to the rows' 2px gap.
-      className={`my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-muted transition-colors ${
+      className={`my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-muted transition-colors pointer-coarse:text-[15px] ${
         current ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
       }`}
     >

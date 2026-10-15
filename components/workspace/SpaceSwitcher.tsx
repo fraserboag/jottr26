@@ -31,7 +31,7 @@ export function SpaceSwitcher({ spaces, selectedId, onSelect }: {
               if (!open) toggle()
             }
           }}
-          className="relative mt-3 mb-1.5 inline-flex max-w-full cursor-default items-center rounded bg-transparent py-0 pl-2 pr-6 text-[11.5px] font-semibold uppercase tracking-wide text-faint hover:text-muted focus-visible:outline-2 focus-visible:outline-accent"
+          className="relative mt-3 mb-1.5 inline-flex max-w-full cursor-default items-center rounded bg-transparent py-0 pl-2 pr-6 text-[11.5px] font-semibold uppercase tracking-wide text-faint hover:text-muted focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:text-[12.5px]"
         >
           <span className="truncate">{selectedName}</span>
           <Icon name="chevronDown" size={13} className="pointer-events-none absolute right-1" />
