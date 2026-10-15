@@ -53,25 +53,25 @@ const WELCOME_BODY: Block[] = [
   "A PWA is always installed via a menu in your web browser while accessing the web app you want to install. If you don't know how to do it on your device just do a web search for `How to install PWA {your operating system} {your browser}`, for example `How to install PWA iOS Chrome`.",
   ...BREAK,
   { title: 'Spaces' },
-  'Spaces keep separate collections of notes, such as Work and Personal, in one account. You start with a space called **Pages**. Open **Settings**, find **Spaces** and choose **New space** to add another. You can rename and reorder spaces there too.',
+  'Spaces keep separate collections of notes, such as Work and Personal, in one account. You start with one space called "Pages". You can modify, rearrange and create new spaces in Settings.',
   null,
-  'Once you have more than one space, use the space name at the top of the sidebar to switch between them. To see them together, turn on **Show all spaces simultaneously** in Settings. You can then drag a page onto another space to move it and its subpages there.',
+  'Once you have more than one space, use the space name at the top of the sidebar to switch between them. To see them together, turn on "Show all spaces simultaneously" in Settings. You can then drag a page onto another space to move it and its subpages there.',
   ...BREAK,
   { title: 'Offline Support' },
   'Jottr was built from the ground up for offline support. Behind the scenes Jottr is always saving your pages locally on your device first and then syncing to the server when possible (so that it can keep your notes in sync across multiple devices).',
   null,
-  "Naturally if you modify the same note on 2 different devices with no internet connection, Jottr will have issues merging those. It'll try its best to reconcile, but this can inevitably result in some data loss.",
+  "Naturally if you modify the same note on 2 different devices with no internet connection, Jottr could have issues merging those. It'll try its best to reconcile, but this can result in some data loss in niche edge cases.",
   null,
   {
     callout: [
-      "If you like, you can delete this document once you're done with it, or file it away for future reference. 🙂",
+      "If you like, you can delete this document once you're done with it, it can always be restored from Settings. 🙂",
     ],
   },
 ]
 
 /** A textblock whose **bold** and `code` runs carry those marks. */
-function paragraph(text: string, name = 'paragraph') {
-  const node = new Y.XmlElement(name)
+function paragraph(text: string) {
+  const node = new Y.XmlElement('paragraph')
   if (!text) return node
   const content = new Y.XmlText()
   let at = 0
@@ -96,7 +96,7 @@ function block(item: Block): Y.XmlElement {
   if (item === null) return paragraph('')
   if (item === 'divider') return new Y.XmlElement('horizontalRule')
   if (typeof item === 'string') return paragraph(item)
-  if ('title' in item) return paragraph(item.title, 'heading')
+  if ('title' in item) return paragraph(`**${item.title}**`)
   if ('ordered' in item) {
     return wrap('orderedList', item.ordered.map((text) => wrap('listItem', [paragraph(text)])))
   }

@@ -38,11 +38,11 @@ describe('the welcome page', () => {
     const body = Array.from({ length: page.childCount - 1 }, (_, i) => page.child(i + 1))
     assert.equal(body[0].type.name, 'callout')
     assert.equal(body.at(-1)!.type.name, 'callout')
-    const titles = body.filter((node) => node.type.name === 'heading').map((node) => node.textContent)
-    assert.deepEqual(titles, ['The Basics', 'Formatting', 'Shortcuts', 'Advanced Blocks', 'Install the App', 'Spaces', 'Offline Support'])
+    assert.ok(body.every((node) => node.type.name !== 'heading'))
+    const titles = body.filter((node) => node.type.name === 'paragraph' && node.childCount === 1 && node.firstChild?.marks.some((mark) => mark.type.name === 'bold'))
+    assert.deepEqual(titles.map((node) => node.textContent), ['The Basics', 'Formatting', 'Shortcuts', 'Advanced Blocks', 'Install the App', 'Spaces', 'Offline Support'])
     const basics = body.find((node) => node.textContent === 'The Basics')!
-    // The block is the title's weight; bold on top would be a second one.
-    assert.deepEqual(basics.firstChild!.marks, [])
+    assert.ok(basics.firstChild!.marks.some((mark) => mark.type.name === 'bold'))
     // The opening callout runs straight into the first section, no divider.
     assert.equal(body[body.indexOf(basics) - 2].type.name, 'callout')
     const formatting = body.find((node) => node.textContent === 'Formatting')!
