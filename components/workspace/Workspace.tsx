@@ -86,7 +86,11 @@ export function Workspace() {
     })
   }, [pagesReady, openId, view])
 
-  const landOn = useCallback((id: string) => open(id, { replace: true }), [open])
+  // The welcome page needs the same clear view as a page picked from the list.
+  const landOn = useCallback(
+    (id: string) => afterDrawerShuts(() => open(id, { replace: true })),
+    [open, afterDrawerShuts],
+  )
 
   const byId = useMemo(() => new Map(activePages.map((page) => [page.id, page])), [activePages])
   const page = openId ? (byId.get(openId) ?? null) : null
