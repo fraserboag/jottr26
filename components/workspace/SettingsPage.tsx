@@ -1,6 +1,8 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useState } from 'react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SyncStatus, useRetrySync } from './SyncControls'
 import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
@@ -29,6 +31,7 @@ function buildStamp() {
 export function SettingsBar() {
   const { signOut } = useWorkspace()
   const status = useSyncStatus()
+  const [confirming, setConfirming] = useState(false)
   return (
     <>
       <span className="flex h-8 items-center text-faint pointer-coarse:text-[13px]">v{buildStamp()}</span>
@@ -37,12 +40,8 @@ export function SettingsBar() {
         onClick={() => {
           // Signing out erases the local copy, so unsynced work has to be
           // called out rather than quietly discarded.
-          if (
-            status.pending > 0 &&
-            !window.confirm(
-              `${status.pending} ${status.pending === 1 ? 'item has' : 'items have'} changes that haven't reached your account yet. Signing out now will discard them. Continue?`,
-            )
-          ) {
+          if (status.pending > 0) {
+            setConfirming(true)
             return
           }
           void signOut()
@@ -52,6 +51,15 @@ export function SettingsBar() {
         <Icon name="logout" size={14} />
         Sign out
       </button>
+      {confirming && (
+        <ConfirmDialog
+          title="Sign out with unsynced changes?"
+          description={`${status.pending} ${status.pending === 1 ? 'item has' : 'items have'} changes that haven't reached your account yet. Signing out now will discard them.`}
+          confirmLabel="Sign out"
+          onConfirm={signOut}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </>
   )
 }

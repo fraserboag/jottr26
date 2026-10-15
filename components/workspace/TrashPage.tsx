@@ -1,6 +1,7 @@
 'use client'
 
 import { Icon } from '@/components/ui/Icon'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useState } from 'react'
 import { emptyTrash, restorePage } from '@/lib/db/pages'
 import { updateWorkspace } from '@/lib/db/workspaces'
@@ -20,22 +21,28 @@ const count = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`
  *  on the left, and the button to empty it on the right, in the star's pale
  *  box. */
 export function TrashBar({ pages }: { pages: PageRow[] }) {
+  const [confirming, setConfirming] = useState(false)
   return (
     <>
       <span className="flex h-8 items-center text-faint">{count(pages.length)}</span>
       <button
         type="button"
         disabled={pages.length === 0}
-        onClick={() => {
-          if (window.confirm(`Permanently delete ${count(pages.length)}? This cannot be undone.`)) {
-            void emptyTrash([...new Set(pages.map((page) => page.workspaceId))])
-          }
-        }}
+        onClick={() => setConfirming(true)}
         className="pointer-events-auto ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 text-[14.5px] font-medium text-danger shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)]"
       >
         <Icon name="trash" size={16} strokeWidth={1.8} />
         Empty trash
       </button>
+      {confirming && (
+        <ConfirmDialog
+          title="Empty trash?"
+          description={`Permanently delete ${count(pages.length)}? This cannot be undone.`}
+          confirmLabel="Empty trash"
+          onConfirm={() => emptyTrash([...new Set(pages.map((page) => page.workspaceId))])}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </>
   )
 }

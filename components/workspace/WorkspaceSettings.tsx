@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createWorkspace, deleteWorkspace, updateWorkspace } from '@/lib/db/workspaces'
 import type { NoteWorkspaceRow } from '@/lib/db/schema'
 import { Icon } from '@/components/ui/Icon'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useNoteWorkspaces } from './NoteWorkspacesContext'
 import { useWorkspaceOrderDrag } from './useWorkspaceOrderDrag'
 
@@ -95,6 +96,7 @@ function NewWorkspaceSetting({ onClose }: { onClose: () => void }) {
 }
 
 function WorkspaceSetting({ workspace, canDelete, ordering }: { workspace: NoteWorkspaceRow; canDelete: boolean; ordering: ReturnType<typeof useWorkspaceOrderDrag> }) {
+  const [confirming, setConfirming] = useState(false)
   const [name, setName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -138,12 +140,18 @@ function WorkspaceSetting({ workspace, canDelete, ordering }: { workspace: NoteW
           maxLength={80}
           className={nameInputClass}
         />
-        <button type="button" disabled={busy || !canDelete} aria-label={`Delete ${workspace.name}`} title={canDelete ? 'Delete space' : 'Keep at least one space'} className={`${actionClass} w-8 text-danger disabled:opacity-40`} onClick={() => void run(async () => {
-          if (!window.confirm('Deleting this space will move all of its pages to Trash.')) return
-          await deleteWorkspace(workspace.id)
-        })}><Icon name="trash" size={16} /></button>
+        <button type="button" disabled={busy || !canDelete} aria-label={`Delete ${workspace.name}`} title={canDelete ? 'Delete space' : 'Keep at least one space'} className={`${actionClass} w-8 text-danger disabled:opacity-40`} onClick={() => setConfirming(true)}><Icon name="trash" size={16} /></button>
       </div>
       {error && <p id={`workspace-${workspace.id}-error`} role="alert" className="mt-2 text-sm text-danger">{error}</p>}
+      {confirming && (
+        <ConfirmDialog
+          title={`Delete “${workspace.name}”?`}
+          description="Deleting this space will move all of its pages to Trash."
+          confirmLabel="Delete space"
+          onConfirm={() => deleteWorkspace(workspace.id)}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </li>
   )
 }
