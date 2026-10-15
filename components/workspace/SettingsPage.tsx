@@ -3,12 +3,16 @@
 import { Icon } from '@/components/ui/Icon'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { SyncStatus, useRetrySync } from './SyncControls'
 import { useSyncStatus, useWorkspace } from './WorkspaceProvider'
 import { setTheme, useTheme, type Theme } from '@/lib/util/theme'
 import { WorkspaceSettings } from './WorkspaceSettings'
 import { useNoteWorkspaces } from './NoteWorkspacesContext'
+import { activeDatabase } from '@/lib/db/dexie'
+import { canRestoreWelcomePage, restoreWelcomePage } from '@/lib/db/welcome'
+import { useOpenPageId } from '@/lib/util/route'
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -88,10 +92,52 @@ export function SettingsPage() {
         <Row label="Show all spaces simultaneously">
           <SegmentedControl label="Show all spaces simultaneously" value={inline ? 'on' : 'off'} options={INLINE_OPTIONS} onChange={(value) => void setInline(value === 'on')} />
         </Row>
+        <RestoreWelcomeSetting />
       </ul>
       <WorkspaceSettings />
       {retrySync.overlay}
     </>
+  )
+}
+
+function RestoreWelcomeSetting() {
+  const { userId } = useWorkspace()
+  const { selectedId } = useNoteWorkspaces()
+  const [, open] = useOpenPageId()
+  const available = useLiveQuery(canRestoreWelcomePage, [userId])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const restore = async () => {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const id = await restoreWelcomePage(selectedId)
+      const page = await activeDatabase()?.pages.get(id)
+      if (page) open(id, { workspaceId: page.workspaceId })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Could not restore the welcome page.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!available && !busy && !error) return null
+  return (
+    <Row label="Restore welcome page">
+      <span className="flex flex-col items-end gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void restore()}
+          className="flex shrink-0 cursor-pointer rounded-md border border-line p-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
+        >
+          <span className="rounded-[5px] bg-[var(--selected)] px-2 py-0.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-[var(--hover)]">Restore</span>
+        </button>
+        {error && <span role="alert" className="text-sm text-danger">{error}</span>}
+      </span>
+    </Row>
   )
 }
 

@@ -1,9 +1,11 @@
 import * as Y from 'yjs'
 import { activeDatabase, readMeta, writeMeta } from './dexie'
-import { createPage, refreshDerived } from './pages'
+import { createPage, refreshDerived, restorePage } from './pages'
 import { DOC_FIELD, openDoc } from './ydoc'
+import { META_LAST_SYNCED } from './schema'
 
 const WELCOME_KEY = 'welcomed'
+const WELCOME_PAGE_KEY = 'welcomePageId'
 
 const WELCOME_TITLE = 'Welcome to Jottr'
 
@@ -111,6 +113,54 @@ export function writeWelcome(doc: Y.Doc) {
   })
 }
 
+/** Keep the ID locally so renaming or moving the guide does not make it
+ *  appear missing. Older accounts and other devices fall back to its title. */
+async function findWelcomePage() {
+  const db = activeDatabase()
+  if (!db) return undefined
+  const id = await readMeta(db, WELCOME_PAGE_KEY, '')
+  const known = id ? await db.pages.get(id) : undefined
+  const named = await db.pages.filter((page) => page.title === WELCOME_TITLE).toArray()
+  return [known, ...named].find((page) => page && !page.deletedAt) ?? known ?? named[0]
+}
+
+export async function canRestoreWelcomePage() {
+  const db = activeDatabase()
+  if (!db) return false
+  const page = await findWelcomePage()
+  if (page) return page.deletedAt > 0
+  // A second device may never have seeded the guide itself. Wait for its
+  // first pull before treating an absent guide as permanently deleted.
+  return Boolean(await readMeta(db, WELCOME_PAGE_KEY, '')
+    || await readMeta(db, WELCOME_KEY, false)
+    || await readMeta(db, META_LAST_SYNCED, 0))
+}
+
+async function createWelcomePage(workspaceId?: string) {
+  const db = activeDatabase()
+  if (!db) throw new Error('No open space')
+  const id = await createPage({ title: WELCOME_TITLE, workspaceId })
+  writeWelcome((await openDoc(id)).doc)
+  await refreshDerived(id)
+  await writeMeta(db, WELCOME_PAGE_KEY, id)
+  return id
+}
+
+/** Recover the user's copy where possible; an emptied trash gets a fresh guide. */
+export async function restoreWelcomePage(workspaceId?: string) {
+  const db = activeDatabase()
+  if (!db) throw new Error('No open space')
+  const page = await findWelcomePage()
+  if (page && !page.deletedAt) return page.id
+  const workspace = page && await db.workspaces.get(page.workspaceId)
+  if (page && workspace && !workspace.deletedAt && !workspace.purgedAt) {
+    await restorePage(page.id)
+    await writeMeta(db, WELCOME_PAGE_KEY, page.id)
+    return page.id
+  }
+  return createWelcomePage(workspaceId)
+}
+
 /** The welcome guide, written on the device that first signs in, then synced
  *  like any other page. The flag lives in local meta, so a second device does
  *  not write a second copy — it just pulls this one down. */
@@ -130,8 +180,5 @@ export async function ensureFirstPage(): Promise<string | null> {
   const count = await db.pages.count()
   if (count > 0) return null
 
-  const id = await createPage({ title: WELCOME_TITLE })
-  writeWelcome((await openDoc(id)).doc)
-  await refreshDerived(id)
-  return id
+  return createWelcomePage()
 }
