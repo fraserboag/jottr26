@@ -31,7 +31,7 @@ export function SpaceSwitcher({ spaces, selectedId, onSelect }: {
               if (!open) toggle()
             }
           }}
-          className="relative mt-3 mb-1.5 inline-flex max-w-full cursor-default items-center rounded bg-transparent py-0 pl-2 pr-6 text-[11.5px] font-semibold uppercase tracking-wide text-faint hover:text-muted focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:py-1 pointer-coarse:text-[12.5px]"
+          className="relative mt-3 mb-1.5 inline-flex max-w-full cursor-default items-center rounded bg-transparent py-0 pl-2 pr-6 text-[11.5px] font-semibold uppercase tracking-wide text-faint hover:text-muted focus-visible:outline-2 focus-visible:outline-accent"
         >
           <span className="truncate">{selectedName}</span>
           <Icon name="chevronDown" size={13} className="pointer-events-none absolute right-1" />
@@ -108,7 +108,7 @@ function SpaceOptions({ spaces, selectedId, onSelect, close, restoreFocus }: {
       {spaces.map((space) => (
         <button key={space.id} type="button" role="menuitemradio" aria-checked={space.id === selectedId} tabIndex={-1}
           onClick={() => { close(); restoreFocus(); onSelect(space.id) }}
-          className="flex w-full cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-left text-ink transition-colors hover:bg-[var(--hover)] focus-visible:bg-[var(--hover)] focus:outline-none pointer-coarse:py-2.5"
+          className="flex w-full cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-left text-ink transition-colors hover:bg-[var(--hover)] focus-visible:bg-[var(--hover)] focus:outline-none"
         >
           <span className="min-w-0 flex-1 truncate">{space.name}</span>
           <span className="grid size-4 shrink-0 place-items-center text-muted">

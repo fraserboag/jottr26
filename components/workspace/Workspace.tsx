@@ -206,7 +206,7 @@ export function Workspace() {
           {/* The top left: the way back to a hidden sidebar. It floats over
               the page rather than scrolling away with it. The row itself lets
               clicks through to the page; only what is drawn in it takes them. */}
-          <div className="float-top pointer-events-none absolute left-2 right-12 z-30 flex min-w-0 items-center gap-2 pointer-coarse:right-14">
+          <div className="float-top pointer-events-none absolute left-2 right-12 z-30 flex min-w-0 items-center gap-2">
             {/* The same pale box and shadow as the star, so the page's left
                 edge can pass underneath on a phone without the icon looking
                 like part of the text. */}
@@ -215,9 +215,9 @@ export function Workspace() {
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Show sidebar"
-                className="pointer-events-auto grid rounded-md bg-sunken shadow-[var(--shadow-subtle)] size-8 shrink-0 place-items-center text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:size-10 pointer-coarse:text-muted"
+                className="pointer-events-auto grid rounded-md bg-sunken shadow-[var(--shadow-subtle)] size-8 shrink-0 place-items-center text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:text-muted"
               >
-                <Icon name="panel" size={18} className="pointer-coarse:size-5" />
+                <Icon name="panel" size={18} />
               </button>
             )}
           </div>
@@ -234,7 +234,7 @@ export function Workspace() {
               {page && (
                 <div
                   className={`float-top pointer-events-none absolute left-2 z-10 flex min-w-0 items-center gap-2 ${wide ? 'right-4' : 'right-2'} ${
-                    wide && sidebarOpen ? 'pl-2' : 'pl-10 pointer-coarse:pl-12'
+                    wide && sidebarOpen ? 'pl-2' : 'pl-10'
                   }`}
                 >
                   {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} truncate={wide} />}
@@ -246,7 +246,7 @@ export function Workspace() {
               {!page && view === 'trash' && (
                 <div
                   className={`float-top pointer-events-none absolute left-2 z-10 flex min-w-0 items-center gap-2 ${wide ? 'right-4' : 'right-2'} ${
-                    wide && sidebarOpen ? 'pl-2' : 'pl-10 pointer-coarse:pl-12'
+                    wide && sidebarOpen ? 'pl-2' : 'pl-10'
                   }`}
                 >
                   <TrashBar pages={visibleTrash} />
@@ -256,7 +256,7 @@ export function Workspace() {
               {!page && view === 'settings' && (
                 <div
                   className={`float-top pointer-events-none absolute left-2 z-10 flex min-w-0 items-center gap-2 ${wide ? 'right-4' : 'right-2'} ${
-                    wide && sidebarOpen ? 'pl-2' : 'pl-10 pointer-coarse:pl-12'
+                    wide && sidebarOpen ? 'pl-2' : 'pl-10'
                   }`}
                 >
                   <SettingsBar />

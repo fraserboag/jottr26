@@ -119,7 +119,7 @@ export function SlashList({
               event.preventDefault()
               onSelect(item)
             }}
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
+            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[14.5px] transition-colors ${
               active ? 'bg-[var(--active)]' : ''
             }`}
           >

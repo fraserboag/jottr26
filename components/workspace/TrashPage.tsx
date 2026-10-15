@@ -22,7 +22,7 @@ const count = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`
 export function TrashBar({ pages }: { pages: PageRow[] }) {
   return (
     <>
-      <span className="flex h-8 items-center text-faint pointer-coarse:h-10">{count(pages.length)}</span>
+      <span className="flex h-8 items-center text-faint">{count(pages.length)}</span>
       <button
         type="button"
         disabled={pages.length === 0}
@@ -31,7 +31,7 @@ export function TrashBar({ pages }: { pages: PageRow[] }) {
             void emptyTrash([...new Set(pages.map((page) => page.workspaceId))])
           }
         }}
-        className="pointer-events-auto ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 font-medium text-danger shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)] pointer-coarse:h-10"
+        className="pointer-events-auto ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 text-[14.5px] font-medium text-danger shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)]"
       >
         <Icon name="trash" size={16} strokeWidth={1.8} />
         Empty trash
@@ -105,7 +105,7 @@ function TrashedPages({ pages, onRestore, busy, labelFor }: {
                 type="button"
                 disabled={busy}
                 onClick={() => onRestore(page)}
-                className="flex h-[calc(var(--body-size)*1.6)] items-center gap-1 self-start px-1 font-medium text-accent hover:underline"
+                className="flex h-[1.6rem] items-center gap-1 self-start px-1 text-[14.5px] font-medium text-accent hover:underline"
               >
                 <Icon name="undo" size={15} strokeWidth={1.8} />
                 Restore

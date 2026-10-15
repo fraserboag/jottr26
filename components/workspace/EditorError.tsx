@@ -22,7 +22,7 @@ export const EditorError = catchError(function EditorFallback(_props: object, { 
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="px-1 font-medium text-accent hover:underline pointer-coarse:py-2"
+        className="px-1 text-[14.5px] font-medium text-accent hover:underline"
       >
         Reload
       </button>

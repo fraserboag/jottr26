@@ -122,7 +122,7 @@ export function Sidebar({
                   void select(id).catch((error: Error) => setError(error.message))
                 }} />
               ) : inline ? (
-                <button type="button" {...ordering.handleProps(workspace.id)} className="flex max-w-full cursor-default items-center gap-1 px-2 pb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-faint pointer-coarse:text-[12.5px]">
+                <button type="button" {...ordering.handleProps(workspace.id)} className="flex max-w-full cursor-default items-center gap-1 px-2 pb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-faint">
                   <span className="truncate">{workspace.name}</span>
                 </button>
               ) : <SectionLabel>{workspace.name}</SectionLabel>}
@@ -171,9 +171,9 @@ function AddPage({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       // Lines up with the pages above it, the plus sitting where each page's
       // icon sits.
-      className="my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:py-2"
+      className="my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted"
     >
-      <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
+      <span className="grid size-5 shrink-0 place-items-center">
         <Icon name="plus" size={15} strokeWidth={2} />
       </span>
       <span className="flex-1 text-left">Add page</span>
@@ -207,11 +207,11 @@ function SidebarAction({
       aria-current={current ? 'page' : undefined}
       // Spaced as the page rows above are, the icon in the same slot. The
       // footer is a column, so the margins add up to the rows' 2px gap.
-      className={`my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-muted transition-colors pointer-coarse:py-2 ${
+      className={`my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-muted transition-colors ${
         current ? 'bg-[var(--selected)]' : 'hover:bg-[var(--hover)]'
       }`}
     >
-      <span className="grid size-5 shrink-0 place-items-center pointer-coarse:size-6">
+      <span className="grid size-5 shrink-0 place-items-center">
         <Icon name={icon} size={15} className="text-muted" />
       </span>
       <span className="flex-1 text-left">{label}</span>

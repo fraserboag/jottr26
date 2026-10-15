@@ -118,7 +118,7 @@ export function Popover({
               maxWidth: 'calc(100vw - 16px)',
               visibility: position ? 'visible' : 'hidden',
             }}
-            className={`pop-in fixed z-50 overflow-hidden rounded-xl border border-line bg-raised p-1 text-[13.5px] shadow-[var(--shadow-subtle)] pointer-coarse:text-[15px] ${className}`}
+            className={`pop-in fixed z-50 overflow-hidden rounded-xl border border-line bg-raised p-1 text-[13.5px] shadow-[var(--shadow-subtle)] ${className}`}
           >
             {children(close)}
           </div>,
@@ -147,7 +147,7 @@ export function MenuItem({
       role={checked === undefined ? 'menuitem' : 'menuitemradio'}
       aria-checked={checked}
       onClick={onClick}
-      className={`flex w-full cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors pointer-coarse:py-2.5 hover:bg-[var(--hover)] focus-visible:bg-[var(--hover)] focus:outline-none ${
+      className={`flex w-full cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--hover)] focus-visible:bg-[var(--hover)] focus:outline-none ${
         tone === 'danger' ? 'text-danger' : 'text-ink'
       }`}
     >

@@ -8,7 +8,7 @@ import type { PageRow } from '@/lib/db/schema'
 export function PageActions({ page }: { page: PageRow }) {
   const favoriteLabel = page.isFavorite ? 'Remove from favourites' : 'Add to favourites'
   const trashLabel = `Move ${page.title || 'Untitled'} to trash`
-  const buttonClass = 'grid size-6 shrink-0 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--active)] active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:[&_svg]:size-5'
+  const buttonClass = 'grid size-6 shrink-0 touch-manipulation place-items-center rounded-md transition-colors hover:bg-[var(--active)] active:bg-[var(--active)]'
 
   return (
     <>

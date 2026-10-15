@@ -7,8 +7,8 @@ import { Icon } from '@/components/ui/Icon'
 import { useNoteWorkspaces } from './NoteWorkspacesContext'
 import { useWorkspaceOrderDrag } from './useWorkspaceOrderDrag'
 
-const actionClass = 'flex h-8 shrink-0 items-center justify-center rounded-md px-2 text-[12.5px] font-medium text-muted transition-colors hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40 pointer-coarse:h-10 pointer-coarse:text-[13.5px]'
-const nameInputClass = 'workspace-name-input mr-auto h-8 min-w-0 max-w-64 flex-1 cursor-text border-0 bg-transparent p-0 text-ink pointer-coarse:h-10'
+const actionClass = 'flex h-7 shrink-0 items-center justify-center rounded-md px-2 text-[12.5px] font-medium text-muted transition-colors hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40'
+const nameInputClass = 'workspace-name-input mr-auto h-7 min-w-0 max-w-64 flex-1 cursor-text border-0 bg-transparent p-0 text-ink pointer-coarse:text-[15px]'
 
 export function WorkspaceSettings() {
   const { active } = useNoteWorkspaces()
@@ -18,12 +18,12 @@ export function WorkspaceSettings() {
 
   return (
     <section className="mt-10" aria-labelledby="workspaces-title">
-      <h2 id="workspaces-title" className="page-title" style={{ marginBottom: '0.75rem' }}>Spaces</h2>
+      <h2 id="workspaces-title" className="page-title settings-title" style={{ marginBottom: '0.75rem' }}>Spaces</h2>
       <ul className="divide-y divide-line">
         {active.map((workspace) => <WorkspaceSetting key={workspace.id} workspace={workspace} canDelete={active.length > 1} ordering={ordering} />)}
         {adding && <NewWorkspaceSetting onClose={() => setAdding(false)} />}
       </ul>
-      <button type="button" disabled={adding} onClick={() => setAdding(true)} className="mt-2 flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 font-medium text-ink shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40 pointer-coarse:h-10"><Icon name="workspacePlus" size={14} />New space</button>
+      <button type="button" disabled={adding} onClick={() => setAdding(true)} className="mt-2 flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 text-[14.5px] font-medium text-ink shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"><Icon name="workspacePlus" size={14} />New space</button>
       {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     </section>
   )
@@ -63,9 +63,9 @@ function NewWorkspaceSetting({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <li className="relative min-h-14 py-3 pointer-coarse:min-h-16">
+    <li className="relative flex min-h-12 flex-col justify-center py-2">
       <div className="flex flex-wrap items-center gap-2">
-        <span aria-hidden="true" className="w-5 shrink-0 pointer-coarse:w-6" />
+        <span aria-hidden="true" className="w-5 shrink-0" />
         <input
           ref={input}
           aria-label="New space name"
@@ -106,10 +106,10 @@ function WorkspaceSetting({ workspace, canDelete, ordering }: { workspace: NoteW
     finally { setBusy(false) }
   }
   return (
-    <li className={`relative min-h-14 py-3 pointer-coarse:min-h-16 ${ordering.dragging === workspace.id ? 'opacity-40' : ''}`} {...ordering.containerProps(workspace.id)}>
+    <li className={`relative flex min-h-12 flex-col justify-center py-2 ${ordering.dragging === workspace.id ? 'opacity-40' : ''}`} {...ordering.containerProps(workspace.id)}>
       {ordering.drop?.id === workspace.id && <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 h-0.5 bg-accent ${ordering.drop.side === 'before' ? 'top-0' : 'bottom-0'}`} />}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" {...ordering.handleProps(workspace.id)} disabled={busy} className="grid h-8 w-5 shrink-0 cursor-grab place-items-center rounded-md text-faint hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing pointer-coarse:h-10 pointer-coarse:w-6"><Icon name="grip" size={15} strokeWidth={2.8} /></button>
+        <button type="button" {...ordering.handleProps(workspace.id)} disabled={busy} className="grid h-7 w-5 shrink-0 cursor-grab place-items-center rounded-md text-faint hover:bg-[var(--hover)] focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"><Icon name="grip" size={15} strokeWidth={2.8} /></button>
         <input
           aria-label="Space name"
           aria-invalid={!!error}
@@ -138,7 +138,7 @@ function WorkspaceSetting({ workspace, canDelete, ordering }: { workspace: NoteW
           maxLength={80}
           className={nameInputClass}
         />
-        <button type="button" disabled={busy || !canDelete} aria-label={`Delete ${workspace.name}`} title={canDelete ? 'Delete space' : 'Keep at least one space'} className={`${actionClass} w-8 text-danger disabled:opacity-40 pointer-coarse:w-10`} onClick={() => void run(async () => {
+        <button type="button" disabled={busy || !canDelete} aria-label={`Delete ${workspace.name}`} title={canDelete ? 'Delete space' : 'Keep at least one space'} className={`${actionClass} w-8 text-danger disabled:opacity-40`} onClick={() => void run(async () => {
           if (!window.confirm('Deleting this space will move all of its pages to Trash.')) return
           await deleteWorkspace(workspace.id)
         })}><Icon name="trash" size={16} /></button>

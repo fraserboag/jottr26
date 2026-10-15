@@ -114,7 +114,7 @@ export function LinkPicker({
           name="link"
           size={19}
           strokeWidth={1.8}
-          className="shrink-0 text-faint pointer-coarse:size-5"
+          className="shrink-0 text-faint"
         />
 
         <input
@@ -173,7 +173,7 @@ export function LinkPicker({
                 // bubble menu hides, and the click never lands.
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(row)}
-                className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left pointer-coarse:py-2.5 transition-colors ${
+                className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-[14.5px] transition-colors ${
                   i === index ? 'bg-[var(--active)]' : ''
                 }`}
               >
@@ -189,7 +189,7 @@ export function LinkPicker({
                     <>
                       <span className="block truncate text-ink">{row.title}</span>
                       {row.snippet && (
-                        <span className="mt-0.5 block truncate text-[11.5px] text-faint pointer-coarse:text-[13px]">
+                        <span className="mt-0.5 block truncate text-[11.5px] text-faint">
                           {row.snippet}
                         </span>
                       )}

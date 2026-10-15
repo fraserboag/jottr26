@@ -66,7 +66,7 @@ export function SyncOverlay({
           type="button"
           autoFocus
           onClick={dismiss}
-          className="mt-4 w-full rounded-lg border border-line px-3 py-1.5 font-medium transition-colors hover:bg-[var(--hover)] pointer-coarse:py-2"
+          className="mt-4 w-full rounded-lg border border-line px-3 py-1.5 text-[14.5px] font-medium transition-colors hover:bg-[var(--hover)]"
         >
           {failure === null ? 'Cancel' : 'Close'}
         </button>

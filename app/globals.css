@@ -316,6 +316,10 @@ body {
   color: var(--text);
 }
 
+.settings-title {
+  font-size: clamp(1.625rem, 4.8vw, 2rem);
+}
+
 /* Lists only indent the text. Their wrappers and items add no vertical
    space, so nesting, splitting or lifting a line keeps the same rhythm. */
 .ProseMirror ul,
@@ -407,17 +411,10 @@ body {
 }
 @media (pointer: coarse) {
   .ProseMirror div[data-type="subpages"] .subpages-button {
-    width: 32px;
-    height: 32px;
     color: var(--text-muted);
   }
   .ProseMirror div[data-type="subpages"] .subpages-button:not([data-open]) {
     opacity: 0.4;
-  }
-  /* The same size as the entries' menus below and the sidebar's buttons. */
-  .ProseMirror div[data-type="subpages"] .subpages-button svg {
-    width: 20px;
-    height: 20px;
   }
 }
 .ProseMirror div[data-type="subpages"] > .subpages-box {

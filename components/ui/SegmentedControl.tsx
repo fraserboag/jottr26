@@ -13,7 +13,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void
 }) {
   const optionClassName = (optionValue: T) =>
-    `rounded-[5px] px-2 py-0.5 text-[12.5px] font-medium transition-colors pointer-coarse:py-1 pointer-coarse:text-[13.5px] ${
+    `rounded-[5px] px-2 py-0.5 text-[12.5px] font-medium transition-colors ${
       value === optionValue ? 'bg-[var(--selected)] text-ink' : 'text-muted hover:bg-[color-mix(in_srgb,var(--selected)_50%,transparent)] hover:text-ink'
     }`
 

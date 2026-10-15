@@ -24,14 +24,14 @@ function buildStamp() {
 
 /** The row the trail takes on a page: on the left the build this device is
  *  running, which the service worker swaps for a new deploy's on a later load,
- *  in the same size and colour as the trail's last crumb; on the right the
+ *  in the same colour as the trail's last crumb; on the right the
  *  button to sign out, where the trash keeps its Empty trash. */
 export function SettingsBar() {
   const { signOut } = useWorkspace()
   const status = useSyncStatus()
   return (
     <>
-      <span className="flex h-8 items-center text-faint pointer-coarse:h-10">v{buildStamp()}</span>
+      <span className="flex h-8 items-center text-faint pointer-coarse:text-[13px]">v{buildStamp()}</span>
       <button
         type="button"
         onClick={() => {
@@ -47,7 +47,7 @@ export function SettingsBar() {
           }
           void signOut()
         }}
-        className="pointer-events-auto ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 font-medium text-danger shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)] pointer-coarse:h-10"
+        className="pointer-events-auto ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-sunken px-3 text-[14.5px] font-medium text-danger shadow-[var(--shadow-subtle)] transition-colors hover:bg-[var(--hover)]"
       >
         <Icon name="logout" size={14} />
         Sign out
@@ -56,7 +56,7 @@ export function SettingsBar() {
   )
 }
 
-/** Laid out like a note, as the trash is: the same title, then the settings
+/** Laid out like a note, as the trash is: a smaller title, then the settings
  *  where the body would be. */
 export function SettingsPage() {
   const { session } = useWorkspace()
@@ -65,9 +65,9 @@ export function SettingsPage() {
 
   return (
     <>
-      <h1 className="page-title">Settings</h1>
+      <h1 className="page-title settings-title">Settings</h1>
 
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-line pointer-coarse:text-[15px]">
         <Row label="Account">
           <span className="min-w-0 truncate text-muted">{session?.user.email}</span>
         </Row>
@@ -97,7 +97,7 @@ function ThemeSwitch() {
 /** One setting: what it is on the left, its value or control on the right. */
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <li className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 py-3 pointer-coarse:min-h-16 first:min-h-0 first:pt-0">
+    <li className="flex min-h-12 flex-wrap items-center gap-x-4 gap-y-2 py-2 first:min-h-0 first:pt-0">
       <span className="min-w-0 text-ink">{label}</span>
       <span className="ml-auto flex min-w-0 max-w-full items-center justify-end">{children}</span>
     </li>

@@ -140,7 +140,7 @@ function SignIn() {
                   setCode("");
                   setError(null);
                 }}
-                className="-ml-2 mt-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-muted transition-colors hover:bg-[var(--hover)] hover:text-ink pointer-coarse:py-2 pointer-coarse:text-[14px]"
+                className="-ml-2 mt-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-muted transition-colors hover:bg-[var(--hover)] hover:text-ink"
               >
                 <Icon name="arrowLeft" size={14} />
                 Use a different email
@@ -243,7 +243,7 @@ function Submit({ busy, label, icon }: { busy: boolean; label: string; icon: "ma
     <button
       type="submit"
       disabled={busy}
-      className="mt-3 flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 font-medium text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60 pointer-coarse:py-2.5"
+      className="mt-3 flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-[14.5px] font-medium text-accent-contrast transition-opacity hover:opacity-90 disabled:opacity-60"
     >
       {busy ? (
         <Icon name="refresh" size={14} className="animate-spin" />

@@ -66,11 +66,11 @@ type TableState = NonNullable<ReturnType<typeof useTableState>>
 export function TableControls({ editor, state }: { editor: Editor; state: TableState }) {
   return (
     <>
-      <span className="px-1.5 text-[13px] tabular-nums text-faint pointer-coarse:text-[14px] shrink-0 whitespace-nowrap">
+      <span className="px-1.5 text-[13px] tabular-nums text-faint shrink-0 whitespace-nowrap">
         {state.rows} × {state.cols}
       </span>
       <span className="mx-1 h-6 w-px shrink-0 bg-line" />
-      <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Rows</span>
+      <span className="pl-1 text-[13px] text-muted">Rows</span>
       <ToolButton
         icon="minus"
         label="Delete this row"
@@ -83,7 +83,7 @@ export function TableControls({ editor, state }: { editor: Editor; state: TableS
         onClick={() => editor.chain().focus().addRowAfter().run()}
       />
       <span className="mx-1 h-6 w-px shrink-0 bg-line" />
-      <span className="pl-1 text-[13px] text-muted pointer-coarse:text-[14px]">Cols</span>
+      <span className="pl-1 text-[13px] text-muted">Cols</span>
       <ToolButton
         icon="minus"
         label="Delete this column"

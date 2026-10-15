@@ -185,7 +185,7 @@ const Row = memo(function Row({
               event.stopPropagation()
               onToggleExpand(page.id)
             }}
-            className="grid size-5 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-[var(--active)] hover:text-muted pointer-coarse:size-6"
+            className="grid size-5 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-[var(--active)] hover:text-muted"
           >
             <Icon name={isExpanded ? 'chevronDown' : 'chevronRight'} size={14} strokeWidth={2} />
           </button>
@@ -205,7 +205,7 @@ const Row = memo(function Row({
                 onOpen(id)
               })
             }}
-            className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:h-10 pointer-coarse:w-8 pointer-coarse:text-muted pointer-coarse:[&_svg]:size-5"
+            className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:text-muted"
           >
             <Icon name="plus" size={16} strokeWidth={2} />
           </button>

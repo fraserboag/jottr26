@@ -54,7 +54,7 @@ export function Breadcrumb({
     <nav
       ref={setNav}
       aria-label="Breadcrumb"
-      className={`pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 pointer-coarse:h-10 ${
+      className={`pointer-events-auto flex h-8 min-w-0 items-center gap-1.5 text-[14.5px] ${
         truncate
           ? 'overflow-hidden'
           : 'scroll-fade overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
