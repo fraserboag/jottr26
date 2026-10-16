@@ -38,11 +38,11 @@ export function PageRowButton({
 }
 
 /** A row's buttons. Shown on hover or keyboard focus; on a touch screen they
- *  stay visible, a little faded. Hidden, they
+ *  stay visible, with only unselected actions faded. Hidden, they
  *  take no width, so a long title runs to the row's edge. */
 export function RowActions({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex w-0 shrink-0 items-center overflow-hidden opacity-0 transition-opacity group-hover:w-auto group-hover:overflow-visible group-hover:opacity-100 focus-within:w-auto focus-within:overflow-visible focus-within:opacity-100 pointer-coarse:w-auto pointer-coarse:overflow-visible pointer-coarse:opacity-40">
+    <div className="flex w-0 shrink-0 items-center overflow-hidden opacity-0 transition-opacity group-hover:w-auto group-hover:overflow-visible group-hover:opacity-100 focus-within:w-auto focus-within:overflow-visible focus-within:opacity-100 pointer-coarse:w-auto pointer-coarse:overflow-visible pointer-coarse:opacity-100 pointer-coarse:[&>button:not([aria-pressed=true])]:opacity-40">
       {children}
     </div>
   )
