@@ -19,6 +19,7 @@ import { usePageTrail, useEntryFromAbove } from './pageTrail'
 import { useSidebarDrawer } from './useSidebarDrawer'
 import { useSidebarResize } from './useSidebarResize'
 import { useAllPages, useTrashedPages } from '@/lib/db/hooks'
+import { createPage, trashPage } from '@/lib/db/pages'
 import { useOpenPageId, useView, type View } from '@/lib/util/route'
 import { afterPaint, idleAfterPaint } from '@/lib/util/idle'
 import { listenForMouseHistory } from '@/lib/util/mouseHistory'
@@ -211,7 +212,7 @@ export function Workspace() {
               the page rather than scrolling away with it. The row itself lets
               clicks through to the page; only what is drawn in it takes them. */}
           <div className="float-top pointer-events-none absolute left-2 right-12 z-30 flex min-w-0 items-center gap-2">
-            {/* The same pale box and shadow as the star, so the page's left
+            {/* The same pale box and shadow as the note controls, so the page's left
                 edge can pass underneath on a phone without the icon looking
                 like part of the text. */}
             {!sidebarOpen && (
@@ -228,10 +229,10 @@ export function Workspace() {
 
           {(page || view) && !trashEmpty ? (
             <div className="scrollbar-none relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-              {/* The trail and the star are part of the page: they start level
+              {/* The trail and note controls are part of the page: they start level
                   with the sidebar button, the trail just past it, but scroll
                   away with the text rather than floating over it, so they need
-                  no backdrop. The star keeps a pale box of its own, and on a wide
+                  no backdrop. The controls share a pale box, and on a wide
                   screen that box sits as far in from the edge as the trail's text.
                   On a wide screen the trail only steps aside while the button is
                   there. */}
@@ -242,11 +243,33 @@ export function Workspace() {
                   }`}
                 >
                   {trail.length > 1 && <Breadcrumb trail={trail} onOpen={openPage} truncate={wide} />}
-                  <StarButton page={page} className="ml-auto rounded-md bg-sunken shadow-[var(--shadow-subtle)]" />
+                  {wide && (
+                    <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1 rounded-md bg-sunken shadow-[var(--shadow-subtle)]">
+                      <button
+                        type="button"
+                        aria-label="Add a subpage"
+                        title="Add a subpage"
+                        onClick={() => void createPage({ parentId: page.id }).then(openPage)}
+                        className="grid size-8 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-muted pointer-coarse:text-muted"
+                      >
+                        <Icon name="plus" size={18} strokeWidth={1.8} />
+                      </button>
+                      <StarButton page={page} className="rounded-md" />
+                      <button
+                        type="button"
+                        aria-label={`Move ${page.title || 'Untitled'} to trash`}
+                        title="Move to trash"
+                        onClick={() => void trashPage(page.id)}
+                        className="grid size-8 shrink-0 place-items-center rounded-md text-faint transition-colors hover:bg-[var(--hover)] hover:text-danger pointer-coarse:text-muted"
+                      >
+                        <Icon name="trash" size={18} strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {/* The trash takes the same row: its count where the trail would
-                  be, and the button to empty it where the star would be. */}
+                  be, and the button to empty it where the note controls would be. */}
               {!page && view === 'trash' && (
                 <div
                   className={`float-top pointer-events-none absolute left-2 z-10 flex min-w-0 items-center gap-2 ${wide ? 'right-4' : 'right-2'} ${
