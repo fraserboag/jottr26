@@ -35,10 +35,11 @@ import type { SubpagesOptions } from './extensions/subpages'
  *
  *  The three dots beside it hold the block's own settings, so far only its
  *  depth. At a depth of two, each child becomes a heading with its own
- *  children listed under it; a child with none still gets its heading, so it
- *  stays in reach, with nothing under it. A heading has the sidebar's plus as
- *  well as its actions, for a new subpage under it; the entries below don't, as
- *  what they'd add would sit a level deeper than the list shows. Dragging there
+ *  children listed under it, folded with the chevron beside its actions. A
+ *  child with none still gets its heading, so it stays in reach, with nothing
+ *  under it. A heading has the sidebar's plus as well as its actions, for a
+ *  new subpage under it; the entries below don't, as what they'd add would
+ *  sit a level deeper than the list shows. Dragging there
  *  also moves a page between headings, as the sidebar does. Headings drag
  *  too, carrying their subpages with them. On either a heading or an entry,
  *  the edges reorder and the middle nests; the middle of a heading is also
@@ -57,6 +58,7 @@ export function isListControl(target: Element) {
 export function SubpageList({ editor, extension, node, getPos, updateAttributes }: ReactNodeViewProps) {
   const { pageId } = extension.options as SubpagesOptions
   const depth = node.attrs.depth === 2 ? 2 : 1
+  const collapsedIds = node.attrs.collapsedIds as string[]
   const pages = useChildPages(pageId)
   const groups = useGrandchildPages(pageId, depth === 2)
   const [, openPage] = useOpenPageId()
@@ -106,6 +108,12 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
     // The sidebar is left as it was: which of its branches are open is the
     // user's to decide there, not something the editor changes.
     void createPage({ parentId }).then(openPage)
+  }
+
+  const toggleGroup = (id: string) => {
+    updateAttributes({
+      collapsedIds: collapsedIds.includes(id) ? collapsedIds.filter((value) => value !== id) : [...collapsedIds, id],
+    })
   }
 
   const end = () => {
@@ -232,6 +240,21 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                   {page.title || 'Untitled'}
                 </a>
                 <span className="subpages-row-actions">
+                  {children.length > 0 && (
+                    <button
+                      type="button"
+                      aria-label={`${collapsedIds.includes(page.id) ? 'Expand' : 'Collapse'} subpages of ${page.title || 'Untitled'}`}
+                      aria-expanded={!collapsedIds.includes(page.id)}
+                      title={collapsedIds.includes(page.id) ? 'Expand subpages' : 'Collapse subpages'}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleGroup(page.id)
+                      }}
+                      className="grid size-6 touch-manipulation place-items-center rounded-md text-faint transition-colors hover:bg-[var(--active)] hover:text-muted active:bg-[var(--active)] pointer-coarse:text-muted"
+                    >
+                      <Icon name={collapsedIds.includes(page.id) ? 'chevronRight' : 'chevronDown'} size={16} strokeWidth={2} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     aria-label="Add a subpage"
@@ -246,7 +269,7 @@ export function SubpageList({ editor, extension, node, getPos, updateAttributes 
                   <PageActions page={page} />
                 </span>
               </div>
-              {children.length > 0 && <ul>{children.map((child) => entry(child.page))}</ul>}
+              {children.length > 0 && !collapsedIds.includes(page.id) && <ul>{children.map((child) => entry(child.page))}</ul>}
             </div>
           ))
         ) : (

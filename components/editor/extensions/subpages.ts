@@ -13,9 +13,10 @@ import {
  *  set to a depth of two, the pages two levels down, grouped under the child
  *  each one sits in.
  *
- *  The node holds its heading, written like any other line, and that depth: a
- *  setting of this block's, not a copy of anything. Which pages sit under this
- *  one is page metadata, already synced on its own, so the list is read from
+ *  The node holds its heading, written like any other line, that depth, and
+ *  which groups are folded: settings of this block's, not copies of anything.
+ *  Which pages sit under this one is page metadata, already synced on its
+ *  own, so the list is read from
  *  the local database on each device and drawn by a node view. Writing it into
  *  the document would put a copy of that metadata in the CRDT, where two
  *  devices would take turns overwriting a list neither of them typed. It also
@@ -143,6 +144,12 @@ export const Subpages = Node.create<SubpagesOptions>({
         default: 1,
         parseHTML: (element) => (element.getAttribute('data-depth') === '2' ? 2 : 1),
         renderHTML: (attributes) => ({ 'data-depth': String(attributes.depth) }),
+      },
+      collapsedIds: {
+        default: [],
+        parseHTML: (element) => (element.getAttribute('data-collapsed-ids') ?? '').split(' ').filter(Boolean),
+        renderHTML: (attributes) =>
+          attributes.collapsedIds.length ? { 'data-collapsed-ids': attributes.collapsedIds.join(' ') } : {},
       },
     }
   },

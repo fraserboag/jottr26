@@ -74,7 +74,7 @@ describe('subpage list', () => {
     assert.equal(title.attrs.title, false)
     assert.equal(title.textContent, 'Subpages')
     assert.deepEqual(title.firstChild!.marks.map((mark) => mark.type.name), ['bold'])
-    assert.deepEqual({ ...node.attrs }, { depth: 1 })
+    assert.deepEqual({ ...node.attrs }, { depth: 1, collapsedIds: [] })
   })
 
   it('switches its heading between text and a Title, staying a subpage list', () => {
