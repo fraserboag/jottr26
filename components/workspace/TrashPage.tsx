@@ -35,22 +35,30 @@ export function TrashBar({ pages }: { pages: PageRow[] }) {
         Empty trash
       </button>
       {confirming && (
-        <ConfirmDialog
-          title="Empty trash?"
-          description={`Permanently delete ${count(pages.length)}? This cannot be undone.`}
-          confirmLabel="Empty trash"
-          onConfirm={() => emptyTrash([...new Set(pages.map((page) => page.workspaceId))])}
-          onClose={() => setConfirming(false)}
-        />
+        <EmptyTrashDialog pages={pages} onClose={() => setConfirming(false)} />
       )}
     </>
+  )
+}
+
+/** Shared by the Trash view and command palette, with the same page scope. */
+export function EmptyTrashDialog({ pages, onClose }: { pages: PageRow[]; onClose: () => void }) {
+  return (
+    <ConfirmDialog
+      title="Empty trash?"
+      description={`Permanently delete ${count(pages.length)}? This cannot be undone.`}
+      confirmLabel="Empty trash"
+      onConfirm={() => emptyTrash([...new Set(pages.map((page) => page.workspaceId))])}
+      onClose={onClose}
+    />
   )
 }
 
 /** Laid out like a note: the same title, then the trashed pages where the body
  *  would be. It sits in the page's column, so it takes the page's padding. */
 export function TrashPage({ pages }: { pages: PageRow[] }) {
-  const { active, workspaces } = useNoteWorkspaces()
+  const { workspaces } = useNoteWorkspaces()
+  const restore = useRestoreTrashedPage()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const showWorkspaceNames = new Set(pages.map((page) => page.workspaceId)).size > 1
@@ -62,14 +70,6 @@ export function TrashPage({ pages }: { pages: PageRow[] }) {
     try { await work() } catch (error) { setError(error instanceof Error ? error.message : 'Could not update Trash.') }
     finally { setBusy(false) }
   }
-  const resolveName = async (id: string) => {
-    const workspace = workspaces.find((row) => row.id === id)
-    if (!workspace?.deletedAt || !active.some((row) => row.name.toLocaleLowerCase() === workspace.name.toLocaleLowerCase())) return true
-    const name = window.prompt('A space with this name already exists. Restore this space as:', `${workspace.name} (restored)`)
-    if (name === null) return false
-    await updateWorkspace(id, { name }, true)
-    return true
-  }
   return (
     <>
       <h1 className="page-title">Trash</h1>
@@ -78,13 +78,26 @@ export function TrashPage({ pages }: { pages: PageRow[] }) {
         pages={pages}
         busy={busy}
         labelFor={showWorkspaceNames ? (page) => workspaces.find((row) => row.id === page.workspaceId)?.name : undefined}
-        onRestore={(page) => void run(async () => {
-          if (await resolveName(page.workspaceId)) await restorePage(page.id)
-        })}
+        onRestore={(page) => void run(() => restore(page))}
       />
 
     </>
   )
+}
+
+/** Both restore entry points resolve a deleted space's name in the same way. */
+export function useRestoreTrashedPage() {
+  const { active, workspaces } = useNoteWorkspaces()
+  return async (page: PageRow) => {
+    const workspace = workspaces.find((row) => row.id === page.workspaceId)
+    if (workspace?.deletedAt && active.some((row) => row.name.toLocaleLowerCase() === workspace.name.toLocaleLowerCase())) {
+      const name = window.prompt('A space with this name already exists. Restore this space as:', `${workspace.name} (restored)`)
+      if (name === null) return false
+      await updateWorkspace(workspace.id, { name }, true)
+    }
+    await restorePage(page.id)
+    return true
+  }
 }
 
 function TrashedPages({ pages, onRestore, busy, labelFor }: {

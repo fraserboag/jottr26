@@ -24,12 +24,16 @@ export function Sidebar({
   onOpen,
   view,
   onOpenView,
+  onOpenPalette,
+  commandShortcut,
 }: {
   pages: PageRow[]
   openId: string | null
   onOpen: (id: string | null) => void
   view: View | null
   onOpenView: (view: View) => void
+  onOpenPalette: () => void
+  commandShortcut: string
 }) {
   const { active, selectedId, inline, select } = useNoteWorkspaces()
   const [error, setError] = useState('')
@@ -147,6 +151,13 @@ export function Sidebar({
 
       <footer className="flex flex-col border-t border-line px-3 pt-[13px] pb-[max(13px,env(safe-area-inset-bottom))]">
         <SidebarAction
+          icon="search"
+          label="Search"
+          current={false}
+          onClick={onOpenPalette}
+          shortcut={commandShortcut}
+        />
+        <SidebarAction
           icon="settings"
           label="Settings"
           current={view === 'settings'}
@@ -194,17 +205,22 @@ function SidebarAction({
   label,
   current,
   onClick,
+  shortcut,
 }: {
   icon: IconName
   label: string
   current: boolean
   onClick: () => void
+  shortcut?: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={current ? 'page' : undefined}
+      title={shortcut ? `Search pages and commands (${shortcut})` : undefined}
+      aria-keyshortcuts={shortcut ? 'Meta+K Control+K' : undefined}
+      aria-haspopup={shortcut ? 'dialog' : undefined}
       // Spaced as the page rows above are, the icon in the same slot. The
       // footer is a column, so the margins add up to the rows' 2px gap.
       className={`my-px flex w-full items-center gap-1.5 rounded-md py-1 pl-1.5 pr-1 text-[14.5px] text-muted transition-colors pointer-coarse:text-[16px] ${
@@ -215,6 +231,7 @@ function SidebarAction({
         <Icon name={icon} size={15} className="text-muted" />
       </span>
       <span className="flex-1 text-left">{label}</span>
+      {shortcut && <kbd className="pr-1 font-sans text-[11.5px] text-faint pointer-coarse:hidden" aria-hidden="true">{shortcut}</kbd>}
     </button>
   )
 }

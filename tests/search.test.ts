@@ -5,11 +5,11 @@ import type { PageRow } from '@/lib/db/schema'
 
 installBrowserGlobals()
 
-const { searchPages } = await import('@/lib/db/search')
+const { searchPages, searchWorkspace } = await import('@/lib/db/search')
 const { openDatabase, closeDatabase } = await import('@/lib/db/dexie')
 const { createPage, deleteForever, refreshDerived } = await import('@/lib/db/pages')
-const { moveSearchTexts, readSearchTexts } = await import('@/lib/db/searchText')
-const { readEditedTimes } = await import('@/lib/db/editedAt')
+const { moveSearchTexts, observeSearchIndex, readSearchTexts, writeSearchText } = await import('@/lib/db/searchText')
+const { readEditedTimes, writeEditedAt } = await import('@/lib/db/editedAt')
 const { openDoc, releaseAll, whenPersisted, DOC_FIELD } = await import('@/lib/db/ydoc')
 const Y = await import('yjs')
 
@@ -84,10 +84,60 @@ describe('searchPages', () => {
   })
 })
 
+describe('combined note and space search', () => {
+  it('keeps an exact note match ahead of three partially matching spaces and newer note prefixes', () => {
+    const notes = [page('budget', 'Budget', '', 1), page('plans', 'Budget plans', '', 100)]
+    const spaces = [
+      { id: 'work', name: 'Budget work' },
+      { id: 'home', name: 'Home budget' },
+      { id: 'archive', name: 'Budget archive' },
+    ]
+    const results = searchWorkspace(notes, spaces, ' BUDGET ', texts)
+    assert.equal(results.length, 3)
+    assert.equal(results[0].kind, 'page')
+    assert.equal(results[0].kind === 'page' && results[0].page.id, 'budget')
+  })
+
+  it('puts an exact space match first and keeps note body matches behind name matches', () => {
+    const notes = [page('partial', 'My travel plans'), page('body', 'Packing', 'travel checklist')]
+    const results = searchWorkspace(notes, [{ id: 'travel', name: 'Travel' }], 'travel', texts)
+    assert.deepEqual(results.map((hit) => hit.kind === 'space' ? hit.space.id : hit.page.id), ['travel', 'partial', 'body'])
+    assert.deepEqual(searchWorkspace(notes, [{ id: 'travel', name: 'Travel' }], '  ', texts), [])
+  })
+})
+
 describe('page text for search', () => {
   after(() => {
     releaseAll()
     closeDatabase()
+  })
+
+  it('updates an active search when text and edit times arrive after it opened', { timeout: 2000 }, async () => {
+    const db = openDatabase('search-observe')
+    type Index = { texts: Map<string, string>; edited: Map<string, number> }
+    let receive: ((index: Index) => void) | undefined
+    let fail: ((error: unknown) => void) | undefined
+    const nextIndex = () => new Promise<Index>((resolve, reject) => { receive = resolve; fail = reject })
+    const initial = nextIndex()
+    const subscription = observeSearchIndex(db).subscribe({
+      next: (index) => receive?.(index), error: (error) => fail?.(error),
+    })
+    try {
+      const notes = [page('live', 'Plans')]
+      const first = await initial
+      assert.deepEqual(searchPages(notes, 'fresh body', first.texts, first.edited), [])
+      const changed = nextIndex()
+      await db.transaction('rw', db.meta, async () => {
+        await writeSearchText(db, 'live', 'The fresh body text is now indexed')
+        await writeEditedAt(db, 'live', 10)
+      })
+      const latest = await changed
+      assert.notEqual(latest.texts, first.texts)
+      assert.equal(latest.edited.get('live'), 10)
+      assert.equal(searchPages(notes, 'fresh body', latest.texts, latest.edited)[0]?.page.id, 'live')
+    } finally {
+      subscription.unsubscribe()
+    }
   })
 
   it('moves text off page rows an older build wrote, once, keeping any newer copy', async () => {

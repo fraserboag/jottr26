@@ -4,8 +4,8 @@ import type { PageRow } from './schema'
 /** When this device last typed in each page, kept in `meta` rather than on its
  *  page row. It moves on every pause in typing, and on the row that woke the
  *  sidebar's query of every page each time, to read it all again for a value
- *  it never draws. Only the link picker
- *  reads these. Local only, and never synced. */
+ *  it never draws. Search pickers read these while they are in use.
+ *  Local only, and never synced. */
 const PREFIX = 'edited:'
 
 export const editedKey = (pageId: string) => `${PREFIX}${pageId}`

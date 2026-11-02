@@ -241,6 +241,27 @@ body {
   }
 }
 
+/* Keep the palette inside the screen above a phone's keyboard. Its viewport
+   variables follow visualViewport, including Safari's vertical panning. */
+.command-palette {
+  --palette-top-inset: max(1rem, env(safe-area-inset-top));
+  --palette-side-inset: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  top: calc(var(--palette-viewport-top, 0px) + var(--palette-top-inset));
+  width: calc(100% - var(--palette-side-inset) * 2);
+  max-height: min(620px, calc(var(--palette-viewport-height, 100dvh) - var(--palette-top-inset) - max(1rem, env(safe-area-inset-bottom))));
+}
+
+.command-palette input:focus {
+  outline: none;
+}
+
+@media (min-width: 640px) and (pointer: fine) {
+  .command-palette {
+    --palette-top-inset: calc(var(--palette-viewport-height, 100dvh) * 0.12);
+    max-height: min(620px, calc(var(--palette-viewport-height, 100dvh) * 0.72));
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Editor
    --------------------------------------------------------------------------- */

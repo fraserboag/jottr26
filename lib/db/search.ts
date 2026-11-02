@@ -1,9 +1,21 @@
 import { lastTouched, type EditedTimes } from './editedAt'
-import type { PageRow } from './schema'
+import type { NoteWorkspaceRow, PageRow } from './schema'
 
 export interface Hit {
   page: PageRow
   snippet: string | null
+}
+
+export type WorkspaceHit =
+  | ({ kind: 'page' } & Hit)
+  | { kind: 'space'; space: Pick<NoteWorkspaceRow, 'id' | 'name'> }
+
+function nameScore(name: string, query: string) {
+  const value = name.toLowerCase()
+  if (value === query) return 4
+  if (value.startsWith(query)) return 3
+  if (value.includes(query)) return 2
+  return 0
 }
 
 /** Page ids to their search text, as searchText.ts reads them. */
@@ -46,13 +58,9 @@ export function searchPages(
 
   const scored: Array<{ hit: Hit; score: number }> = []
   for (const page of pages) {
-    const title = (page.title || 'Untitled').toLowerCase()
-
-    let score = -1
-    if (title.startsWith(q)) score = 3
-    else if (title.includes(q)) score = 2
-    else if (lowerBody(texts, page.id).includes(q)) score = 1
-    if (score < 0) continue
+    let score = nameScore(page.title || 'Untitled', q)
+    if (!score && lowerBody(texts, page.id).includes(q)) score = 1
+    if (!score) continue
 
     let snippet: string | null = null
     if (score === 1) {
@@ -67,4 +75,30 @@ export function searchPages(
     .sort((a, b) => b.score - a.score || touched(b.hit.page) - touched(a.hit.page))
     .slice(0, 30)
     .map((entry) => entry.hit)
+}
+
+/** One ranking for both kinds of navigation result. Exact names win over
+ *  prefixes, partial names, and body text before applying the shared limit. */
+export function searchWorkspace(
+  pages: PageRow[],
+  spaces: readonly Pick<NoteWorkspaceRow, 'id' | 'name'>[],
+  query: string,
+  texts: SearchTexts = new Map(),
+  edited: EditedTimes = new Map(),
+  limit = 3,
+): WorkspaceHit[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const matches: { hit: WorkspaceHit; score: number }[] = []
+  for (const space of spaces) {
+    const score = nameScore(space.name, q)
+    if (score) matches.push({ hit: { kind: 'space', space }, score })
+  }
+  for (const hit of searchPages(pages, q, texts, edited)) {
+    matches.push({
+      hit: { kind: 'page', ...hit },
+      score: hit.snippet === null ? nameScore(hit.page.title || 'Untitled', q) : 1,
+    })
+  }
+  return matches.sort((a, b) => b.score - a.score).slice(0, limit).map(({ hit }) => hit)
 }

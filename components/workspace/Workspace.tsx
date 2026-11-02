@@ -1,10 +1,11 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { Breadcrumb } from './Breadcrumb'
+import { CommandPalette } from './CommandPalette'
 import { EditorError } from './EditorError'
 import { EmptyState } from './EmptyState'
 import { EnsureFirstPage } from './EnsureFirstPage'
@@ -13,7 +14,7 @@ import { NoteWorkspacesContext, useNoteWorkspaceState } from './NoteWorkspacesCo
 import { SettingsBar, SettingsPage } from './SettingsPage'
 import { Sidebar } from './Sidebar'
 import { StarButton } from './StarButton'
-import { TrashBar, TrashPage } from './TrashPage'
+import { EmptyTrashDialog, TrashBar, TrashPage } from './TrashPage'
 import { useWorkspace } from './WorkspaceProvider'
 import { usePageTrail, useEntryFromAbove } from './pageTrail'
 import { useSidebarDrawer } from './useSidebarDrawer'
@@ -64,6 +65,25 @@ export function Workspace() {
   }, [trashed, activeIds, noteWorkspaces.workspaces, noteWorkspaces.inline, noteWorkspaces.selectedId])
   const { wide, sidebarOpen, setSidebarOpen, afterDrawerShuts } = useSidebarDrawer()
   const { width, dragging, startResize, endResize } = useSidebarResize()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [confirmingEmptyTrash, setConfirmingEmptyTrash] = useState(false)
+  const [commandShortcut] = useState(() => /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? '⌘K' : 'Ctrl K')
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat || event.altKey || event.shiftKey) return
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return
+      // Leave confirmations and other modal work in control of their keys.
+      if (document.querySelector('dialog[open]:not([data-command-palette]), [role="alertdialog"]')) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (document.querySelector('[data-command-palette][aria-busy="true"]')) return
+      setPaletteOpen((open) => !open)
+    }
+    // Capture also works while typing in the editor or another search field.
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [])
 
   useEffect(() => listenForMouseHistory(window), [])
 
@@ -117,6 +137,26 @@ export function Workspace() {
     },
     [open, afterDrawerShuts],
   )
+
+  useEffect(() => {
+    if (!page) return
+    const apple = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat || event.shiftKey || event.key !== 'ArrowUp') return
+      const modifier = apple
+        ? event.metaKey && !event.ctrlKey && !event.altKey
+        : event.altKey && !event.ctrlKey && !event.metaKey
+      if (!modifier || document.querySelector('dialog[open], [role="dialog"], [role="alertdialog"]')) return
+      event.preventDefault()
+      event.stopPropagation()
+      const parent = page.parentId ? byId.get(page.parentId) : undefined
+      openPage(parent?.id ?? null)
+      if (!parent) setSidebarOpen(true)
+    }
+    // Capture keeps navigation available while typing in the note.
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [page, byId, openPage, setSidebarOpen])
 
   const showView = useCallback(
     (next: View) => afterDrawerShuts(() => openView(next)),
@@ -178,6 +218,8 @@ export function Workspace() {
                 onOpen={openPage}
                 view={view}
                 onOpenView={showView}
+                onOpenPalette={() => setPaletteOpen(true)}
+                commandShortcut={commandShortcut}
               />
             </div>
           </div>
@@ -326,6 +368,20 @@ export function Workspace() {
             <EmptyState />
           )}
         </main>
+        {paletteOpen && (
+          <CommandPalette
+            pages={activePages}
+            page={page}
+            trashedPages={visibleTrash}
+            onOpen={openPage}
+            onOpenView={showView}
+            onEmptyTrash={() => setConfirmingEmptyTrash(true)}
+            onClose={() => setPaletteOpen(false)}
+          />
+        )}
+        {confirmingEmptyTrash && (
+          <EmptyTrashDialog pages={visibleTrash} onClose={() => setConfirmingEmptyTrash(false)} />
+        )}
       </div>
     </PagesContext.Provider>
     </NoteWorkspacesContext.Provider>

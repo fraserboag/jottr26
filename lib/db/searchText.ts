@@ -1,11 +1,13 @@
 import { readMeta, writeMeta, type JottrDB } from './dexie'
+import { liveQuery } from 'dexie'
+import { readEditedTimes } from './editedAt'
 import type { PageRow } from './schema'
 
 /** Each page's flattened text for search, kept in `meta` rather than on its
  *  page row. The sidebar reads every row each time typing pauses, and 8,000
  *  characters a page it never draws made that read a copy of every note. Only
- *  the link picker reads these, once as it opens. Derived from the document
- *  and never synced. */
+ *  search pickers read these; the command palette watches them while open.
+ *  Derived from the document and never synced. */
 const PREFIX = 'search:'
 const MOVED = 'searchTextMoved'
 
@@ -20,6 +22,15 @@ export async function writeSearchText(db: JottrDB, pageId: string, text: string)
 export async function readSearchTexts(db: JottrDB): Promise<Map<string, string>> {
   const rows = await db.meta.where('key').startsWith(PREFIX).toArray()
   return new Map(rows.map((row) => [row.key.slice(PREFIX.length), String(row.value)]))
+}
+
+/** Watches just the search and edit-time metadata, without making document
+ *  updates wake the sidebar's page query. New maps also refresh search's cache. */
+export function observeSearchIndex(db: JottrDB) {
+  return liveQuery(async () => {
+    const [texts, edited] = await Promise.all([readSearchTexts(db), readEditedTimes(db)])
+    return { texts, edited }
+  })
 }
 
 export async function forgetSearchTexts(db: JottrDB, pageIds: string[]) {
