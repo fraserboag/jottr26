@@ -69,6 +69,40 @@ describe('accordion block', () => {
     assert.equal(run(start, makeAccordion()).applied, false)
   })
 
+  it('inserts a blank line above on Enter at the start of its heading, keeping the caret with the heading', () => {
+    for (const open of [true, false]) {
+      for (const title of [true, false]) {
+        const block = schema.node('accordion', { open }, [
+          schema.node('accordionTitle', { title }, schema.text('Details', [schema.marks.bold.create()])),
+          schema.node('accordionBody', null, [paragraph('keep this')]),
+        ])
+        const start = page(paragraph(), block, paragraph('after'))
+        const at = caretAt(start, inside(start, 'accordionTitle'))
+        const { state, applied } = run(at, enterAccordionBody())
+        assert.equal(applied, true)
+        state.doc.check()
+        assert.deepEqual(outline(state), ['title', 'paragraph', 'paragraph', 'accordion', 'paragraph'])
+        assert.equal(state.doc.child(2).content.size, 0, 'a new blank line, even with one already above')
+        assert.ok(state.doc.child(3).eq(block), 'heading, body and folding stay intact')
+        assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+        assert.equal(state.selection.$from.parentOffset, 0)
+        assert.equal(state.selection.from, at.selection.from + 2)
+      }
+    }
+  })
+
+  it('keeps the new line inside the surrounding box', () => {
+    const block = accordion('Details')
+    const start = page(schema.node('callout', null, [block]))
+    const { state, applied } = run(caretAt(start, inside(start, 'accordionTitle')), enterAccordionBody())
+    assert.equal(applied, true)
+    state.doc.check()
+    assert.deepEqual(outline(state), ['title', 'callout'])
+    assert.equal(state.doc.child(1).child(0).type.name, 'paragraph')
+    assert.ok(state.doc.child(1).child(1).eq(block))
+    assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+  })
+
   it('steps over a folded box on Enter in its heading, onto a new line below', () => {
     const start = page(accordion('Details', [paragraph('already here')], false), paragraph('next'))
     const at = caretAt(start, inside(start, 'accordionTitle', 7))
@@ -98,7 +132,7 @@ describe('accordion block', () => {
 
   it('uses the empty line a new box already has', () => {
     const start = page(accordion('Details'))
-    const at = caretAt(start, inside(start, 'accordionTitle'))
+    const at = caretAt(start, inside(start, 'accordionTitle', 'Details'.length))
     const { state } = run(at, enterAccordionBody())
     assert.equal(state.doc.child(1).child(1).childCount, 1)
   })
@@ -407,6 +441,24 @@ function bullets(...items: Node[][]) {
 }
 
 describe('accordion as a list item', () => {
+  it('inserts an empty item above on Enter at the start of its heading, keeping its nested items', () => {
+    for (const type of ['bulletList', 'orderedList']) {
+      const item = schema.node('listItem', null, [accordion('Details'), bullets([paragraph('child')])])
+      const start = page(schema.node(type, null, [item]))
+      const at = caretAt(start, inside(start, 'accordionTitle'))
+      const { state, applied } = run(at, enterAccordionBody())
+      assert.equal(applied, true)
+      state.doc.check()
+      const list = state.doc.child(1)
+      assert.equal(list.childCount, 2)
+      assert.ok(list.child(0).eq(schema.node('listItem', null, [paragraph()])))
+      assert.ok(list.child(1).eq(item))
+      assert.equal(state.selection.$from.parent.type.name, 'accordionTitle')
+      assert.equal(state.selection.$from.parentOffset, 0)
+      assert.equal(state.selection.$from.node(-2), list.child(1))
+    }
+  })
+
   it('turns the first line of an item into an accordion', () => {
     const start = page(bullets([paragraph('one')]))
     const { state, applied } = run(start, makeAccordion())

@@ -109,6 +109,28 @@ describe('subpage list', () => {
     assert.deepEqual(title.firstChild!.marks.map((mark) => mark.type.name), ['bold'])
   })
 
+  it('inserts a blank line above on Enter at the start of its heading, keeping the caret with the heading', () => {
+    for (const title of [true, false]) {
+      const block = subpages()
+      block.attrs = { depth: 2, collapsedIds: ['child'] }
+      block.content![0].attrs = { title }
+      block.content![0].content![0].marks = [{ type: 'bold' }]
+      const instance = editor([paragraph(), block, paragraph('After')], 0)
+      inTitle(instance, 1)
+      const before = instance.state.doc.child(1)
+      const pos = instance.state.selection.from
+      assert.equal(instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch)), true)
+      instance.state.doc.check()
+      assert.deepEqual(blockTypes(instance), ['paragraph', 'paragraph', 'subpages', 'paragraph'])
+      assert.equal(instance.state.doc.child(1).content.size, 0, 'a new blank line, even with one already above')
+      assert.ok(instance.state.doc.child(2).eq(before), 'heading and list settings stay intact')
+      assert.equal(instance.state.selection.$from.parent.type.name, 'subpagesTitle')
+      assert.equal(instance.state.selection.$from.parentOffset, 0)
+      assert.equal(instance.state.selection.from, pos + 2)
+      instance.destroy()
+    }
+  })
+
   it('goes on to the line below on Enter, rather than splitting the heading', () => {
     const instance = editor([paragraph('Intro'), subpages(), paragraph('After')], 0)
     inTitle(instance, 1, 3)
@@ -134,7 +156,7 @@ describe('subpage list', () => {
       content: [{ type: 'listItem', content: [paragraph('milk')] }, { type: 'listItem', content: [paragraph('eggs')] }],
     }
     const instance = editor([subpages(), list], 0)
-    inTitle(instance, 0)
+    inTitle(instance, 0, 'Subpages'.length)
     instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
     assert.ok(instance.state.selection.empty)
     assert.equal(instance.state.selection.$from.parent.textContent, 'milk')
@@ -142,14 +164,14 @@ describe('subpage list', () => {
 
   it('selects a divider below on Enter, having no line to go into', () => {
     const instance = editor([subpages(), { type: 'horizontalRule' }, paragraph('After')], 0)
-    inTitle(instance, 0)
+    inTitle(instance, 0, 'Subpages'.length)
     instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
     assert.equal((instance.state.selection as NodeSelection).node?.type.name, 'horizontalRule')
   })
 
   it('makes a line to go on to on Enter at the foot of a page', () => {
     const instance = editor([paragraph('Intro'), subpages()], 0)
-    inTitle(instance, 1)
+    inTitle(instance, 1, 'Subpages'.length)
     instance.commands.command(({ state, dispatch }) => leaveSubpagesTitle()(state, dispatch))
     assert.deepEqual(blockTypes(instance), ['paragraph', 'subpages', 'paragraph'])
     assert.equal(instance.state.selection.$from.index(0), 2)

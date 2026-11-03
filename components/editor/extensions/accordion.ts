@@ -13,6 +13,7 @@ import {
   backspaceHeading,
   isBlankBody,
   isEmptyParagraph,
+  newLineBeforeHeading,
   openLineAt,
   pm,
   removeBlockToAbove,
@@ -147,7 +148,8 @@ export function newLineAfter(tr: Transaction, after: number) {
   return true
 }
 
-/** Enter, in a heading: down into the box, onto a fresh line of its own.
+/** Enter at the start of a heading: a blank line above the accordion.
+ *  Elsewhere in the heading: down into the box, onto a fresh line of its own.
  *
  *  The same thing Enter does in the page title, for the same reason — the
  *  heading names what comes next, so Enter goes to write it. A folded box is
@@ -159,6 +161,7 @@ export function enterAccordionBody(): Command {
   return replacingSelection((state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== ACCORDION_TITLE) return false
+    if (newLineBeforeHeading(state, dispatch)) return true
 
     const accordion = $from.node(-1)
     if (!accordion.attrs.open) {

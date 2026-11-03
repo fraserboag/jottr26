@@ -2,6 +2,7 @@ import { mergeAttributes, Node } from '@tiptap/core'
 import { NodeSelection, Selection, TextSelection, type Command, type Transaction } from '@tiptap/pm/state'
 import {
   backspaceHeading,
+  newLineBeforeHeading,
   pm,
   removeBlockToAbove,
   replaceWithEmptyLine,
@@ -67,13 +68,15 @@ function caretAfter(tr: Transaction, after: number) {
   return tr.scrollIntoView()
 }
 
-/** Enter, in the heading: onto the line below the list. The heading is the
- *  block's only line, so there is nothing to split it into, and the list under
- *  it is not written in. Over selected words, the words go first. */
+/** Enter at the start of the heading: a blank line above the list.
+ *  Elsewhere: onto the line below the list. The heading is the block's only
+ *  line, so there is nothing to split it into, and the list under it is not
+ *  written in. Over selected words, the words go first. */
 export function leaveSubpagesTitle(): Command {
   return replacingSelection((state, dispatch) => {
     const { $from, empty } = state.selection
     if (!empty || $from.parent.type.name !== SUBPAGES_TITLE) return false
+    if (newLineBeforeHeading(state, dispatch)) return true
     if (dispatch) dispatch(caretAfter(state.tr, $from.after(-1)))
     return true
   })

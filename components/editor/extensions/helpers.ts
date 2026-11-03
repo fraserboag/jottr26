@@ -128,6 +128,25 @@ export function backspaceHeading(
   }
 }
 
+/** Enter at the start of a block's own heading: a blank line before the
+ *  block, keeping the caret with the heading as a paragraph split does.
+ *  Where the block heads a list item, the blank line is a new item above. */
+export function newLineBeforeHeading(state: EditorState, dispatch: ((tr: Transaction) => void) | undefined) {
+  const { $from, empty } = state.selection
+  if (!empty || $from.parentOffset > 0) return false
+
+  const $before = state.doc.resolve($from.before(-1))
+  const firstInItem = $before.parent.type.name === 'listItem' && $before.index() === 0
+  const pos = firstInItem ? $from.before(-2) : $before.pos
+  const paragraph = state.schema.nodes.paragraph.create()
+  const line = firstInItem ? $before.parent.type.create($before.parent.attrs, paragraph) : paragraph
+  const $pos = state.doc.resolve(pos)
+  if (!$pos.parent.canReplaceWith($pos.index(), $pos.index(), line.type)) return false
+
+  if (dispatch) dispatch(state.tr.insert(pos, line).scrollIntoView())
+  return true
+}
+
 /** The caret onto the empty line at `pos`, or onto a new one put there when
  *  the block at `pos` is anything else. */
 export function openLineAt(state: EditorState, dispatch: ((tr: Transaction) => void) | undefined, pos: number) {
